@@ -1,0 +1,27 @@
+[
+  {
+    "id": "PO_IMPLEMENTATION",
+    "status": "in-progress",
+    "description": "Refactor Purchase Order Save and Auto-fill logic"
+  },
+  {
+    "id": "VALIDATION_LOGIC",
+    "status": "todo",
+    "description": "Update validation logic to require at least 1 item while making inner fields optional"
+  },
+  {
+    "id": "DESIGN_AUTOFILL",
+    "status": "todo",
+    "description": "Implement design code auto-fill logic in Purchase Order form"
+  },
+  {
+    "id": "IMAGE_PREVIEW",
+    "status": "todo",
+    "description": "Implement image preview carousel for selected items"
+  },
+  {
+    "id": "SAVE_NOTIFIER",
+    "status": "todo",
+    "description": "Update PurchaseOrderNotifier to handle actual API calls and loading states"
+  }
+]

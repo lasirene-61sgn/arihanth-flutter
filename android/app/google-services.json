@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "601146486892",
+    "project_id": "arihanth-1938c",
+    "storage_bucket": "arihanth-1938c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:601146486892:android:38f9cf3da2b85f6b1aa849",
+        "android_client_info": {
+          "package_name": "com.ajpl.arianth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1qU5l5aeEd1sn7hHlU4A-qYPeQFeKECA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
