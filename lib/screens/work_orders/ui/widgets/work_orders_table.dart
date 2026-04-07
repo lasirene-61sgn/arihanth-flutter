@@ -234,6 +234,7 @@ class WorkOrdersTable extends StatelessWidget {
                         Get.toNamed(AppRoutes.workOrdersAdd, arguments: id.toString());
                       },
                     ),
+                if (activeStatus != "New" && activeStatus != "All" || role?.toLowerCase() == 'super_admin')
                 IconButton(
                   icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
                   onPressed: () {

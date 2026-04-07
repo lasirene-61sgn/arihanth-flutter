@@ -203,7 +203,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primary),
                               )
-                            : IconButton(
+                            : (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin') ? IconButton(
                                 icon: Image.asset('assets/image/whatsapp.png', width: 18, height: 18),
                                 onPressed: _isSharing || _isIndividualSharing
                                     ? null
@@ -264,7 +264,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                       },
                                 constraints: const BoxConstraints(),
                                 padding: const EdgeInsets.all(4),
-                              ),
+                              ) : const SizedBox.shrink(),
                       ),
                     ),
                     if (widget.purchaseOrder.totalWeight != null)
@@ -513,6 +513,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                             ),
                           if (widget.role?.toLowerCase() != "craftsman")
                             const SizedBox(width: 10),
+                          if (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin')
                           SizedBox(
                             height: 28,
                             child: FormFeildCommonButton(

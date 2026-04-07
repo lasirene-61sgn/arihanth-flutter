@@ -383,9 +383,9 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                                 ? activeStatus == 'New'
                                 : true)
                               const SizedBox(width: 10),
-                          if (role?.toLowerCase() != "craftsman" ||
-                              (activeStatus != 'Allocated' &&
-                                  activeStatus != 'All'))
+                          if ((role?.toLowerCase() != "craftsman" ||
+                                  (activeStatus != 'Allocated' &&
+                                      activeStatus != 'All')) && (activeStatus != "New" && activeStatus != "All" || role?.toLowerCase() == 'super_admin'))
                             SizedBox(
                               height: 28,
                               child: FormFeildCommonButton(

@@ -168,7 +168,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
 
         actions: [
 
-          if (selectedIds.isNotEmpty)
+          if (selectedIds.isNotEmpty && (_activeStatus != "New" && _activeStatus != "Allocated" && _activeStatus != "All" || role?.toLowerCase() == 'super_admin'))
             _isBulkSharing
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
