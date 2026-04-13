@@ -10,13 +10,13 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     
     // Privacy Shield for App Switcher
-    NotificationCenter.default.addObserver(self, selector: #selector(applicationWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
-    NotificationCenter.default.addObserver(self, selector: #selector(applicationDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(handleAppResignActive), name: UIApplication.willResignActiveNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(handleAppBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  @objc func applicationWillResignActive() {
+  @objc func handleAppResignActive() {
     // Add a blur effect or a splash screen over the window
     let blurEffect = UIBlurEffect(style: .light)
     let blurEffectView = UIVisualEffectView(effect: blurEffect)
@@ -25,7 +25,7 @@ import UIKit
     window?.addSubview(blurEffectView)
   }
 
-  @objc func applicationDidBecomeActive() {
+  @objc func handleAppBecomeActive() {
     // Remove the blur effect
     window?.viewWithTag(12345)?.removeFromSuperview()
   }

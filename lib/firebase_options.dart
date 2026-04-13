@@ -8,7 +8,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError('iOS not configured');
+        return ios;
       default:
         throw UnsupportedError('Platform not supported');
     }
@@ -20,5 +20,14 @@ class DefaultFirebaseOptions {
     messagingSenderId: '601146486892', // Found in google-services.json -> project_number
     projectId: 'arihanth-1938c',       // Found in google-services.json -> project_id
     storageBucket: 'arihanth-1938c.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyA1a3U-l6V8iSp4tEYPOGAHsSX90lyvzgg',
+    appId: '1:601146486892:ios:212b1dfc5049eaf31aa849',
+    messagingSenderId: '601146486892',
+    projectId: 'arihanth-1938c',
+    storageBucket: 'arihanth-1938c.firebasestorage.app',
+    iosBundleId: 'com.ajpl.arihanth',
   );
 }

@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+// import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 
 class PdfRedactionService {
-  static final TextRecognizer _textRecognizer = TextRecognizer();
+  // static final TextRecognizer _textRecognizer = TextRecognizer();
 
   /// Redacts specific keywords or all text from an image of a PDF page.
   /// [imageBytes] The rendered image of the PDF page.
@@ -18,6 +18,10 @@ class PdfRedactionService {
     List<String> sensitiveKeywords, {
     bool redactAll = true, // Default to true as per latest user request "all hide"
   }) async {
+    // 🚩 SIMULATOR BYPASS: ML Kit is temporarily disabled for simulator compatibility
+    return imageBytes;
+
+    /*
     final Completer<ui.Image> completer = Completer();
     ui.decodeImageFromList(imageBytes, (ui.Image img) => completer.complete(img));
     final ui.Image originalImage = await completer.future;
@@ -111,6 +115,9 @@ class PdfRedactionService {
   }
 
   static void dispose() {
-    _textRecognizer.close();
+    // _textRecognizer.close();
+  }
+}
+*/
   }
 }
