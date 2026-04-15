@@ -12,6 +12,7 @@ class PurchaseOrder {
   final String? createdAt;
   final String? updatedAt;
   final String? totalWeight;
+  final String? size;
   final List<PurchaseItem>? items;
   final List<dynamic>? rejectedItems;
   final List<SimplePurchaseItem>? itemsWithImageUrls;
@@ -59,6 +60,7 @@ class PurchaseOrder {
     this.createdAt,
     this.updatedAt,
     this.totalWeight,
+    this.size,
     this.items,
     this.rejectedItems,
     this.itemsWithImageUrls,
@@ -95,6 +97,7 @@ class PurchaseOrder {
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
       totalWeight: weightStr,
+      size: json['size']?.toString(),
       items: parsedItems,
       rejectedItems: json['rejected_items'] != null && json['rejected_items'] is List
           ? List<dynamic>.from(json['rejected_items'])
@@ -114,7 +117,7 @@ class PurchaseOrder {
   Map<String, dynamic> toJson() {
     return {
       'due_date': dueDate,
-      'note': notes,
+      'notes': notes,
       'items': items?.map((x) => x.toJson()).toList(),
     };
   }
@@ -134,6 +137,7 @@ class PurchaseOrder {
     List<SimplePurchaseItem>? itemsWithImageUrls,
     List<dynamic>? rejectedItemsWithImageUrls,
     num? totalWeight,
+    String? size,
   }) {
     return PurchaseOrder(
       id: id ?? this.id,
@@ -152,6 +156,7 @@ class PurchaseOrder {
       totalWeight: totalWeight != null
           ? totalWeight.toString()
           : this.totalWeight,
+      size: size ?? this.size,
     );
   }
 }
@@ -174,6 +179,7 @@ class PurchaseItem {
   final String? designCode;   // Captures 'design_code'
   final String? categoryName;
   final String? subcategoryName;
+  final String? size;
 
   // Backward compatibility getters for UI
   int? get sNo => int.tryParse(productId ?? '0');
@@ -193,14 +199,14 @@ class PurchaseItem {
   num? get totalWeight => total;
   String? get notes => itemNotes;
 
-  // Robust image getter
+
   String? get imageUrl {
     if (directImageUrl != null && directImageUrl!.isNotEmpty) return directImageUrl;
     if (designData?.imageUrl != null) return designData!.imageUrl;
     if (product?.images != null && product!.images!.isNotEmpty) {
       return product!.images!.first.imageUrl;
     }
-    // Fallback to the 'image' field if it's a full URL
+
     if (image != null && (image!.startsWith('http') || image!.startsWith('https'))) {
       return image;
     }
@@ -225,6 +231,7 @@ class PurchaseItem {
     this.designCode,
     this.categoryName,
     this.subcategoryName,
+    this.size,
   });
 
   factory PurchaseItem.fromJson(Map<String, dynamic> json) {
@@ -242,7 +249,7 @@ class PurchaseItem {
       productId: json['product_id']?.toString(),
       category: json['category']?.toString(),
       subcategory: json['subcategory']?.toString(),
-      itemNotes: json['notes']?.toString(), // FIX: 'notes' instead of 'item_notes'
+      itemNotes: json['item_notes']?.toString(), // FIX: 'notes' instead of 'item_notes'
       grams: json['grams'] != null ? List<String>.from(json['grams'].map((x) => x.toString())) : null,
       quantity: json['quantity'] != null ? List<String>.from(json['quantity'].map((x) => x.toString())) : null,
       total: json['total'] is String ? num.tryParse(json['total']) : json['total'],
@@ -260,6 +267,7 @@ class PurchaseItem {
       designCode: json['design_code']?.toString(),
       categoryName: json['category_name']?.toString(),
       subcategoryName: json['subcategory_name']?.toString(),
+      size: json['item_size']?.toString(),
     );
   }
 
@@ -268,11 +276,12 @@ class PurchaseItem {
       'product_id': (productId == null || productId!.isEmpty) ? null : productId,
       'category': categoryName ?? category,
       'subcategory': subcategoryName ?? subcategory,
-      'notes': itemNotes,
+      'item_notes': itemNotes,
       'grams': grams,
       'quantity': quantity,
       'total_weight': total,
       'design_code': designText.isNotEmpty ? designText : null,
+      'item_size': size,
     };
   }
 }
@@ -291,6 +300,7 @@ class SimplePurchaseItem {
   final String? image;
   final String? status;
   final String? imageUrl;
+  final String? size;
 
   SimplePurchaseItem({
     this.productId,
@@ -305,6 +315,7 @@ class SimplePurchaseItem {
     this.image,
     this.status,
     this.imageUrl,
+    this.size,
   });
 
   factory SimplePurchaseItem.fromJson(Map<String, dynamic> json) {
@@ -312,7 +323,7 @@ class SimplePurchaseItem {
       productId: json['product_id']?.toString(),
       category: json['category']?.toString(),
       subcategory: json['subcategory']?.toString(),
-      itemNotes: json['notes']?.toString(), // FIX: 'notes' instead of 'item_notes'
+      itemNotes: json['item_notes']?.toString(), // FIX: 'notes' instead of 'item_notes'
       grams: json['grams'] != null ? List<String>.from(json['grams'].map((x) => x.toString())) : null,
       quantity: json['quantity'] != null ? List<String>.from(json['quantity'].map((x) => x.toString())) : null,
       totalWeight: json['total_weight']?.toString(),
@@ -321,6 +332,7 @@ class SimplePurchaseItem {
       image: json['image']?.toString(),
       status: json['status']?.toString(),
       imageUrl: json['image_url']?.toString(),
+      size: json['item_size']?.toString(),
     );
   }
 
@@ -338,6 +350,7 @@ class SimplePurchaseItem {
       'image': image,
       'status': status,
       'image_url': imageUrl,
+      'item_size': size,
     };
   }
 }

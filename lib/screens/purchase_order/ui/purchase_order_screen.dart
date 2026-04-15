@@ -494,9 +494,11 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
               imageUrl: item.image ?? item.imageUrl,
               title: item.productCategory ?? 'Purchase Order',
               bpCode: restricted ? null : selected.bpCode,
-              productCode: restricted ? null : selected.orderNumber,
+              productCode: selected.orderNumber,
               category: item.subCategory,
-              narration: restricted ? null : item.notes,
+              size: item.size,
+              narration: item.notes,
+              orderNote: selected.note,
               dueDate: sharedDueDate,
               gramsDetail: (item.grams != null && item.grams!.isNotEmpty)
                   ? List.generate(item.grams!.length, (i) {
@@ -656,10 +658,12 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
                           imageUrl: item.image ?? item.imageUrl,
                           title: item.productCategory ?? 'Purchase Order',
                           bpCode: restricted ? null : partner.bpCode,
-                          productCode: restricted ? null : partner.orderNumber,
+                          productCode: partner.orderNumber,
                           category: item.subCategory,
                           // weight: item.totalWeight?.toString(),
-                          narration: restricted ? null : item.notes,
+                          size: item.size,
+                          narration: item.notes,
+                          orderNote: partner.note,
                           dueDate: sharedDueDate,
                           gramsDetail: (item.grams != null && item.grams!.isNotEmpty)
                               ? List.generate(item.grams!.length, (i) {

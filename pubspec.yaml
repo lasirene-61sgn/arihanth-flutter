@@ -18,7 +18,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cached_network_image: 3.4.1
-  file_picker: ^5.0.0
+  file_picker: ^11.0.2
   flutter_riverpod:
   get:
   connectivity_plus:
@@ -31,7 +31,7 @@ dependencies:
   intl: ^0.20.2
   pdfx: ^2.5.0          # Used to render the PDF page to an image
   internet_file: ^1.2.0
-  # google_mlkit_text_recognition: ^0.15.1
+  google_mlkit_text_recognition:
   firebase_core:
   firebase_messaging:
   flutter_local_notifications:

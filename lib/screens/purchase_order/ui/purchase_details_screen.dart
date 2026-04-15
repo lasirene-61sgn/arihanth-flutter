@@ -143,6 +143,7 @@ class _PurchaseOrderDetailScreenState
                     _buildInfoRow("Customer BP", order.bpCode),
                   _buildInfoRow("Order Date", _formatDate(order.orderDate)),
                   _buildInfoRow("Total Weight", order.totalWeight),
+                  _buildInfoRow("Size", order.size),
                   _buildInfoRow("Due Date", _formatDate(order.dueDate)),
                   _buildInfoRow("Notes", order.note),
 
@@ -280,15 +281,13 @@ class _PurchaseOrderDetailScreenState
                                                             bpCode: restricted
                                                                 ? null
                                                                 : order.bpCode,
-                                                            productCode: restricted
-                                                                ? null
-                                                                : order.orderNumber,
+                                                            productCode: order.orderNumber,
                                                             category: item.subCategory,
                                                             weight: item.totalWeight
                                                                 ?.toString(),
-                                                            narration: restricted
-                                                                ? null
-                                                                : item.notes,
+                                                            size: item.size,
+                                                            narration: item.notes,
+                                                            orderNote: order.note,
                                                             dueDate: sharedDueDate,
                                                             orderDate: sharedOrderDate,
                                                             gramsDetail:
@@ -485,6 +484,7 @@ class _PurchaseOrderDetailScreenState
                                           ],
 
                                         _buildItemDetail("Notes", item.notes),
+                                        _buildItemDetail("Size", item.size),
                                         if (item.status == "rejected")
                                           Padding(
                                             padding: const EdgeInsets.only(top: 4),

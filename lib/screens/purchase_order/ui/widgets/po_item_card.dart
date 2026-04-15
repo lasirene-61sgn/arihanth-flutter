@@ -123,6 +123,10 @@ class POItemRow extends StatelessWidget {
           SizedBox(width: 80, child: _smallTextField(controller: itemData['totalWeightCtrl'], hint: 'Total', readOnly: true)),
           const SizedBox(width: colSpacing),
 
+          // Size Field
+          SizedBox(width: 80, child: _smallTextField(controller: itemData['sizeCtrl'], hint: 'Size')),
+          const SizedBox(width: colSpacing),
+
           // Notes Field
           Expanded(child: _smallTextField(controller: itemData['notesCtrl'], hint: 'Item notes...')),
           const SizedBox(width: colSpacing),
@@ -216,12 +220,21 @@ class POItemRow extends StatelessWidget {
             ),
 
             const SizedBox(height: 8),
-            // Total Weight (Mobile)
             Row(
               children: [
                 const Text("Total Weight: ", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColor.textPrimary)),
                 const SizedBox(width: 8),
                 SizedBox(width: 80, child: _smallTextField(controller: itemData['totalWeightCtrl'], hint: '0.00', readOnly: true)),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Size (Mobile)
+            Row(
+              children: [
+                const Text("Size: ", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColor.textPrimary)),
+                const SizedBox(width: 8),
+                SizedBox(width: 80, child: _smallTextField(controller: itemData['sizeCtrl'], hint: 'Size')),
               ],
             ),
             const SizedBox(height: 12),

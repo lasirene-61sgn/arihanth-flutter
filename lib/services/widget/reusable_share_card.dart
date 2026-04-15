@@ -23,6 +23,7 @@ class ShareCardItem {
   final String? size;
   final String? type;
   final String? narration;
+  final String? orderNote;
   final String? refNo;
   final String? dueDate;
   final String? orderDate;
@@ -52,6 +53,7 @@ class ShareCardItem {
     this.weight,
     this.size,
     this.narration,
+    this.orderNote,
     this.refNo,
     this.dueDate,
     this.orderDate,
@@ -85,6 +87,7 @@ extension ShareCardItemExtension on ShareCardItem {
       weight: weight,
       size: size,
       narration: narration,
+      orderNote: orderNote,
       refNo: refNo,
       dueDate: dueDate,
       orderDate: orderDate,
@@ -174,7 +177,7 @@ class ShareCardService {
       final parts = <String>[];
       if (item.title?.isNotEmpty == true) parts.add('📦 *${item.title}*');
       if (item.bpCode?.isNotEmpty == true) parts.add('BP Code: ${item.bpCode}');
-      if (item.productCode?.isNotEmpty == true) parts.add('Code: ${item.productCode}');
+      if (item.productCode?.isNotEmpty == true) parts.add('PO#: ${item.productCode}');
       if (item.category?.isNotEmpty == true) parts.add('Category: ${item.category}');
       if (item.refNo?.isNotEmpty == true) parts.add('Ref No: ${item.refNo}');
       if (item.quantity?.isNotEmpty == true) parts.add('Qty: ${item.quantity}');
@@ -183,7 +186,8 @@ class ShareCardService {
       if (item.size?.isNotEmpty == true) parts.add('Size: ${item.size}');
       if (item.dueDate?.isNotEmpty == true) parts.add('Due: ${item.dueDate}');
       if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
-      if (item.narration?.isNotEmpty == true) parts.add('Note: ${item.narration}');
+      if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
+      if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
       if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
 
       // 7. Open system share sheet (user can pick WhatsApp, email, etc.)
@@ -286,7 +290,7 @@ class ShareCardService {
         final parts = <String>[];
         if (item.title?.isNotEmpty == true) parts.add('📦 *${item.title}*');
         if (item.bpCode?.isNotEmpty == true) parts.add('BP Code: ${item.bpCode}');
-        if (item.productCode?.isNotEmpty == true) parts.add('Code: ${item.productCode}');
+        if (item.productCode?.isNotEmpty == true) parts.add('PO#: ${item.productCode}');
         if (item.category?.isNotEmpty == true) parts.add('Category: ${item.category}');
         if (item.workOrderNumber?.isNotEmpty == true) parts.add('WO#: ${item.workOrderNumber}');
         if (item.refNo?.isNotEmpty == true) parts.add('Ref No: ${item.refNo}');
@@ -296,7 +300,8 @@ class ShareCardService {
         if (item.size?.isNotEmpty == true) parts.add('Size: ${item.size}');
         if (item.dueDate?.isNotEmpty == true) parts.add('Due: ${item.dueDate}');
         if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
-        if (item.narration?.isNotEmpty == true) parts.add('Note: ${item.narration}');
+        if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
+        if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
         if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
         
         combinedText.add(parts.join('\n'));
@@ -365,6 +370,7 @@ class _ShareCardWidget extends StatelessWidget {
     // Build the pipe-separated details string
     final details = <String>[];
     if (item.workOrderNumber != null && item.workOrderNumber!.isNotEmpty) details.add('Work Order No: ${item.workOrderNumber}');
+    if (item.productCode != null && item.productCode!.isNotEmpty) details.add('PO#: ${item.productCode}');
     if (item.refNo != null && item.refNo!.isNotEmpty) details.add('Ref No: ${item.refNo}');
     if (item.category != null && item.category!.isNotEmpty) details.add('Category Name: ${item.category}');
     if (item.quantity != null && item.quantity!.isNotEmpty) details.add('Quantity: ${item.quantity}');
@@ -372,11 +378,11 @@ class _ShareCardWidget extends StatelessWidget {
     if (item.weight != null && item.weight!.isNotEmpty) details.add('Weight: ${item.weight}');
     if (item.size != null && item.size!.isNotEmpty) details.add('Size: ${item.size}');
     if (item.bpCode != null && item.bpCode!.isNotEmpty) details.add('BP Code: ${item.bpCode}');
-    if (item.productCode != null && item.productCode!.isNotEmpty) details.add('Product Code: ${item.productCode}');
     if (item.dueDate != null && item.dueDate!.isNotEmpty) details.add('Due: ${item.dueDate}');
     if (item.orderDate != null && item.orderDate!.isNotEmpty) details.add('Order Date: ${item.orderDate}');
     if (item.gramsDetail != null && item.gramsDetail!.isNotEmpty) details.add('Grams Detail:\n${item.gramsDetail}');
-    if (item.narration != null && item.narration!.isNotEmpty) details.add('Item Narration: ${item.narration}');
+    if (item.narration != null && item.narration!.isNotEmpty) details.add('Item Note: ${item.narration}');
+    if (item.orderNote != null && item.orderNote!.isNotEmpty) details.add('Order Note: ${item.orderNote}');
     // Show these fields only if the value is "yes"
     if (item.stone?.toLowerCase() == 'yes') details.add('Stone: Yes');
     if (item.enamel?.toLowerCase() == 'yes') details.add('Enamel: Yes');

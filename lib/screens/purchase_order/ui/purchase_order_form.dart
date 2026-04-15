@@ -66,6 +66,7 @@ class _PurchaseOrderFormState extends ConsumerState<PurchaseOrderForm> {
     }
     (item['totalWeightCtrl'] as TextEditingController).dispose();
     (item['notesCtrl'] as TextEditingController).dispose();
+    (item['sizeCtrl'] as TextEditingController).dispose();
     if (item['designCtrl'] is TextEditingController) {
       (item['designCtrl'] as TextEditingController).dispose();
     }
@@ -393,6 +394,11 @@ class _PurchaseOrderFormState extends ConsumerState<PurchaseOrderForm> {
             item['serverImage'] = productData.productImageUrl;
             // IMPORTANT: use productData.id (the integer) instead of productCode
             item['productId'] = productData.id;
+            
+            // Auto fill size
+            if (item['sizeCtrl'] is TextEditingController) {
+              (item['sizeCtrl'] as TextEditingController).text = productData.size ?? '';
+            }
 
             ref.read(productListProvider.notifier).fetchSubCategories(
               url: "api/common/products/subcategories/?category_id=${productData.productCategoryId}",
@@ -535,6 +541,7 @@ class _PurchaseOrderFormState extends ConsumerState<PurchaseOrderForm> {
             'designCtrl': TextEditingController(text: poItem.designText),
             'notesCtrl': TextEditingController(text: poItem.itemNotes ?? ''),
             'totalWeightCtrl': TextEditingController(text: poItem.total?.toString() ?? '0.00'),
+            'sizeCtrl': TextEditingController(text: poItem.size ?? ''),
             'subItems': [],
             'selectedFiles': <PlatformFile>[],
             'serverImage': poItem.imageUrl,
@@ -615,6 +622,7 @@ class _PurchaseOrderFormState extends ConsumerState<PurchaseOrderForm> {
         ],
         'totalWeightCtrl': TextEditingController(text: '0.00'),
         'notesCtrl': TextEditingController(),
+        'sizeCtrl': TextEditingController(),
         'selectedFiles': <PlatformFile>[],
       });
     });
@@ -703,6 +711,7 @@ class _PurchaseOrderFormState extends ConsumerState<PurchaseOrderForm> {
           quantity: quantityList,
           total: totalWeight,
           designCode: (item['designCtrl'] as TextEditingController).text,
+          size: (item['sizeCtrl'] as TextEditingController).text,
         );
       }).toList(),
     );

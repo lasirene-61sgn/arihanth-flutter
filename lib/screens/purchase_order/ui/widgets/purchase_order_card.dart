@@ -240,10 +240,12 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                                 imageUrl: item.imageUrl,
                                                 title: item.productCategory ?? "Purchase Order",
                                                 bpCode: restricted ? null : widget.purchaseOrder.bpCode,
-                                                productCode: restricted ? null : widget.purchaseOrder.orderNumber,
+                                                productCode: widget.purchaseOrder.orderNumber,
                                                 category: item.subCategory,
                                                 weight: item.totalWeight?.toString(),
-                                                narration: restricted ? null : item.notes,
+                                                size: item.size,
+                                                narration: item.notes,
+                                                orderNote: widget.purchaseOrder.note,
                                                 dueDate: sharedDueDate,
                                                 orderDate: sharedOrderDate,
                                                 gramsDetail: (item.grams != null && item.grams!.isNotEmpty)
@@ -452,12 +454,20 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColor.primary),
                                           ),
                                         ],
+                                        if (item.size != null && item.size!.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 4.0),
+                                            child: Text(
+                                              'Size: ${item.size}',
+                                              style: const TextStyle(color: AppColor.textSecondary, fontSize: 10, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
                                         if (item.notes != null && item.notes!.isNotEmpty)
                                           Padding(
                                             padding: const EdgeInsets.only(top: 4.0),
                                             child: Text(
                                               'Note: ${item.notes}',
-                                              style: TextStyle(color: AppColor.textHint, fontSize: 10, fontStyle: FontStyle.italic),
+                                              style: const TextStyle(color: AppColor.textHint, fontSize: 10, fontStyle: FontStyle.italic),
                                             ),
                                           ),
                                       ],
