@@ -28,6 +28,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '601146486892',
     projectId: 'arihanth-1938c',
     storageBucket: 'arihanth-1938c.firebasestorage.app',
-    iosBundleId: 'com.ajpl.arihanth',
+    iosBundleId: 'com.ajpl.arianth',
   );
 }

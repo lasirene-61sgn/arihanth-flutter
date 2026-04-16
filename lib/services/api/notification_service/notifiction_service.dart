@@ -48,6 +48,14 @@ class NotificationService {
       }
       _showLocalNotification(message);
     });
+    
+    // Background interaction handling
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      if (kDebugMode) {
+        print("Notification message opened from background: ${message.notification?.title}");
+      }
+      // You can add navigation logic here if needed
+    });
   }
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {
@@ -80,6 +88,20 @@ class NotificationService {
     } catch (e) {
       if (kDebugMode) {
         print("Error getting device token: $e");
+      }
+      return null;
+    }
+  }
+
+  static Future<String?> getAPNSToken() async {
+    try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return await FirebaseMessaging.instance.getAPNSToken();
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error getting APNS token: $e");
       }
       return null;
     }

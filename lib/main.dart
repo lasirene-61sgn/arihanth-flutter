@@ -37,13 +37,23 @@ Future<void> main() async {
 
   await NotificationService.init();
   await SharedPreferencesHelper().init();
+
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    String? apnsToken = await NotificationService.getAPNSToken();
+    if (apnsToken != null) {
+      print("--------- APNS TOKEN ---------");
+      print(apnsToken);
+      print("------------------------------");
+    }
+  }
+
   String? deviceToken = await NotificationService.getToken();
-  if(deviceToken != null){
+  if (deviceToken != null) {
     print("--------- DEVICE TOKEN ---------");
     print(deviceToken);
-    SharedPreferencesHelper().setString("DToken",deviceToken);
+    SharedPreferencesHelper().setString("DToken", deviceToken);
     print("--------------------------------");
-  }else{
+  } else {
     print("Device token is null");
   }
 
