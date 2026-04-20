@@ -233,98 +233,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
             ),
         ],
       ),
-      floatingActionButton: role == 'buyer'
-          ? null
-          : _activeStatus == 'New' && role?.toLowerCase() == 'super_admin'
-              ? (selectedIds.isNotEmpty
-                  ? FloatingActionButton.extended(
-                      onPressed: () async {
-                        await WorkOrderAllocatedDialog.show(context, ref, selectedIds);
-                        setState(() {
-                          selectedIds.clear(); 
-                        });
-                      },
-                      backgroundColor: AppColor.primary,
-                      icon: const Icon(Icons.assignment_ind, color: AppColor.textWhite),
-                      label: const Text('Allocate', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                    )
-                  : null)
-              : _activeStatus == 'For Approval'
-                  ? (selectedIds.isNotEmpty
-                      ? FloatingActionButton.extended(
-                          onPressed: () async {
-                            await WorkOrderApprovalDialog.show(context, ref, selectedIds);
-                            setState(() {
-                              selectedIds.clear();
-                            });
-                          },
-                          backgroundColor: AppColor.primary,
-                          icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-                          label: const Text('Approve', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                        )
-                      : null)
-                  : _activeStatus == 'Rejected' && (role == 'Admin' || role == 'super_admin')
-                      ? (selectedIds.isNotEmpty
-                          ? FloatingActionButton.extended(
-                              onPressed: () async {
-                                await WorkOrderAllocatedDialog.show(context, ref, selectedIds);
-                                setState(() {
-                                  selectedIds.clear();
-                                });
-                              },
-                              backgroundColor: AppColor.primary,
-                              icon: const Icon(Icons.sync_alt, color: AppColor.textWhite),
-                              label: const Text('Reallocate', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                            )
-                          : null)
-                  : _activeStatus == 'In Process' && (role == 'craftsman' || role == 'Craftsman')
-                      ? (selectedIds.isNotEmpty
-                          ? FloatingActionButton.extended(
-                              onPressed: () async {
-                                await CraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
-                                setState(() {
-                                  selectedIds.clear();
-                                });
-                              },
-                              backgroundColor: AppColor.primary,
-                              icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-                              label: const Text('Complete', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                            )
-                          : null)
-                  : _activeStatus == 'Allocated' && (role == 'craftsman' || role == 'Craftsman')
-
-
-                      ? (selectedIds.isNotEmpty
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                FloatingActionButton.extended(
-                                  onPressed: () async {
-                                    await CraftsmanBulkRejectDialog.show(context, ref, selectedIds);
-                                    setState(() {
-                                      selectedIds.clear();
-                                    });
-                                  },
-                                  backgroundColor: AppColor.primary,
-                                  icon: const Icon(Icons.cancel_outlined, color: AppColor.textWhite),
-                                  label: const Text('Reject', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                                ),
-                                const SizedBox(width: 16),
-                                FloatingActionButton.extended(
-                                  onPressed: () async {
-                                    await CraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
-                                    setState(() {
-                                      selectedIds.clear();
-                                    });
-                                  },
-                                  backgroundColor: AppColor.primary,
-                                  icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-                                  label: const Text('Accept', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            )
-                          : null)
-                      : null,
+      // floatingActionButton: _buildBulkActions(isFab: true),
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
@@ -431,20 +340,27 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
             ),
             const Spacer(),
             if (selectedIds.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColor.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "${selectedIds.length} Selected",
-                  style: const TextStyle(
-                    color: AppColor.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColor.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "${selectedIds.length} Selected",
+                      style: const TextStyle(
+                        color: AppColor.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _buildBulkActions(isFab: false),
+                ],
               ),
           ],
         ),
@@ -681,6 +597,134 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
     );
   }
 
+  Widget _buildBulkActions({required bool isFab}) {
+    if (selectedIds.isEmpty || role == 'buyer') return const SizedBox.shrink();
+
+    final List<Widget> actions = [];
+
+    if (_activeStatus == 'New' && role?.toLowerCase() == 'super_admin') {
+      actions.add(
+        _buildActionBtn(
+          label: 'Allocate',
+          icon: Icons.assignment_ind,
+          onPressed: () async {
+            await WorkOrderAllocatedDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'For Approval') {
+      actions.add(
+        _buildActionBtn(
+          label: 'Approve',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await WorkOrderApprovalDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'Rejected' && (role == 'Admin' || role == 'super_admin')) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Reallocate',
+          icon: Icons.sync_alt,
+          onPressed: () async {
+            await WorkOrderAllocatedDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'In Process' && (role == 'craftsman' || role == 'Craftsman')) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Complete',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await CraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'Allocated' && (role == 'craftsman' || role == 'Craftsman')) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Reject',
+          icon: Icons.cancel_outlined,
+          onPressed: () async {
+            await CraftsmanBulkRejectDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+      actions.add(const SizedBox(width: 8));
+      actions.add(
+        _buildActionBtn(
+          label: 'Accept',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await CraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
+            setState(() {
+              selectedIds.clear();
+            });
+          },
+          isFab: isFab,
+        ),
+      );
+    }
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    if (isFab) {
+      if (actions.length == 1) return actions[0];
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: actions,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: actions,
+    );
+  }
+
+  Widget _buildActionBtn({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required bool isFab,
+  }) {
+    if (isFab) {
+      return FloatingActionButton.extended(
+        onPressed: onPressed,
+        backgroundColor: AppColor.primary,
+        icon: Icon(icon, color: AppColor.textWhite),
+        label: Text(label, style: const TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+        heroTag: label,
+      );
+    } else {
+      return FormFeildCommonButton(
+        text: label,
+        onPressed: onPressed,
+      );
+    }
+  }
 }
   void _openCreateWorkOrderDialog() {
    Get.toNamed(AppRoutes.workOrdersAdd);

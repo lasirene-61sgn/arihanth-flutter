@@ -232,7 +232,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
             ),
         ],
       ),
-      floatingActionButton: _buildFab(),
+      // floatingActionButton: _buildBulkActions(isFab: true),
 
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
@@ -338,20 +338,27 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
             ),
             const Spacer(),
             if (selectedIds.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColor.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "${selectedIds.length} Selected",
-                  style: const TextStyle(
-                    color: AppColor.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColor.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "${selectedIds.length} Selected",
+                      style: const TextStyle(
+                        color: AppColor.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  _buildBulkActions(isFab: false),
+                ],
               ),
           ],
         ),
@@ -359,83 +366,127 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
     );
   }
 
-  Widget? _buildFab() {
+  Widget _buildBulkActions({required bool isFab}) {
     final isCraftsman = role?.toLowerCase() == 'craftsman';
     final isAdmin = role == 'Admin' || role == 'super_admin';
     final hasSelection = selectedIds.isNotEmpty;
 
-    if (_activeStatus == 'New' && hasSelection && !isCraftsman) {
-      return FloatingActionButton.extended(
-        onPressed: () async {
-          await PurchaseOrderAllocatedDialog.show(context, ref, selectedIds);
-          setState(() => selectedIds.clear());
-        },
-        backgroundColor: AppColor.primary,
-        icon: const Icon(Icons.assignment_ind, color: AppColor.textWhite),
-        label: const Text('Allocate', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+    if (!hasSelection) return const SizedBox.shrink();
+    if (role == 'buyer') return const SizedBox.shrink();
+
+    final List<Widget> actions = [];
+
+    if (_activeStatus == 'New' && !isCraftsman) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Allocate',
+          icon: Icons.assignment_ind,
+          onPressed: () async {
+            await PurchaseOrderAllocatedDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'For Approval' && !isCraftsman) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Approve',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await PurchaseOrderApprovalDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'Allocated' && isCraftsman) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Reject',
+          icon: Icons.cancel_outlined,
+          onPressed: () async {
+            await PurchaseCraftsmanBulkRejectDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
+      );
+      actions.add(const SizedBox(width: 8));
+      actions.add(
+        _buildActionBtn(
+          label: 'Accept',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await PurchaseCraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'In Process' && isCraftsman) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Complete',
+          icon: Icons.check_circle_outline,
+          onPressed: () async {
+            await PurchaseCraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
+      );
+    } else if (_activeStatus == 'Rejected' && isAdmin && selectedIds.length == 1) {
+      actions.add(
+        _buildActionBtn(
+          label: 'Reallocate',
+          icon: Icons.sync_alt,
+          onPressed: () async {
+            await PurchaseReallocateDialog.show(context, ref, selectedIds);
+            setState(() => selectedIds.clear());
+          },
+          isFab: isFab,
+        ),
       );
     }
-    if (_activeStatus == 'For Approval' && hasSelection && !isCraftsman) {
-      return FloatingActionButton.extended(
-        onPressed: () async {
-          await PurchaseOrderApprovalDialog.show(context, ref, selectedIds);
-          setState(() => selectedIds.clear());
-        },
-        backgroundColor: AppColor.primary,
-        icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-        label: const Text('Approve', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-      );
-    }
-    if (_activeStatus == 'Allocated' && isCraftsman && hasSelection) {
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    if (isFab) {
+      if (actions.length == 1) return actions[0];
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.extended(
-            onPressed: () async {
-              await PurchaseCraftsmanBulkRejectDialog.show(context, ref, selectedIds);
-              setState(() => selectedIds.clear());
-            },
-            backgroundColor: AppColor.primary,
-            icon: const Icon(Icons.cancel_outlined, color: AppColor.textWhite),
-            label: const Text('Reject', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 16),
-          FloatingActionButton.extended(
-            onPressed: () async {
-              await PurchaseCraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
-              setState(() => selectedIds.clear());
-            },
-            backgroundColor: AppColor.primary,
-            icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-            label: const Text('Accept', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-          ),
-        ],
+        children: actions,
       );
     }
-    if (_activeStatus == 'In Process' && isCraftsman && hasSelection) {
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: actions,
+    );
+  }
+
+  Widget _buildActionBtn({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required bool isFab,
+  }) {
+    if (isFab) {
       return FloatingActionButton.extended(
-        onPressed: () async {
-          await PurchaseCraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
-          setState(() => selectedIds.clear());
-        },
+        onPressed: onPressed,
         backgroundColor: AppColor.primary,
-        icon: const Icon(Icons.check_circle_outline, color: AppColor.textWhite),
-        label: const Text('Complete', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+        icon: Icon(icon, color: AppColor.textWhite),
+        label: Text(label, style: const TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+        heroTag: label,
+      );
+    } else {
+      return FormFeildCommonButton(
+        text: label,
+        onPressed: onPressed,
       );
     }
-    if (_activeStatus == 'Rejected' && isAdmin && selectedIds.length == 1) {
-      return FloatingActionButton.extended(
-        onPressed: () async {
-          await PurchaseReallocateDialog.show(context, ref, selectedIds);
-          setState(() => selectedIds.clear());
-        },
-        backgroundColor: AppColor.primary,
-        icon: const Icon(Icons.sync_alt, color: AppColor.textWhite),
-        label: const Text('Reallocate', style: TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
-      );
-    }
-    return null;
   }
 
 
