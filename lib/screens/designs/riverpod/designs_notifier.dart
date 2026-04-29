@@ -25,6 +25,9 @@ class DesignListState {
   final int count;
   final String? nextUrl;
   final String? previousUrl;
+  final String? currentUrl;
+  final bool isBulkAcceptLoading;
+  final bool isBulkRejectLoading;
 
   const DesignListState({
     this.isLoading = false,
@@ -39,6 +42,9 @@ class DesignListState {
     this.count = 0,
     this.nextUrl,
     this.previousUrl,
+    this.currentUrl,
+    this.isBulkAcceptLoading = false,
+    this.isBulkRejectLoading = false,
   });
 
   DesignListState copyWith({
@@ -54,6 +60,9 @@ class DesignListState {
     int? count,
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
+    String? currentUrl,
+    bool? isBulkAcceptLoading,
+    bool? isBulkRejectLoading,
   }) {
     return DesignListState(
       isLoading: isLoading ?? this.isLoading,
@@ -68,6 +77,9 @@ class DesignListState {
       count: count ?? this.count,
       nextUrl: nextUrl == _sentinel ? this.nextUrl : nextUrl as String?,
       previousUrl: previousUrl == _sentinel ? this.previousUrl : previousUrl as String?,
+      currentUrl: currentUrl ?? this.currentUrl,
+      isBulkAcceptLoading: isBulkAcceptLoading ?? this.isBulkAcceptLoading,
+      isBulkRejectLoading: isBulkRejectLoading ?? this.isBulkRejectLoading,
     );
   }
 }
@@ -118,6 +130,7 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
             count: paginationData?["total"] ?? designs.length,
             nextUrl: paginationData?["next_page_url"]?.toString(),
             previousUrl: paginationData?["prev_page_url"]?.toString(),
+            currentUrl: endpoint,
           );
         } else {
 
@@ -255,6 +268,66 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
       error: null,
       isLoaded: true,
     );
+  }
+
+  Future<void> bulkAccept(String ids) async {
+    state = state.copyWith(isBulkAcceptLoading: true, error: null);
+    try {
+      final List<int> idList = ids.split(',').map((e) => int.parse(e.trim())).toList();
+      final response = await ApiClient().post(
+        endpoint: "api/common/designs/bulk-accept",
+        body: {"ids": idList},
+      );
+      if (response["status"] == 1) {
+        Toaster.showSuccess(response["data"]?["message"] ?? "Designs accepted successfully");
+        await fetchDesigns(url: "api/common/designs?tab=pending");
+        await ref.read(dashboardProvider.notifier).fetchDashBoard();
+      } else {
+        Toaster.showError(_extractErrorMessage(response));
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isBulkAcceptLoading: false);
+    }
+  }
+
+  Future<void> bulkReject(String ids) async {
+    state = state.copyWith(isBulkRejectLoading: true, error: null);
+    try {
+      final List<int> idList = ids.split(',').map((e) => int.parse(e.trim())).toList();
+      final response = await ApiClient().post(
+        endpoint: "api/common/designs/bulk-reject",
+        body: {"ids": idList},
+      );
+      print("bulk reject :$response");
+      if (response["status"] == 1) {
+        Toaster.showSuccess(response["data"]?["message"] ?? "Designs rejected successfully");
+        await fetchDesigns(url: "api/common/designs?tab=pending");
+        await ref.read(dashboardProvider.notifier).fetchDashBoard();
+      } else {
+        Toaster.showError(_extractErrorMessage(response));
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isBulkRejectLoading: false);
+    }
+  }
+
+  String _extractErrorMessage(dynamic response) {
+    if (response == null) return "Unknown error";
+    if (response["message"] != null) {
+      final msg = response["message"];
+      if (msg is Map && msg["message"] != null) {
+        return msg["message"].toString();
+      }
+      return msg.toString();
+    }
+    if (response["data"] != null && response["data"] is Map && response["data"]["message"] != null) {
+      return response["data"]["message"].toString();
+    }
+    return "Failed to process request";
   }
 }
 

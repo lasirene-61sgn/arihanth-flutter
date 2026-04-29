@@ -22,6 +22,7 @@ import 'package:get/get.dart';
 import 'package:arianth/services/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../app_color/app_color.dart';
 import '../../../services/widget/form_field_common_button.dart';
@@ -165,6 +166,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     ),
                     onPressed: _shareSelected,
                   ),
+          // if (role == 'super_admin')
+            IconButton(
+              icon: const Icon(Icons.upload_file, color: Colors.white),
+              tooltip: 'Bulk Upload',
+              onPressed: _showBulkUploadDialog,
+            ),
           IconButton(
             icon: const Icon(Icons.language, color: Colors.white),
             onPressed: () => LanguageSelector.show(context, ref),
@@ -513,5 +520,151 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     } else if (finalState.filePath != null) {
       Toaster.showSuccess("PDF Downloaded successfully");
     }
+  }
+
+  void _showBulkUploadDialog() {
+    PlatformFile? pickedFile;
+    bool isUploading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColor.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.upload_file, color: AppColor.primary, size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Bulk Upload Products',
+                    style: TextStyle(color: AppColor.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select a .zip file containing product data to upload in bulk.',
+                    style: TextStyle(color: AppColor.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: isUploading
+                        ? null
+                        : () async {
+                            final result = await FilePicker.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: ['zip'],
+                            );
+                            if (result != null && result.files.isNotEmpty) {
+                              setDialogState(() {
+                                pickedFile = result.files.first;
+                              });
+                            }
+                          },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColor.background,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: pickedFile != null ? AppColor.primary : AppColor.divider,
+                          width: pickedFile != null ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            pickedFile != null ? Icons.folder_zip : Icons.attach_file,
+                            color: pickedFile != null ? AppColor.primary : AppColor.textHint,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              pickedFile?.name ?? 'Tap to select .zip file',
+                              style: TextStyle(
+                                color: pickedFile != null ? AppColor.textPrimary : AppColor.textHint,
+                                fontSize: 14,
+                                fontWeight: pickedFile != null ? FontWeight.w500 : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (pickedFile != null && !isUploading)
+                            GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  pickedFile = null;
+                                });
+                              },
+                              child: const Icon(Icons.close, color: AppColor.textHint, size: 18),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (pickedFile != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Size: ${(pickedFile!.size / 1024).toStringAsFixed(1)} KB',
+                      style: const TextStyle(color: AppColor.textSecondary, fontSize: 11),
+                    ),
+                  ],
+                  if (isUploading) ...[
+                    const SizedBox(height: 16),
+                    const LinearProgressIndicator(color: AppColor.primary),
+                    const SizedBox(height: 8),
+                    const Center(
+                      child: Text(
+                        'Uploading... Please wait',
+                        style: TextStyle(color: AppColor.textSecondary, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isUploading ? null : () => Navigator.of(dialogContext).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: isUploading ? AppColor.textHint : AppColor.textSecondary,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: (pickedFile == null || isUploading)
+                      ? null
+                      : () async {
+                          setDialogState(() => isUploading = true);
+                          final success = await ref
+                              .read(productListProvider.notifier)
+                              .bulkUploadProducts(pickedFile!);
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Upload'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }

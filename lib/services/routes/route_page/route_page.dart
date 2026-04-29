@@ -29,6 +29,7 @@ import 'package:arianth/screens/work_orders/ui/work_orders_screen.dart';
 import 'package:arianth/screens/work_orders/ui/widgets/work_order_details_screen.dart';
 import 'package:arianth/screens/profile/ui/profile_screen.dart';
 import 'package:arianth/screens/common/order_success_screen.dart';
+import 'package:arianth/screens/my_favorites/ui/my_favorites_screen.dart';
 import 'package:get/get.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 
@@ -163,5 +164,6 @@ class AppPages {
       },
       transition: Transition.cupertino,
     ),
+    GetPage(name: AppRoutes.favorites, page: () => const MyFavoritesScreen()),
   ];
 }

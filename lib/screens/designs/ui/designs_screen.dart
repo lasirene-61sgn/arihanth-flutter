@@ -1,8 +1,10 @@
 import 'package:arianth/screens/designs/model/designs_model.dart';
 import 'package:arianth/screens/designs/riverpod/designs_notifier.dart';
+import 'package:arianth/screens/my_favorites/riverpod/favorites_notifier.dart';
 import 'package:arianth/screens/designs/widgets/design_aprove_dialog.dart';
 import 'package:arianth/screens/designs/widgets/design_card.dart';
 import 'package:arianth/screens/products/riverpod/products_notifier.dart';
+import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/common_notifiers/pdf_download_notifier.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
@@ -423,11 +425,54 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               style: const TextStyle(color: AppColor.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
             ),
             const Spacer(),
-            if (selectedIds.isNotEmpty)
+            if (selectedIds.isNotEmpty) ...[
               Text(
                 '${selectedIds.length} Selected',
                 style: const TextStyle(color: AppColor.primary, fontSize: 12, fontWeight: FontWeight.bold),
               ),
+              if (role?.toLowerCase() == 'super_admin' && _getTabValue() == 'pending') ...[
+                const SizedBox(width: 12),
+                if (state.isBulkAcceptLoading)
+                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  TextButton(
+                    onPressed: () async {
+                      await ref.read(designsProvider.notifier).bulkAccept(selectedIds.join(','));
+                      setState(() {
+                        selectedIds.clear();
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.green.withOpacity(0.1),
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Accept', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                const SizedBox(width: 8),
+                if (state.isBulkRejectLoading)
+                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  TextButton(
+                    onPressed: () async {
+                      await ref.read(designsProvider.notifier).bulkReject(selectedIds.join(','));
+                      setState(() {
+                        selectedIds.clear();
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.red.withOpacity(0.1),
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ],
           ],
         ),
       ),
@@ -476,6 +521,29 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               DesignAproveDialog.show(context, ref, design.id.toString());
             } : null,
             isApproving: state.savingDesignId == design.id.toString(),
+            isSelected: selectedIds.contains(design.id.toString()),
+            onSelectionChanged: (value) {
+              setState(() {
+                if (value == true) {
+                  selectedIds.add(design.id.toString());
+                } else {
+                  selectedIds.remove(design.id.toString());
+                }
+              });
+            },
+            isFavorite: design.isFavorite ?? false,
+            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman')
+                ? () async {
+              if(design.isFavorite == true) {
+                return ;
+              }
+                    if (design.id != null) {
+                     await ref.read(favoritesProvider.notifier).toggleFavorite(design.id!).then((_) async {
+                       await ref.read(designsProvider.notifier).fetchDesigns(url: state.currentUrl);
+                      });
+                    }
+                  }
+                : null,
           );
         },
       );
@@ -502,6 +570,19 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
                 }
               });
             },
+            isFavorite: design.isFavorite ?? false,
+            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman')
+                ? () async {
+              if(design.isFavorite == true) {
+                return ;
+              }
+                    if (design.id != null) {
+                      await ref.read(favoritesProvider.notifier).toggleFavorite(design.id!).then((_) async {
+                        await ref.read(designsProvider.notifier).fetchDesigns(url: state.currentUrl);
+                      });
+                    }
+                  }
+                : null,
             onEdit: () => Get.toNamed(AppRoutes.designsDetails, arguments: design.id.toString()),
             onShare: () async {
               final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());

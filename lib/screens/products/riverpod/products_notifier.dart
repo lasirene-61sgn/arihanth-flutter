@@ -21,6 +21,7 @@ class ProductListState {
   final bool isRejecting;
   final bool isSaved; // ✅ New flag
   final bool isLoadingBp; // ✅ New flag
+  final bool isBulkUploading;
   final String? error;
   final List<Product> products;
   final List<Product> allProducts;
@@ -55,6 +56,7 @@ class ProductListState {
     this.isAccepting = false, // Initialize
     this.isRejecting = false,
     this.isSaved = false, // ✅ initialize
+    this.isBulkUploading = false,
     this.error,
     this.products = const [],
     this.allProducts = const [],
@@ -88,6 +90,7 @@ class ProductListState {
     bool? isRejecting,
     bool? isSaved,
     bool? isLoadingBp,
+    bool? isBulkUploading,
     dynamic error = _sentinel,
     List<Product>? products,
     List<Product>? allProducts,
@@ -121,6 +124,7 @@ class ProductListState {
       isAccepting: isAccepting ?? this.isAccepting,
       isRejecting: isRejecting ?? this.isRejecting,
       isLoadingBp: isLoadingBp ?? this.isLoadingBp,
+      isBulkUploading: isBulkUploading ?? this.isBulkUploading,
       workOrderProduct: workOrderProduct ?? this.workOrderProduct,
       isSaved: isSaved ?? this.isSaved,
       error: error == _sentinel ? this.error : error as String?,
@@ -827,6 +831,37 @@ print("Edit this product_______$response");
       error: null,
       isLoaded: true,
     );
+  }
+
+  /// Bulk upload products via .zip file
+  Future<bool> bulkUploadProducts(PlatformFile file) async {
+    state = state.copyWith(isBulkUploading: true, error: null);
+    try {
+      final response = await ApiClient().requestWithFiles(
+        method: 'POST',
+        endpoint: 'api/common/products/bulk-upload',
+        files: {'zip_file': file},
+      );
+     print(response);
+      if (response["status"] == 1 && response["data"] != null) {
+        final data = response["data"];
+        final message = data["message"] ?? "Bulk upload successful";
+        Toaster.showSuccess(message.toString());
+        await fetchProducts();
+        state = state.copyWith(isBulkUploading: false);
+        return true;
+      } else {
+        final errorMsg = _extractErrorMessage(response["message"]);
+        Toaster.showError(errorMsg);
+        state = state.copyWith(isBulkUploading: false, error: errorMsg);
+        return false;
+      }
+    } catch (e) {
+      final errorMsg = e.toString();
+      Toaster.showError(errorMsg);
+      state = state.copyWith(isBulkUploading: false, error: errorMsg);
+      return false;
+    }
   }
 }
 

@@ -22,6 +22,8 @@ class DesignCard extends StatefulWidget {
   final Future<void> Function() onShare;
   final VoidCallback onApprove;
   final bool isApproving;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteToggle;
 
   const DesignCard({
     super.key,
@@ -33,6 +35,8 @@ class DesignCard extends StatefulWidget {
     required this.onShare,
     required this.onApprove,
     this.isApproving = false,
+    this.isFavorite = false,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -229,6 +233,26 @@ class _DesignCardState extends State<DesignCard> {
                           ),
                         ),
                       ],
+                      if (widget.onFavoriteToggle != null)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: widget.onFavoriteToggle,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.8),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                                color: Colors.red,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

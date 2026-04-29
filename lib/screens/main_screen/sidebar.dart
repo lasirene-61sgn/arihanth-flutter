@@ -136,6 +136,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
     menu.add(_navItem(Icons.grid_view, ref.watchTr('dashboard'), 0, selectedIndex));
     if (role == 'buyer' || role == 'craftsman') {
       menu.add(_navItem(Icons.person_outline, ref.watchTr('my_profile'), 16, selectedIndex));
+      if (permissions.contains('favorites')) {
+        menu.add(_navItem(Icons.favorite_outline, ref.watchTr('my_favorites'), 17, selectedIndex));
+      }
     }
     menu.add(const SizedBox(height: 15));
 

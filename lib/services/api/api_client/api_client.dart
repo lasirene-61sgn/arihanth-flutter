@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 class ApiClient {
-  // static const String baseUrl = "https://declivitous-limicoline-dotty.ngrok-free.dev/";
+  // static const String baseUrl = "https://doorway-dreamt-matchbox.ngrok-free.dev/";
   // static const String baseUrl = "https://arianth.lasirene.xyz/";
   static const String baseUrl = "https://arihanthjewellers.in/";
   late final Dio _dio;

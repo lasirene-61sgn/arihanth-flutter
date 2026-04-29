@@ -16,7 +16,11 @@ class DesignGridCard extends StatefulWidget {
   final Design item;
   final VoidCallback onTap;
   final VoidCallback? onApprove;
+  final bool isSelected;
   final bool isApproving;
+  final ValueChanged<bool?>? onSelectionChanged;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteToggle;
 
   const DesignGridCard({
     super.key,
@@ -24,6 +28,10 @@ class DesignGridCard extends StatefulWidget {
     required this.onTap,
     this.onApprove,
     this.isApproving = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
+    this.isFavorite = false,
+    this.onFavoriteToggle,
   });
 
   @override
@@ -101,6 +109,43 @@ class _DesignGridCardState extends State<DesignGridCard> {
                         top: 4,
                         right: 4,
                         child: _buildPopupMenu(),
+                      ),
+                    if (widget.onSelectionChanged != null)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: widget.isSelected,
+                            onChanged: widget.onSelectionChanged,
+                            activeColor: AppColor.primary,
+                            checkColor: AppColor.textWhite,
+                            side: const BorderSide(color: AppColor.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          ),
+                        ),
+                      ),
+                    if (widget.onFavoriteToggle != null)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: widget.onFavoriteToggle,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: Colors.red,
+                              size: 18,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),

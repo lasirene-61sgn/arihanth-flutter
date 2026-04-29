@@ -62,5 +62,6 @@ class AppRoutes {
   // KYC
   static const String kyc = '/kyc';
   static const String kycPending = '/kyc-pending';
+  static const String favorites = '/favorites';
   static const String orderSuccess = '/order-success';
 }

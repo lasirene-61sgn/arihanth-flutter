@@ -107,6 +107,7 @@ class Design {
   final int? createdBy;
   final String? createdAt;
   final String? updatedAt;
+  final bool? isFavorite;
 
   // Nested objects
   final DesignCategory? categoryObj;
@@ -140,6 +141,7 @@ class Design {
     this.createdBy,
     this.createdAt,
     this.updatedAt,
+    this.isFavorite,
     this.categoryObj,
     this.subcategoryObj,
     this.images,
@@ -192,6 +194,7 @@ class Design {
       createdBy: json['created_by'],
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
+      isFavorite: json['is_favorite'] == 1 || json['is_favorite'] == true,
       categoryObj: json['category'] is Map<String, dynamic>
           ? DesignCategory.fromJson(json['category'] as Map<String, dynamic>)
           : null,
@@ -234,6 +237,7 @@ class Design {
       'created_by': createdBy,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'is_favorite': isFavorite,
       'category': categoryObj?.toJson(),
       'subcategory': subcategoryObj?.toJson(),
       'images': images?.map((i) => i.toJson()).toList(),

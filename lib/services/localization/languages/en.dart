@@ -117,4 +117,5 @@ final Map<String, String> en = {
   'business_name': 'Business Name',
   'aadhar_no': 'Aadhar No',
   'my_profile': 'My Profile',
+  'my_favorites': 'My Favorites',
 };

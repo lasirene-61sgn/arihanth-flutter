@@ -137,7 +137,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               itemCount: summaryCards.length,
               itemBuilder: (context, index) => _buildSummaryCard(summaryCards[index]),
             ),
-            // const SizedBox(height: 24),
+            const SizedBox(height: 10),
 
 
 
