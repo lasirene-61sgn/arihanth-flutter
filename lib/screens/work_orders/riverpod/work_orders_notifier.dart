@@ -15,6 +15,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:get/get.dart';
 
+class WorkOrderHistory {
+  final String? nextUrl;
+  final String? previousUrl;
+  final int addedCount;
+
+  WorkOrderHistory({this.nextUrl, this.previousUrl, this.addedCount = 0});
+}
+
 class WorkOrderListState {
   final bool isLoading;
   final bool isLoaded;
@@ -43,6 +51,7 @@ class WorkOrderListState {
   final int count;
   final String? nextUrl;
   final String? previousUrl;
+  final List<WorkOrderHistory> history;
 
   const WorkOrderListState({
     this.isLoading = false,
@@ -69,6 +78,7 @@ class WorkOrderListState {
     this.count = 0,
     this.nextUrl,
     this.previousUrl,
+    this.history = const [],
   });
 
   WorkOrderListState copyWith({
@@ -95,6 +105,7 @@ class WorkOrderListState {
     int? count,
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
+    List<WorkOrderHistory>? history,
   }) {
     return WorkOrderListState(
       isLoading: isLoading ?? this.isLoading,
@@ -120,6 +131,7 @@ class WorkOrderListState {
       rejectedOrders: rejectedOrders ?? this.rejectedOrders,
       overdueOrders: overdueOrders ?? this.overdueOrders,
       totalCount: totalCount ?? this.totalCount,
+      history: history ?? this.history,
     );
   }
 }
@@ -132,11 +144,12 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
 
   /// Fetch work orders
   /// Fetch work orders
-  Future<void> fetchWorkOrders({String? urls,}) async {
+  Future<void> fetchWorkOrders({String? urls, bool isNext = false}) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
       urls: urls ?? state.urls,
+      history: isNext ? state.history : [],
     );
 
     String endpoint = urls ?? 'api/common/work-orders?tab=all-orders';
@@ -172,8 +185,6 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
           state = state.copyWith(
             isLoading: false,
             isLoaded: true,
-            workOrders: workOrders,
-            allWorkOrders: workOrders,
             newOrders: newOrders,
             allocatedOrders: allocatedOrders,
             inProcessOrders: inProcessOrders,
@@ -185,6 +196,18 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
             count: apiTotalCount,
             nextUrl: nextUrl,
             previousUrl: previousUrl,
+            workOrders: isNext ? [...state.workOrders, ...workOrders] : workOrders,
+            allWorkOrders: isNext ? [...state.allWorkOrders, ...workOrders] : workOrders,
+            history: isNext
+                ? [
+                    ...state.history,
+                    WorkOrderHistory(
+                      nextUrl: state.nextUrl,
+                      previousUrl: state.previousUrl,
+                      addedCount: workOrders.length,
+                    ),
+                  ]
+                : [],
           );
         } else {
           state = state.copyWith(
@@ -205,19 +228,34 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
     }
   }
   void goToNextPage() {
-    if (state.nextUrl != null) {
+    if (state.nextUrl != null && !state.isLoading) {
       final relativeUrl = ApiClient.toRelativeUrl(state.nextUrl!);
-      print("final next ->$relativeUrl");
-      state = state.copyWith(workOrders: []);
-      fetchWorkOrders(urls: relativeUrl);
+      fetchWorkOrders(urls: relativeUrl, isNext: true);
     }
   }
 
   void goToPreviousPage() {
-    if (state.previousUrl != null) {
+    if (state.history.isNotEmpty) {
+      final lastHistory = state.history.last;
+      final newWorkOrders = List<WorkOrder>.from(state.workOrders);
+
+      if (newWorkOrders.length >= lastHistory.addedCount) {
+        newWorkOrders.removeRange(
+          newWorkOrders.length - lastHistory.addedCount,
+          newWorkOrders.length,
+        );
+      }
+
+      state = state.copyWith(
+        workOrders: newWorkOrders,
+        allWorkOrders: newWorkOrders,
+        nextUrl: lastHistory.nextUrl,
+        previousUrl: lastHistory.previousUrl,
+        history: state.history.sublist(0, state.history.length - 1),
+      );
+    } else if (state.previousUrl != null && !state.isLoading) {
       final relativeUrl = ApiClient.toRelativeUrl(state.previousUrl!);
-      state = state.copyWith(workOrders: []);
-      fetchWorkOrders(urls: relativeUrl);
+      fetchWorkOrders(urls: relativeUrl, isNext: false);
     }
   }
   /// Save new Work Order

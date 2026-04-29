@@ -45,7 +45,7 @@ class _CatalogueListViewState extends ConsumerState<CatalogueListView> {
   Widget build(BuildContext context) {
     final state = ref.watch(catalogueProvider);
 
-    if (state.isLoading) {
+    if (state.isLoading && state.catalogues.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColor.primary));
     }
 
@@ -56,8 +56,11 @@ class _CatalogueListViewState extends ConsumerState<CatalogueListView> {
     return PageView.builder(
       controller: _pageController,
       scrollDirection: Axis.vertical,
-      itemCount: state.catalogues.length,
+      itemCount: state.isLoading ? state.catalogues.length + 1 : state.catalogues.length,
       itemBuilder: (context, index) {
+        if (index == state.catalogues.length) {
+          return const Center(child: CircularProgressIndicator(color: AppColor.primary));
+        }
         final item = state.catalogues[index];
         return _CataloguePageItem(
           item: item,
@@ -214,12 +217,20 @@ class _CataloguePageItemState extends State<_CataloguePageItem> {
                     color: Colors.white.withOpacity(0.8),
                     shape: BoxShape.circle,
                   ),
-                  child: Checkbox(
-                    value: widget.isSelected,
-                    onChanged: widget.onSelectionChanged,
-                    activeColor: AppColor.primary,
-                       checkColor: AppColor.textWhite,
-                    shape: const CircleBorder(),
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Transform.scale(
+                      scale: 1.2,
+                      child: Checkbox(
+                        value: widget.isSelected,
+                        onChanged: widget.onSelectionChanged,
+                        activeColor: AppColor.primary,
+                        checkColor: AppColor.textWhite,
+                        side: const BorderSide(color: AppColor.black, width: 1.5),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                   ),
                 ),
               ),

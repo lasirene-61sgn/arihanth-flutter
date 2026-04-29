@@ -15,6 +15,7 @@ import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:arianth/services/localization/app_localization.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:arianth/screens/splash/ui/splash_screen.dart';
+import 'package:upgrader/upgrader.dart';
 
 import 'firebase_options.dart';
 @pragma('vm:entry-point')
@@ -123,22 +124,28 @@ class MyApp extends ConsumerWidget {
         },
       ),
       builder: (context, child) {
-        return Stack(
-          children: [
-            child!,
-            Consumer(
-              builder: (context, ref, _) {
-                final isConnectedAsync = ref.watch(networkStatusProvider);
-                final isConnected = isConnectedAsync.maybeWhen(
-                  data: (value) => value,
-                  orElse: () => true,
-                );
-
-                if (!isConnected) return const NetworkOverlay();
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
+        return UpgradeAlert(
+          upgrader: Upgrader(),
+          showIgnore: false,
+          showLater: true,
+          dialogStyle: UpgradeDialogStyle.cupertino,
+          child: Stack(
+            children: [
+              child!,
+              Consumer(
+                builder: (context, ref, _) {
+                  final isConnectedAsync = ref.watch(networkStatusProvider);
+                  final isConnected = isConnectedAsync.maybeWhen(
+                    data: (value) => value,
+                    orElse: () => true,
+                  );
+  
+                  if (!isConnected) return const NetworkOverlay();
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
+          ),
         );
       },
     );

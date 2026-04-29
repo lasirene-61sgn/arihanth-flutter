@@ -6,6 +6,19 @@ import 'package:flutter_riverpod/legacy.dart';
 
 const _sentinel = Object();
 
+class CatalogueHistory {
+  final String? nextUrl;
+  final String? previousUrl;
+  final int addedCount;
+
+  CatalogueHistory({
+    this.nextUrl,
+    this.previousUrl,
+    required this.addedCount,
+  });
+}
+
+
 class CatalogueState {
   final bool isLoading;
   final bool isLoaded;
@@ -17,6 +30,7 @@ class CatalogueState {
   final int count;
   final String? nextUrl;
   final String? previousUrl;
+  final List<CatalogueHistory> history;
 
   const CatalogueState({
     this.isLoading = false,
@@ -29,6 +43,7 @@ class CatalogueState {
     this.count = 0,
     this.nextUrl,
     this.previousUrl,
+    this.history = const [],
   });
 
   CatalogueState copyWith({
@@ -42,6 +57,7 @@ class CatalogueState {
     int? count,
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
+    List<CatalogueHistory>? history,
   }) {
     return CatalogueState(
       isLoading: isLoading ?? this.isLoading,
@@ -54,6 +70,7 @@ class CatalogueState {
       count: count ?? this.count,
       nextUrl: nextUrl == _sentinel ? this.nextUrl : nextUrl as String?,
       previousUrl: previousUrl == _sentinel ? this.previousUrl : previousUrl as String?,
+      history: history ?? this.history,
     );
   }
 }
@@ -66,17 +83,28 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
   CatalogueNotifier(this.ref) : super(const CatalogueState());
 
   void goToNextPage() {
-    if (state.nextUrl != null) fetchCatalogues(url: ApiClient.toRelativeUrl(state.nextUrl!));
+    if (state.nextUrl != null) fetchCatalogues(url: ApiClient.toRelativeUrl(state.nextUrl!), isNext: true);
   }
 
   void goToPreviousPage() {
-    if (state.previousUrl != null) fetchCatalogues(url: ApiClient.toRelativeUrl(state.previousUrl!));
+    if (state.history.isNotEmpty) {
+      final lastHistory = state.history.last;
+      final newHistory = List<CatalogueHistory>.from(state.history)..removeLast();
+
+      state = state.copyWith(
+        catalogues: state.catalogues.sublist(0, state.catalogues.length - lastHistory.addedCount),
+        allCatalogues: state.allCatalogues.sublist(0, state.allCatalogues.length - lastHistory.addedCount),
+        nextUrl: lastHistory.nextUrl,
+        previousUrl: lastHistory.previousUrl,
+        history: newHistory,
+      );
+    }
   }
 
   /// Fetch catalogue list.
   /// Response shape:
   ///   response["data"] → { success: true, data: { current_page, data: [...], ... } }
-  Future<void> fetchCatalogues({String? url}) async {
+  Future<void> fetchCatalogues({String? url, bool isNext = false}) async {
     state = state.copyWith(isLoading: true, error: null);
     final String endpoint = url ?? 'api/common/catalogue';
 
@@ -96,14 +124,19 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
               .map((item) => Catalogue.fromJson(item as Map<String, dynamic>))
               .toList();
 
+          final List<CatalogueHistory> newHistory = isNext
+              ? [...state.history, CatalogueHistory(nextUrl: state.nextUrl, previousUrl: state.previousUrl, addedCount: catalogues.length)]
+              : [];
+
           state = state.copyWith(
             isLoading: false,
             isLoaded: true,
-            catalogues: catalogues,
-            allCatalogues: catalogues,
-            count: pagination?['total'] ?? catalogues.length,
+            catalogues: isNext ? [...state.catalogues, ...catalogues] : catalogues,
+            allCatalogues: isNext ? [...state.allCatalogues, ...catalogues] : catalogues,
+            count: pagination?['total'] ?? (isNext ? state.catalogues.length + catalogues.length : catalogues.length),
             nextUrl: pagination?['next_page_url']?.toString(),
             previousUrl: pagination?['prev_page_url']?.toString(),
+            history: newHistory,
           );
         } else {
 

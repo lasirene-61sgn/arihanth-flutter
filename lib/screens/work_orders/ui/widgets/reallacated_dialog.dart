@@ -137,7 +137,13 @@ class _ReallocateOrderDialogState extends ConsumerState<ReallocateOrderDialog> {
               hint: Text('Select BP Code', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
               isExpanded: true,
               decoration: _inputDeco(isDark: isDark),
-              items: bpCodes.map((code) => DropdownMenuItem(value: code, child: Text(code))).toList(),
+              items: craftsmen
+                  .where((c) => c.bpCode != null && c.bpCode!.isNotEmpty)
+                  .map((c) => DropdownMenuItem(
+                        value: c.bpCode,
+                        child: Text("${c.businessName} - ${c.bpCode}"),
+                      ))
+                  .toList(),
               onChanged: (v) => setState(() => _selectedBpCode = v),
               validator: (v) => v == null ? 'Required' : null,
             ),

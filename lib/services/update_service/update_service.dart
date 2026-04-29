@@ -10,15 +10,19 @@ class UpdateService {
   UpdateService._internal();
 
   AppUpdateInfo? _updateInfo;
-  GlobalKey<ScaffoldState>? _scaffoldKey;
 
   void setScaffoldKey(GlobalKey<ScaffoldState> key) {
-    _scaffoldKey = key;
+    // _scaffoldKey = key; // Keeping for future use if needed, or just remove
   }
 
   Future<void> checkForUpdate() async {
+    if (Platform.isIOS) {
+      await _checkIosUpdate();
+      return;
+    }
+
     if (!Platform.isAndroid) {
-      debugPrint("In-app updates are only supported on Android.");
+      debugPrint("In-app updates are only supported on Android and iOS.");
       return;
     }
 
@@ -80,5 +84,11 @@ class UpdateService {
         debugPrint("Error completing update: $e");
       });
     });
+  }
+
+  Future<void> _checkIosUpdate() async {
+    // For iOS, the update check is typically handled by the UpgradeAlert widget 
+    // in the main widget tree, which provides a native-like update prompt.
+    debugPrint("Update check initiated for iOS.");
   }
 }

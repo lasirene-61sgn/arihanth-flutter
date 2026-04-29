@@ -117,16 +117,16 @@ class CraftsmanCard extends StatelessWidget {
                       bottom: 0,
                       left: 0,
                       child: SizedBox(
-                        width: 30,
-                        height: 30,
+                        width: 36,
+                        height: 36,
                         child: Transform.scale(
-                          scale: 0.9,
+                          scale: 1.2,
                           child: Checkbox(
                             value: isSelected,
                             onChanged: onSelectionChanged,
                             activeColor: AppColor.primary,
                                checkColor: AppColor.textWhite,
-                            side: const BorderSide(color: AppColor.black),
+                            side: const BorderSide(color: AppColor.black, width: 1.5),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(4),
                             ),

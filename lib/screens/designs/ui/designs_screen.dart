@@ -237,7 +237,9 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
           if (state.nextUrl != null || state.previousUrl != null)
             PaginationControls(
               count: state.count,
-              label: 'Designs',
+              currentCount: state.designs.length,
+              label: 'Total Design',
+              loadedLabel: 'Loaded Design',
               onNext: notifier.goToNextPage,
               onPrevious: notifier.goToPreviousPage,
               isFirstPage: state.previousUrl == null,
@@ -397,26 +399,30 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
         child: Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: isAllSelectedOnPage,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      for (var d in state.designs) {
-                        selectedIds.add(d.id.toString());
+              width: 30,
+              height: 30,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: isAllSelectedOnPage,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        for (var d in state.designs) {
+                          selectedIds.add(d.id.toString());
+                        }
+                      } else {
+                        for (var d in state.designs) {
+                          selectedIds.remove(d.id.toString());
+                        }
                       }
-                    } else {
-                      for (var d in state.designs) {
-                        selectedIds.remove(d.id.toString());
-                      }
-                    }
-                  });
-                },
-                activeColor: AppColor.primary,
-                   checkColor: AppColor.textWhite,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    });
+                  },
+                  activeColor: AppColor.primary,
+                  checkColor: AppColor.textWhite,
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
               ),
             ),
             const SizedBox(width: 12),

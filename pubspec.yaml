@@ -39,6 +39,8 @@ dependencies:
   android_intent_plus:
   image_picker: ^1.2.1
   in_app_update: ^4.0.2
+  upgrader: ^13.1.0
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

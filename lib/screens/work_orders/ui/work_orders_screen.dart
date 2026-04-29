@@ -221,13 +221,15 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           const SizedBox(height: 10),
           Flexible(fit: FlexFit.loose, child: _buildPreTable()),
 
-          if (state.nextUrl != null || state.previousUrl != null)
+          if (state.nextUrl != null || state.history.isNotEmpty || state.previousUrl != null)
             PaginationControls(
               count: state.count,
-              label: 'WorkOrder',
+              currentCount: state.workOrders.length,
+              label: 'Total WorkOrder',
+              loadedLabel: 'Loaded WorkOrder',
               onNext: notifier.goToNextPage,
               onPrevious: notifier.goToPreviousPage,
-              isFirstPage: state.previousUrl == null,
+              isFirstPage: state.history.isEmpty && state.previousUrl == null,
               isLastPage: state.nextUrl == null,
               isLoading: state.isLoading,
             ),
@@ -311,22 +313,26 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         child: Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: isAllSelectedOnPage,
-                activeColor: AppColor.primary,
-                onChanged: (bool? value) {
-                  setState(() {
-                    if (value == true) {
-                      for (var wo in state.workOrders) {
-                        selectedIds.add(wo.id.toString());
+              width: 30,
+              height: 30,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: isAllSelectedOnPage,
+                  activeColor: AppColor.primary,
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        for (var wo in state.workOrders) {
+                          selectedIds.add(wo.id.toString());
+                        }
+                      } else {
+                        selectedIds.clear();
                       }
-                    } else {
-                      selectedIds.clear();
-                    }
-                  });
-                },
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -505,10 +511,18 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                 )
               : isMobile
           ? ListView.separated(
-              itemCount: state.workOrders.length,
+              itemCount: state.workOrders.length + (state.isLoading ? 1 : 0),
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               itemBuilder: (context, index) {
+                if (index == state.workOrders.length) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: CircularProgressIndicator(color: AppColor.primary),
+                    ),
+                  );
+                }
                 final partner = state.workOrders[index];
                 return GestureDetector(
                   onTap: (){
@@ -621,6 +635,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         _buildActionBtn(
           label: 'Approve',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await WorkOrderApprovalDialog.show(context, ref, selectedIds);
             setState(() {
@@ -649,25 +665,25 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         _buildActionBtn(
           label: 'Complete',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await CraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
-            setState(() {
-              selectedIds.clear();
-            });
+            setState(() => selectedIds.clear());
           },
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'Allocated' && (role == 'craftsman' || role == 'Craftsman')) {
+    } else if (_activeStatus == 'Allocated' && role?.toLowerCase() == 'craftsman') {
       actions.add(
         _buildActionBtn(
           label: 'Reject',
           icon: Icons.cancel_outlined,
+          backgroundColor: Colors.red.withOpacity(0.1),
+          textColor: Colors.red,
           onPressed: () async {
             await CraftsmanBulkRejectDialog.show(context, ref, selectedIds);
-            setState(() {
-              selectedIds.clear();
-            });
+            setState(() => selectedIds.clear());
           },
           isFab: isFab,
         ),
@@ -677,11 +693,11 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         _buildActionBtn(
           label: 'Accept',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await CraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
-            setState(() {
-              selectedIds.clear();
-            });
+            setState(() => selectedIds.clear());
           },
           isFab: isFab,
         ),
@@ -709,19 +725,23 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
     required IconData icon,
     required VoidCallback onPressed,
     required bool isFab,
+    Color? backgroundColor,
+    Color? textColor,
   }) {
     if (isFab) {
       return FloatingActionButton.extended(
         onPressed: onPressed,
-        backgroundColor: AppColor.primary,
-        icon: Icon(icon, color: AppColor.textWhite),
-        label: Text(label, style: const TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+        backgroundColor: backgroundColor ?? AppColor.primary,
+        icon: Icon(icon, color: textColor ?? AppColor.textWhite),
+        label: Text(label, style: TextStyle(color: textColor ?? AppColor.textWhite, fontWeight: FontWeight.bold)),
         heroTag: label,
       );
     } else {
       return FormFeildCommonButton(
         text: label,
         onPressed: onPressed,
+        backgroundColor: backgroundColor,
+        textColor: textColor,
       );
     }
   }

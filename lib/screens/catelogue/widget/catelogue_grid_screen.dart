@@ -36,7 +36,7 @@ class _CatalogueGridScreenState extends ConsumerState<CatalogueGridScreen> {
     final state = ref.watch(catalogueProvider);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    if (state.isLoading) {
+    if (state.isLoading && state.catalogues.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColor.primary));
     }
 
@@ -56,8 +56,16 @@ class _CatalogueGridScreenState extends ConsumerState<CatalogueGridScreen> {
         mainAxisSpacing: 8,
         childAspectRatio: childAspectRatio,
       ),
-      itemCount: state.catalogues.length,
+      itemCount: state.isLoading ? state.catalogues.length + 1 : state.catalogues.length,
       itemBuilder: (context, index) {
+        if (index == state.catalogues.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(color: AppColor.primary),
+            ),
+          );
+        }
         final item = state.catalogues[index];
         return CatalogueGridCard(
           item: item,

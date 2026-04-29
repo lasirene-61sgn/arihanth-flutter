@@ -14,6 +14,18 @@ import 'package:get/get.dart';
 
 import '../../../services/widget/custom_msg.dart';
 
+class PurchaseOrderHistory {
+  final String? nextUrl;
+  final String? previousUrl;
+  final int addedCount;
+
+  PurchaseOrderHistory({
+    this.nextUrl,
+    this.previousUrl,
+    required this.addedCount,
+  });
+}
+
 class PurchaseOrderListState {
   final bool isLoading;
   final bool isLoaded;
@@ -46,6 +58,7 @@ class PurchaseOrderListState {
   final bool isProcessingItems;
   final String? nextUrl;
   final String? previousUrl;
+  final List<PurchaseOrderHistory> history;
 
   const PurchaseOrderListState({
     this.isLoading = false,
@@ -75,6 +88,7 @@ class PurchaseOrderListState {
     this.count = 0,
     this.nextUrl,
     this.previousUrl,
+    this.history = const [],
   });
 
   PurchaseOrderListState copyWith({
@@ -105,6 +119,7 @@ class PurchaseOrderListState {
     int? count,
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
+    List<PurchaseOrderHistory>? history,
   }) {
     return PurchaseOrderListState(
       isLoading: isLoading ?? this.isLoading,
@@ -134,6 +149,7 @@ class PurchaseOrderListState {
       count: count ?? this.count,
       nextUrl: nextUrl == _sentinel ? this.nextUrl : nextUrl as String?,
       previousUrl: previousUrl == _sentinel ? this.previousUrl : previousUrl as String?,
+      history: history ?? this.history,
     );
   }
 }
@@ -150,7 +166,7 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
   }
 
   /// Fetch purchase orders
-  Future<void> fetchPurchaseOrders({String? customUrl}) async {
+  Future<void> fetchPurchaseOrders({String? customUrl, bool isNext = false}) async {
     state = state.copyWith(
       isLoading: true,
       error: null,
@@ -186,13 +202,14 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
         final int rejectedOrders    = counts?['rejected'] ?? 0;
         final int allOrders         = counts?['all'] ?? 0;
 
-        // Log success with helpful metadata
-
+        final List<PurchaseOrderHistory> newHistory = isNext
+            ? [...state.history, PurchaseOrderHistory(nextUrl: state.nextUrl, previousUrl: state.previousUrl, addedCount: orders.length)]
+            : [];
 
         state = state.copyWith(
           isLoading: false,
-          purchaseOrders: orders,
-          allPurchaseOrders: orders,
+          purchaseOrders: isNext ? [...state.purchaseOrders, ...orders] : orders,
+          allPurchaseOrders: isNext ? [...state.allPurchaseOrders, ...orders] : orders,
           createdOrders: createdOrders,
           allocatedOrders: allocatedOrders,
           inProcessOrders: inProcessOrders,
@@ -200,9 +217,10 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
           completedOrders: completedOrders,
           rejectedOrders: rejectedOrders,
           totalCount: allOrders,
-          count: rawPaginationData["total"] ?? 0,
+          count: rawPaginationData["total"] ?? (isNext ? state.purchaseOrders.length + orders.length : orders.length),
           nextUrl: rawPaginationData["next_page_url"],
           previousUrl: rawPaginationData["prev_page_url"],
+          history: newHistory,
         );
       } else {
         // 3. Log logic errors (like 401 or custom API errors)
@@ -421,17 +439,22 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
   void goToNextPage() {
     if (state.nextUrl != null) {
       final relativeUrl = ApiClient.toRelativeUrl(state.nextUrl!);
-      print('next -> $relativeUrl');
-      state = state.copyWith(purchaseOrders: []);
-      fetchPurchaseOrders(customUrl: relativeUrl);
+      fetchPurchaseOrders(customUrl: relativeUrl, isNext: true);
     }
   }
 
   void goToPreviousPage() {
-    if (state.previousUrl != null) {
-      final relativeUrl = ApiClient.toRelativeUrl(state.previousUrl!);
-      state = state.copyWith(purchaseOrders: []);
-      fetchPurchaseOrders(customUrl: relativeUrl);
+    if (state.history.isNotEmpty) {
+      final lastHistory = state.history.last;
+      final newHistory = List<PurchaseOrderHistory>.from(state.history)..removeLast();
+
+      state = state.copyWith(
+        purchaseOrders: state.purchaseOrders.sublist(0, state.purchaseOrders.length - lastHistory.addedCount),
+        allPurchaseOrders: state.allPurchaseOrders.sublist(0, state.allPurchaseOrders.length - lastHistory.addedCount),
+        nextUrl: lastHistory.nextUrl,
+        previousUrl: lastHistory.previousUrl,
+        history: newHistory,
+      );
     }
   }
   void filterBuyers(String filterKey, String query) {

@@ -12,6 +12,20 @@ import 'package:get/get.dart';
 
 
 
+const _sentinel = Object();
+
+class DesignHistory {
+  final String? nextUrl;
+  final String? previousUrl;
+  final int addedCount;
+
+  DesignHistory({
+    this.nextUrl,
+    this.previousUrl,
+    required this.addedCount,
+  });
+}
+
 class DesignListState {
   final bool isLoading;
   final String? savingDesignId;
@@ -28,6 +42,7 @@ class DesignListState {
   final String? currentUrl;
   final bool isBulkAcceptLoading;
   final bool isBulkRejectLoading;
+  final List<DesignHistory> history;
 
   const DesignListState({
     this.isLoading = false,
@@ -45,6 +60,7 @@ class DesignListState {
     this.currentUrl,
     this.isBulkAcceptLoading = false,
     this.isBulkRejectLoading = false,
+    this.history = const [],
   });
 
   DesignListState copyWith({
@@ -63,6 +79,7 @@ class DesignListState {
     String? currentUrl,
     bool? isBulkAcceptLoading,
     bool? isBulkRejectLoading,
+    List<DesignHistory>? history,
   }) {
     return DesignListState(
       isLoading: isLoading ?? this.isLoading,
@@ -80,11 +97,11 @@ class DesignListState {
       currentUrl: currentUrl ?? this.currentUrl,
       isBulkAcceptLoading: isBulkAcceptLoading ?? this.isBulkAcceptLoading,
       isBulkRejectLoading: isBulkRejectLoading ?? this.isBulkRejectLoading,
+      history: history ?? this.history,
     );
   }
 }
 
-const _sentinel = Object();
 
 class DesignListNotifier extends StateNotifier<DesignListState> {
   final Ref ref;
@@ -92,17 +109,26 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
 
   void goToNextPage() {
     if (state.nextUrl != null) {
-      fetchDesigns(url: ApiClient.toRelativeUrl(state.nextUrl!));
+      fetchDesigns(url: ApiClient.toRelativeUrl(state.nextUrl!), isNext: true);
     }
   }
 
   void goToPreviousPage() {
-    if (state.previousUrl != null) {
-      fetchDesigns(url: ApiClient.toRelativeUrl(state.previousUrl!));
+    if (state.history.isNotEmpty) {
+      final lastHistory = state.history.last;
+      final newHistory = List<DesignHistory>.from(state.history)..removeLast();
+
+      state = state.copyWith(
+        designs: state.designs.sublist(0, state.designs.length - lastHistory.addedCount),
+        allDesigns: state.allDesigns.sublist(0, state.allDesigns.length - lastHistory.addedCount),
+        nextUrl: lastHistory.nextUrl,
+        previousUrl: lastHistory.previousUrl,
+        history: newHistory,
+      );
     }
   }
 
-  Future<void> fetchDesigns({String? url}) async {
+  Future<void> fetchDesigns({String? url, bool isNext = false}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     final String endpoint = url ?? "api/common/designs";
@@ -121,16 +147,20 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
         if (rawList != null && rawList is List) {
           final designs = rawList.map((item) => Design.fromJson(item as Map<String, dynamic>)).toList();
 
+          final List<DesignHistory> newHistory = isNext
+              ? [...state.history, DesignHistory(nextUrl: state.nextUrl, previousUrl: state.previousUrl, addedCount: designs.length)]
+              : [];
 
           state = state.copyWith(
             isLoading: false,
             isLoaded: true,
-            designs: designs,
-            allDesigns: designs,
-            count: paginationData?["total"] ?? designs.length,
+            designs: isNext ? [...state.designs, ...designs] : designs,
+            allDesigns: isNext ? [...state.allDesigns, ...designs] : designs,
+            count: paginationData?["total"] ?? (isNext ? state.designs.length + designs.length : designs.length),
             nextUrl: paginationData?["next_page_url"]?.toString(),
             previousUrl: paginationData?["prev_page_url"]?.toString(),
             currentUrl: endpoint,
+            history: newHistory,
           );
         } else {
 

@@ -273,15 +273,23 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
                   },
                   child: Row(
                     children: [
-                      Checkbox(
-                        value: isSelected,
-                          activeColor: AppColor.primary,
-                       checkColor: AppColor.textWhite,
-                        onChanged: (val) {
-                          setState(() {
-                            val! ? _selectedPermissions.add(perm) : _selectedPermissions.remove(perm);
-                          });
-                        },
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: Transform.scale(
+                          scale: 1.2,
+                          child: Checkbox(
+                            value: isSelected,
+                              activeColor: AppColor.primary,
+                           checkColor: AppColor.textWhite,
+                            side: const BorderSide(color: AppColor.black, width: 1.5),
+                            onChanged: (val) {
+                              setState(() {
+                                val! ? _selectedPermissions.add(perm) : _selectedPermissions.remove(perm);
+                              });
+                            },
+                          ),
+                        ),
                       ),
                       Expanded(
                         child: Text(

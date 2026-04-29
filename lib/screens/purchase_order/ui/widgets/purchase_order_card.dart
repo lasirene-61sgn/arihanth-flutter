@@ -313,16 +313,16 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                               children: [
                                 if (widget.onSelectionChanged != null)
                                   SizedBox(
-                                    width: 30,
-                                    height: 30,
+                                    width: 36,
+                                    height: 36,
                                     child: Transform.scale(
-                                      scale: 0.9,
+                                      scale: 1.2,
                                       child: Checkbox(
                                         value: widget.isSelected,
                                         onChanged: widget.onSelectionChanged,
                                         activeColor: AppColor.primary,
                                         checkColor: AppColor.textWhite,
-                                        side: const BorderSide(color: AppColor.black),
+                                        side: const BorderSide(color: AppColor.black, width: 1.5),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                       ),
                                     ),
@@ -492,6 +492,18 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                   DateFormat('dd-MMM-yyyy').format(DateTime.parse(widget.purchaseOrder.orderDate!)),
                                   style: const TextStyle(color: AppColor.success, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
+                                if (widget.activeStatus == "Completed" && widget.purchaseOrder.status != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Status: ${widget.purchaseOrder.status}',
+                                    style: TextStyle(
+                                        color: widget.purchaseOrder.status?.toLowerCase() == 'completed'
+                                            ? AppColor.success
+                                            : AppColor.warning,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ],
                             ),
                           if (widget.purchaseOrder.dueDate != null)

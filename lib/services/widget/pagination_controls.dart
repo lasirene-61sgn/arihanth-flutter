@@ -4,21 +4,25 @@ import 'custom_button.dart';
 
 class PaginationControls extends StatelessWidget {
   final int count;
+  final int? currentCount;
   final String label;
   final VoidCallback onNext;
   final VoidCallback onPrevious;
   final bool isFirstPage;
   final bool isLastPage;
+  final String? loadedLabel;
   final bool isLoading;
 
   const PaginationControls({
     super.key,
     required this.count,
+    this.currentCount,
     required this.label,
     required this.onNext,
     required this.onPrevious,
     required this.isFirstPage,
     required this.isLastPage,
+    this.loadedLabel,
     this.isLoading = false,
   });
 
@@ -37,14 +41,29 @@ class PaginationControls extends StatelessWidget {
         children: [
           // 🔹 Total Count Display
           Expanded(
-            child: Text(
-              '$label: $count',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppColor.sidebarColor == AppColor.white ? AppColor.jetBlack : AppColor.sidebarColor,
-                fontSize: 14,
-              ),
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$label: $count',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColor.sidebarColor == AppColor.white ? AppColor.jetBlack : AppColor.sidebarColor,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (currentCount != null)
+                  Text(
+                    '${loadedLabel ?? "Loaded Catalogue"}: $currentCount',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: AppColor.textHint,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 8),

@@ -49,7 +49,7 @@ class _PurchaseOrderDetailScreenState
     }
   }
 
-  Widget _buildInfoRow(String label, String? value, {bool isHeader = false}) {
+  Widget _buildInfoRow(String label, String? value, {bool isHeader = false, Color? valueColor}) {
     if (value == null ||
         value.trim().isEmpty ||
         value == 'null' ||
@@ -60,7 +60,7 @@ class _PurchaseOrderDetailScreenState
     Widget valueWidget = Text(
       value,
       style: TextStyle(
-        color: Colors.black,
+        color: valueColor ?? Colors.black,
         fontSize: 13,
         fontWeight: isHeader ? FontWeight.bold : FontWeight.w600,
       ),
@@ -138,7 +138,15 @@ class _PurchaseOrderDetailScreenState
                     order.orderNumber,
                     isHeader: true,
                   ),
-                  // _buildInfoRow("Status", order.status),
+                  _buildInfoRow(
+                    "Status",
+                    order.status,
+                    valueColor: order.status?.toLowerCase() == 'completed'
+                        ? AppColor.success
+                        : (order.status?.toLowerCase() == 'for_approval'
+                            ? AppColor.warning
+                            : null),
+                  ),
                   if (role != "craftsman")
                     _buildInfoRow("Customer BP", order.bpCode),
                   _buildInfoRow("Order Date", _formatDate(order.orderDate)),
@@ -410,24 +418,28 @@ class _PurchaseOrderDetailScreenState
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
                                                       SizedBox(
-                                                        height: 24,
-                                                        width: 24,
-                                                        child: Checkbox(
-                                                          value: _acceptIndices.contains(index),
-                                                          activeColor: AppColor.primary,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(4),
+                                                        height: 30,
+                                                        width: 30,
+                                                        child: Transform.scale(
+                                                          scale: 1.2,
+                                                          child: Checkbox(
+                                                            value: _acceptIndices.contains(index),
+                                                            activeColor: AppColor.primary,
+                                                            side: const BorderSide(color: AppColor.black, width: 1.5),
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(4),
+                                                            ),
+                                                            onChanged: (bool? value) {
+                                                              setState(() {
+                                                                if (value == true) {
+                                                                  _acceptIndices.add(index);
+                                                                  _rejectIndices.remove(index);
+                                                                } else {
+                                                                  _acceptIndices.remove(index);
+                                                                }
+                                                              });
+                                                            },
                                                           ),
-                                                          onChanged: (bool? value) {
-                                                            setState(() {
-                                                              if (value == true) {
-                                                                _acceptIndices.add(index);
-                                                                _rejectIndices.remove(index);
-                                                              } else {
-                                                                _acceptIndices.remove(index);
-                                                              }
-                                                            });
-                                                          },
                                                         ),
                                                       ),
                                                       const SizedBox(width: 4),
@@ -447,24 +459,28 @@ class _PurchaseOrderDetailScreenState
                                                     mainAxisSize: MainAxisSize.min,
                                                     children: [
                                                       SizedBox(
-                                                        height: 24,
-                                                        width: 24,
-                                                        child: Checkbox(
-                                                          value: _rejectIndices.contains(index),
-                                                          activeColor: Colors.red.shade400,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(4),
+                                                        height: 30,
+                                                        width: 30,
+                                                        child: Transform.scale(
+                                                          scale: 1.2,
+                                                          child: Checkbox(
+                                                            value: _rejectIndices.contains(index),
+                                                            activeColor: Colors.red.shade400,
+                                                            side: const BorderSide(color: AppColor.black, width: 1.5),
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(4),
+                                                            ),
+                                                            onChanged: (bool? value) {
+                                                              setState(() {
+                                                                if (value == true) {
+                                                                  _rejectIndices.add(index);
+                                                                  _acceptIndices.remove(index);
+                                                                } else {
+                                                                  _rejectIndices.remove(index);
+                                                                }
+                                                              });
+                                                            },
                                                           ),
-                                                          onChanged: (bool? value) {
-                                                            setState(() {
-                                                              if (value == true) {
-                                                                _rejectIndices.add(index);
-                                                                _acceptIndices.remove(index);
-                                                              } else {
-                                                                _rejectIndices.remove(index);
-                                                              }
-                                                            });
-                                                          },
                                                         ),
                                                       ),
                                                       const SizedBox(width: 4),

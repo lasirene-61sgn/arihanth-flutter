@@ -164,10 +164,10 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: SizedBox(
-                                width: 30,
-                                height: 30,
+                                width: 36,
+                                height: 36,
                                 child: Transform.scale(
-                                  scale: 0.9,
+                                  scale: 1.2,
                                   child: Checkbox(
                                     value: isSelected,
                                     onChanged: onSelectionChanged,
@@ -175,6 +175,7 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                                        checkColor: AppColor.textWhite,
                                     side: const BorderSide(
                                       color: AppColor.black,
+                                      width: 1.5,
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(4),
@@ -321,6 +322,18 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      if (activeStatus == "Completed" && workOrder.status != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Status: ${workOrder.status}',
+                          style: TextStyle(
+                              color: workOrder.status?.toLowerCase() == 'completed'
+                                  ? AppColor.success
+                                  : AppColor.warning,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
                       // Check if the date exists and is not 'null' string
                       if (workOrder.craftsmanDueDate != null &&
                           workOrder.craftsmanDueDate.toString() != 'null' &&

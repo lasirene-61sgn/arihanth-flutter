@@ -475,12 +475,16 @@ class _ReusableDataTableState<T> extends State<ReusableDataTable<T>> {
         children: [
           if (includeSelection) ...[
             SizedBox(
-              width: 20,
-              height: 20,
-              child: Checkbox(
-                value: _getSelectAllValue(),
-                onChanged: (value) => _handleSelectAll(value ?? false),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              width: 26,
+              height: 26,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: _getSelectAllValue(),
+                  onChanged: (value) => _handleSelectAll(value ?? false),
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ),
             SizedBox(width: _isCompactView ? 8 : 16),
@@ -517,12 +521,16 @@ class _ReusableDataTableState<T> extends State<ReusableDataTable<T>> {
           children: [
             if (widget.enableSelection && widget.stickyCheckbox) ...[
               SizedBox(
-                width: 20,
-                height: 20,
-                child: Checkbox(
-                  value: _getSelectAllValue(),
-                  onChanged: (value) => _handleSelectAll(value ?? false),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                width: 26,
+                height: 26,
+                child: Transform.scale(
+                  scale: 1.2,
+                  child: Checkbox(
+                    value: _getSelectAllValue(),
+                    onChanged: (value) => _handleSelectAll(value ?? false),
+                    side: const BorderSide(color: AppColor.black, width: 1.5),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
               ),
               SizedBox(width: _isCompactView ? 8 : 16),

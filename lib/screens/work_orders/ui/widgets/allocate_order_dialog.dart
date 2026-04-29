@@ -128,7 +128,13 @@ class _WorkOrderAllocatedDialogState extends ConsumerState<WorkOrderAllocatedDia
               ),
             ),
             icon: Icon(Icons.arrow_drop_down, color: isDark ? AppColor.coolLavender : Colors.grey),
-            items: bpCodes.map((code) => DropdownMenuItem(value: code, child: Text(code))).toList(),
+            items: craftsManState.bpCraftsmanList
+                .where((c) => c.bpCode != null && c.bpCode!.trim().isNotEmpty)
+                .map((c) => DropdownMenuItem(
+                      value: c.bpCode!.trim(),
+                      child: Text("${c.businessName} - ${c.bpCode!.trim()}"),
+                    ))
+                .toList(),
             onChanged: (v) => setState(() => _selectedBpCode = v),
           ),
 

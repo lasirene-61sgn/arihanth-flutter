@@ -52,7 +52,6 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
         {'label': 'New', 'value': 'New'},
         {'label': 'Allocated', 'value': 'Allocated'},
         {'label': 'In Process', 'value': 'In Process'},
-        {'label': 'For Approval', 'value': 'For Approval'},
         {'label': 'Completed', 'value': 'Completed'},
         {'label': 'Rejected', 'value': 'Rejected'},
         {'label': 'All', 'value': 'All'},

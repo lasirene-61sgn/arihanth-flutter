@@ -223,7 +223,9 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
           if (state.nextUrl != null || state.previousUrl != null)
             PaginationControls(
               count: state.count,
-              label: 'PurchaseOrder',
+              currentCount: state.purchaseOrders.length,
+              label: 'Total PO',
+              loadedLabel: 'Loaded PO',
               onNext: notifier.goToNextPage,
               onPrevious: notifier.goToPreviousPage,
               isFirstPage: state.previousUrl == null,
@@ -309,22 +311,26 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         child: Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: isAllSelectedOnPage,
-                activeColor: AppColor.primary,
-                onChanged: (bool? value) {
-                  setState(() {
-                    if (value == true) {
-                      for (var po in state.purchaseOrders) {
-                        selectedIds.add(po.id.toString());
+              width: 30,
+              height: 30,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: isAllSelectedOnPage,
+                  activeColor: AppColor.primary,
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        for (var po in state.purchaseOrders) {
+                          selectedIds.add(po.id.toString());
+                        }
+                      } else {
+                        selectedIds.clear();
                       }
-                    } else {
-                      selectedIds.clear();
-                    }
-                  });
-                },
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -393,6 +399,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         _buildActionBtn(
           label: 'Approve',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await PurchaseOrderApprovalDialog.show(context, ref, selectedIds);
             setState(() => selectedIds.clear());
@@ -405,6 +413,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         _buildActionBtn(
           label: 'Reject',
           icon: Icons.cancel_outlined,
+          backgroundColor: Colors.red.withOpacity(0.1),
+          textColor: Colors.red,
           onPressed: () async {
             await PurchaseCraftsmanBulkRejectDialog.show(context, ref, selectedIds);
             setState(() => selectedIds.clear());
@@ -417,6 +427,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         _buildActionBtn(
           label: 'Accept',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await PurchaseCraftsmanBulkAcceptDialog.show(context, ref, selectedIds);
             setState(() => selectedIds.clear());
@@ -429,6 +441,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         _buildActionBtn(
           label: 'Complete',
           icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green.withOpacity(0.1),
+          textColor: Colors.green,
           onPressed: () async {
             await PurchaseCraftsmanBulkCompleteDialog.show(context, ref, selectedIds);
             setState(() => selectedIds.clear());
@@ -472,19 +486,23 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
     required IconData icon,
     required VoidCallback onPressed,
     required bool isFab,
+    Color? backgroundColor,
+    Color? textColor,
   }) {
     if (isFab) {
       return FloatingActionButton.extended(
         onPressed: onPressed,
-        backgroundColor: AppColor.primary,
-        icon: Icon(icon, color: AppColor.textWhite),
-        label: Text(label, style: const TextStyle(color: AppColor.textWhite, fontWeight: FontWeight.bold)),
+        backgroundColor: backgroundColor ?? AppColor.primary,
+        icon: Icon(icon, color: textColor ?? AppColor.textWhite),
+        label: Text(label, style: TextStyle(color: textColor ?? AppColor.textWhite, fontWeight: FontWeight.bold)),
         heroTag: label,
       );
     } else {
       return FormFeildCommonButton(
         text: label,
         onPressed: onPressed,
+        backgroundColor: backgroundColor,
+        textColor: textColor,
       );
     }
   }

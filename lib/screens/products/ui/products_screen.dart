@@ -272,26 +272,30 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         child: Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: isAllSelectedOnPage,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      for (var p in state.products) {
-                        selectedIds.add(p.id.toString());
+              width: 30,
+              height: 30,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: isAllSelectedOnPage,
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        for (var p in state.products) {
+                          selectedIds.add(p.id.toString());
+                        }
+                      } else {
+                        for (var p in state.products) {
+                          selectedIds.remove(p.id.toString());
+                        }
                       }
-                    } else {
-                      for (var p in state.products) {
-                        selectedIds.remove(p.id.toString());
-                      }
-                    }
-                  });
-                },
-                activeColor: AppColor.primary,
-                   checkColor: AppColor.textWhite,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    });
+                  },
+                  activeColor: AppColor.primary,
+                  checkColor: AppColor.textWhite,
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
               ),
             ),
             const SizedBox(width: 12),

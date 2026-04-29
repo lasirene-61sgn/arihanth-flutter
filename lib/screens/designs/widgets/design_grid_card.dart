@@ -115,15 +115,18 @@ class _DesignGridCardState extends State<DesignGridCard> {
                         top: 4,
                         left: 4,
                         child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: widget.isSelected,
-                            onChanged: widget.onSelectionChanged,
-                            activeColor: AppColor.primary,
-                            checkColor: AppColor.textWhite,
-                            side: const BorderSide(color: AppColor.primary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          width: 30,
+                          height: 30,
+                          child: Transform.scale(
+                            scale: 1.2,
+                            child: Checkbox(
+                              value: widget.isSelected,
+                              onChanged: widget.onSelectionChanged,
+                              activeColor: AppColor.primary,
+                              checkColor: AppColor.textWhite,
+                              side: const BorderSide(color: AppColor.black, width: 1.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
                           ),
                         ),
                       ),

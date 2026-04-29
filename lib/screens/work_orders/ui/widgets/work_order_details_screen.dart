@@ -46,7 +46,7 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
   }
 
   /// New Layout Row matching your image (Label : Value)
-  Widget _buildInfoRow(String label, String? value, {bool isHeader = false}) {
+  Widget _buildInfoRow(String label, String? value, {bool isHeader = false, Color? valueColor}) {
     // Hide logic for empty values
     if (value == null || value.isEmpty || value == 'null' || value == '0' || value == '0.0') {
       return const SizedBox.shrink();
@@ -61,7 +61,7 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
     Widget valueText = Text(
       value,
       style: TextStyle(
-        color: Colors.black,
+        color: valueColor ?? Colors.black,
         fontSize: 14,
         fontWeight: isHeader ? FontWeight.bold : FontWeight.w600,
       ),
@@ -192,7 +192,15 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
             // HIDE if craftsman or restricted roles: status, customer, bp code, ref no, product code
             if (!isCraftsman && !['buyer', 'key_user', 'user'].contains(role?.toLowerCase())) ...[
 
-              _buildInfoRow("Status", wo.status),
+              _buildInfoRow(
+                "Status",
+                wo.status,
+                valueColor: wo.status?.toLowerCase() == 'completed'
+                    ? AppColor.success
+                    : (wo.status?.toLowerCase() == 'for_approval'
+                        ? AppColor.warning
+                        : null),
+              ),
               _buildInfoRow("Customer", wo.customerName),
               _buildInfoRow("BP Code", wo.bpCode),
               _buildInfoRow("Ref No", wo.referenceNo),

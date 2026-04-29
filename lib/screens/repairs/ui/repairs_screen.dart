@@ -259,22 +259,26 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen> {
         child: Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: isAllSelected,
-                activeColor: AppColor.primary,
-                onChanged: (bool? value) {
-                  setState(() {
-                    if (value == true) {
-                      for (var r in state.repairs) {
-                        selectedIds.add(r.id.toString());
+              width: 30,
+              height: 30,
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: isAllSelected,
+                  activeColor: AppColor.primary,
+                  side: const BorderSide(color: AppColor.black, width: 1.5),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        for (var r in state.repairs) {
+                          selectedIds.add(r.id.toString());
+                        }
+                      } else {
+                        selectedIds.clear();
                       }
-                    } else {
-                      selectedIds.clear();
-                    }
-                  });
-                },
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(width: 12),
