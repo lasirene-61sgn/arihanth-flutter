@@ -48,32 +48,32 @@ android {
         }
     }
 
-    buildTypes {
-        getByName("release") {
-            // ✅ This links to the release signing config above
-            signingConfig = signingConfigs.getByName("release")
-
-            // Optimization settings
-            isMinifyEnabled = false
-            isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
 //    buildTypes {
-//        release {
+//        getByName("release") {
+//            // ✅ This links to the release signing config above
+//            signingConfig = signingConfigs.getByName("release")
 //
-//            signingConfig = signingConfigs.getByName("debug")
-//            isMinifyEnabled = true
-//            isShrinkResources = true
+//            // Optimization settings
+//            isMinifyEnabled = false
+//            isShrinkResources = false
 //            proguardFiles(
 //                getDefaultProguardFile("proguard-android-optimize.txt"),
 //                "proguard-rules.pro"
 //            )
 //        }
 //    }
+    buildTypes {
+        release {
+
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
     lint {
         checkReleaseBuilds = false
         abortOnError = false

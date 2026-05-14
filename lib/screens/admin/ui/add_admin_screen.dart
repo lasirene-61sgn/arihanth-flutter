@@ -53,7 +53,8 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
     "design",
     "catalogue",
     "kyc_pending",
-    "finance"
+    "finance",
+    "meetings"
   ];
   final List<String> _selectedPermissions = [];
 

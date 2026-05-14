@@ -101,7 +101,7 @@ class _CraftManCreationFormState extends ConsumerState<CraftManCreationForm> wit
 
   // permission Tap
   final List<String> _allPermissions =[
-    "product","design", "catalogue","work_order", "finance","purchase_order"];
+    "product","design", "catalogue","work_order", "finance","purchase_order", "stock_order", "meetings"];
   List<String> _selectedPermissions = [];
 
   // --- TAB 6: WORKER CONTROLLERS ---

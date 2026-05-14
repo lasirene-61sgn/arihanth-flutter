@@ -311,6 +311,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           });
         },
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
               width: 30,
@@ -336,38 +337,41 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              isAllSelectedOnPage ? "Deselect All" : "Select All Items",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColor.textPrimary,
-                fontSize: 14,
-              ),
-            ),
-            const Spacer(),
-            if (selectedIds.isNotEmpty)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColor.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      "${selectedIds.length} Selected",
-                      style: const TextStyle(
-                        color: AppColor.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isAllSelectedOnPage ? "Deselect All" : "Select All Items",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+                if (selectedIds.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColor.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "${selectedIds.length} Selected",
+                        style: const TextStyle(
+                          color: AppColor.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  _buildBulkActions(isFab: false),
-                ],
-              ),
+              ],
+            ),
+            const Spacer(),
+            if (selectedIds.isNotEmpty) _buildBulkActions(isFab: false),
           ],
         ),
       ),

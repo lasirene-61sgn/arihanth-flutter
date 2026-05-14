@@ -139,6 +139,11 @@ class _SidebarState extends ConsumerState<Sidebar> {
       if (permissions.contains('favorites')) {
         menu.add(_navItem(Icons.favorite_outline, ref.watchTr('my_favorites'), 17, selectedIndex));
       }
+      menu.add(_navItem(Icons.chat_outlined, "Chat", 19, selectedIndex));
+    }
+    
+    if (hasPermission('meetings')) {
+      menu.add(_navItem(Icons.video_call_outlined, "Meetings", 20, selectedIndex));
     }
     menu.add(const SizedBox(height: 15));
 
@@ -149,6 +154,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
     bool hasProduct = hasPermission('product');
     bool hasDesign = hasPermission('design');
     bool hasCatalogue = hasPermission('catalogue');
+    bool hasStockOrder = hasPermission('stock_order');
 
     if (hasBusinessPartner || hasWorkOrder || hasPurchaseOrder || hasProduct || hasDesign || hasCatalogue) {
       menu.add(_sectionTitle("BUSINESS OPERATIONS"));
@@ -211,6 +217,10 @@ class _SidebarState extends ConsumerState<Sidebar> {
         if (hasCatalogue) {
           menu.add(_navItem(Icons.menu_book_outlined, ref.watchTr('catalogue'), 11, selectedIndex));
         }
+      }
+
+      if (hasStockOrder) {
+        menu.add(_navItem(Icons.list_alt_outlined, "Live Stock Order", 18, selectedIndex));
       }
 
       menu.add(const SizedBox(height: 20));

@@ -9,7 +9,7 @@ import 'package:intl/intl.dart';
 import '../../screens/products/model/bp_buyer_model.dart';
 import '../../screens/products/model/category_model.dart';
 
-enum FilterModule { workOrder, product, design, catalogue, purchaseOrder, repair, buyer, craftsman, keyUser }
+enum FilterModule { workOrder, product, design, catalogue, purchaseOrder, repair, buyer, craftsman, keyUser, stockOrder }
 
 class UniversalFilterDialog extends ConsumerStatefulWidget {
   final FilterModule module;
@@ -220,6 +220,10 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
         if (_mobileNoCtrl.text.isNotEmpty) queryParams['mobile_no'] = _mobileNoCtrl.text.trim();
         if (_fullNameCtrl.text.isNotEmpty) queryParams['full_name'] = _fullNameCtrl.text.trim();
         break;
+      case FilterModule.stockOrder:
+        basePath = "api/common/stock-orders";
+        if (_codeCtrl.text.isNotEmpty) queryParams['search'] = _codeCtrl.text.trim();
+        break;
     }
     // Common query params (only for modules that use them)
     if (widget.module != FilterModule.buyer && 
@@ -284,7 +288,8 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
                           widget.module == FilterModule.craftsman ||
                           widget.module == FilterModule.catalogue ||  
                           widget.module == FilterModule.product ||
-                          widget.module == FilterModule.design) ...[
+                          widget.module == FilterModule.design ||
+                          widget.module == FilterModule.stockOrder) ...[
                         _buildBpDropdown(
                           label: 'Craftsman Code',
                           value: _selectedCraftsmanModel,
@@ -381,7 +386,8 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
                     if (widget.module != FilterModule.repair && 
                         widget.module != FilterModule.buyer && 
                         widget.module != FilterModule.craftsman && 
-                        widget.module != FilterModule.keyUser) ...[
+                        widget.module != FilterModule.keyUser &&
+                        widget.module != FilterModule.stockOrder) ...[
                       _buildDropdown(
                         label: 'Category',
                         value: _selectedCategory,
@@ -470,6 +476,7 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
       case FilterModule.buyer: return ''; // Should not be reached
       case FilterModule.craftsman: return ''; // Should not be reached
       case FilterModule.keyUser: return ''; // Should not be reached
+      case FilterModule.stockOrder: return 'Order Number';
     }
   }
 
@@ -485,6 +492,7 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
       case FilterModule.buyer: title = "Filter Buyers"; break;
       case FilterModule.craftsman: title = "Filter Craftsmen"; break;
       case FilterModule.keyUser: title = "Filter Key Users"; break;
+      case FilterModule.stockOrder: title = "Filter Stock Orders"; break;
     }
     return Container(
       padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 15, left: 20, right: 10),

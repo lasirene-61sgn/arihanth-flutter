@@ -20,6 +20,9 @@ import 'package:arianth/screens/products/widgets/product_form.dart';
 import 'package:arianth/screens/purchase_order/ui/purchase_details_screen.dart';
 import 'package:arianth/screens/purchase_order/ui/purchase_order_form.dart';
 import 'package:arianth/screens/purchase_order/ui/purchase_order_screen.dart';
+import 'package:arianth/screens/live_stock_order/ui/live_stock_order.dart';
+import 'package:arianth/screens/live_stock_order/ui/live_stock_order_form.dart';
+import 'package:arianth/screens/live_stock_order/ui/live_stock_order_details.dart';
 import 'package:arianth/screens/repairs/model/repair_model.dart';
 import 'package:arianth/screens/user/ui/user_form_screen.dart';
 import 'package:arianth/screens/user/ui/users_screen.dart';
@@ -30,6 +33,8 @@ import 'package:arianth/screens/work_orders/ui/widgets/work_order_details_screen
 import 'package:arianth/screens/profile/ui/profile_screen.dart';
 import 'package:arianth/screens/common/order_success_screen.dart';
 import 'package:arianth/screens/my_favorites/ui/my_favorites_screen.dart';
+import 'package:arianth/screens/chat/ui/chat_list_screen.dart';
+import 'package:arianth/screens/chat/ui/chat_detail_screen.dart';
 import 'package:get/get.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 
@@ -140,6 +145,9 @@ class AppPages {
     GetPage(name: AppRoutes.purchaseOrder, page: () => const PurchaseOrderScreen()),
     GetPage(name: AppRoutes.purchaseOrderAdd, page: () => PurchaseOrderForm(purchaseId: Get.arguments as String?)),
     GetPage(name: AppRoutes.purchaseOrderDetails, page: () => PurchaseOrderDetailScreen(purchaseId: Get.arguments as String? ?? "")),
+    GetPage(name: AppRoutes.stockOrder, page: () => const LiveStockOrder()),
+    GetPage(name: AppRoutes.stockOrderAdd, page: () => LiveStockOrderForm(stockOrderId: Get.arguments as String?)),
+    GetPage(name: AppRoutes.stockOrderDetails, page: () => LiveStockOrderDetailScreen(stockOrderId: Get.arguments as String? ?? "")),
 
     // --- Repairs ---
     GetPage(name: AppRoutes.repairs, page: () => const RepairsScreen()),
@@ -165,5 +173,16 @@ class AppPages {
       transition: Transition.cupertino,
     ),
     GetPage(name: AppRoutes.favorites, page: () => const MyFavoritesScreen()),
+    GetPage(name: AppRoutes.chat, page: () => const ChatListScreen()),
+    GetPage(
+      name: AppRoutes.chatDetails,
+      page: () {
+        final args = Get.arguments as Map<String, dynamic>;
+        return ChatDetailScreen(
+          conversationId: args['conversationId'],
+          chatName: args['chatName'],
+        );
+      },
+    ),
   ];
 }

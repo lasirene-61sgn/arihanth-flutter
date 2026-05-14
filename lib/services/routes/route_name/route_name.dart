@@ -51,6 +51,9 @@ class AppRoutes {
   static const String purchaseOrder = '/purchase-order';
   static const String purchaseOrderAdd = '/purchase-order/add';
   static const String purchaseOrderDetails = '/purchase-order/details';
+  static const String stockOrder = '/stock-order';
+  static const String stockOrderAdd = '/stock-order/add';
+  static const String stockOrderDetails = '/stock-order/details';
   static const String repairs = '/repairs';
   static const String repairsAdd = '/repairs/add';
   static const String repairsDetails = '/repairs/details';
@@ -64,4 +67,7 @@ class AppRoutes {
   static const String kycPending = '/kyc-pending';
   static const String favorites = '/favorites';
   static const String orderSuccess = '/order-success';
+  static const String chat = '/chat';
+  static const String chatDetails = '/chat/details';
+  static const String meetings = '/meetings';
 }

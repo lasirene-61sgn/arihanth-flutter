@@ -98,7 +98,7 @@ class _BPCreationFormState extends ConsumerState<BPCreationForm> with SingleTick
   };
 
   // permission Tap
-  final List<String> _allPermissions =["product","design", "catalogue","work_order", "user_management" , "key_user", "finance"];
+  final List<String> _allPermissions =["product","design", "catalogue","work_order", "user_management" , "key_user", "finance", "stock_order", "meetings"];
   List<String> _selectedPermissions = [];
   KycDocument _tempBankDoc = KycDocument();
   KycDocument _tempPanDoc = KycDocument();

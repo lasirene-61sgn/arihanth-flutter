@@ -11,6 +11,7 @@ import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import '../../../app_color/app_color.dart';
+import '../../../../services/widget/full_screen_image_viewer.dart';
 
 class DesignGridCard extends StatefulWidget {
   final Design item;
@@ -32,7 +33,10 @@ class DesignGridCard extends StatefulWidget {
     this.onSelectionChanged,
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.showQrCode = true,
   });
+
+  final bool showQrCode;
 
   @override
   State<DesignGridCard> createState() => _DesignGridCardState();
@@ -150,6 +154,75 @@ class _DesignGridCardState extends State<DesignGridCard> {
                           ),
                         ),
                       ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // WhatsApp Icon
+                          GestureDetector(
+                            onTap: _shareViaWhatsApp,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: _isSharing
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Color(0xFF25D366)),
+                                    )
+                                  : Image.asset(
+                                      'assets/image/whatsapp.png',
+                                      width: 20,
+                                      height: 20,
+                                    ),
+                            ),
+                          ),
+                          
+                          // QR Code Icon (Only if qrImageUrl is not empty, status is accepted and showQrCode is true)
+                          if (widget.showQrCode &&
+                              widget.item.qrImageUrl != null && 
+                              widget.item.qrImageUrl!.isNotEmpty && 
+                              widget.item.designStatus?.toLowerCase() == 'accepted') ...[
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => FullScreenImageViewer.show(context, widget.item.qrImageUrl!),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.qr_code_2,
+                                  color: AppColor.primary,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

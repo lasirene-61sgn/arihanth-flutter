@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:arianth/screens/craftsman/riverpod/craftsman_notifier.dart';
+import 'package:arianth/screens/chat/riverpod/chat_detail_notifier.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/services/widget/pagination_controls.dart';
@@ -56,8 +57,8 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
     return Stack(
       children: [
         Scaffold(
-      backgroundColor: AppColor.background,
-      appBar: AppBar(
+          backgroundColor: AppColor.background,
+          appBar: AppBar(
         backgroundColor: AppColor.appBarBackground,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -105,7 +106,7 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
           ),
         ],
       ),
-        body: Stack(
+          body: Stack(
           children: [
             Column(
               children: [
@@ -133,17 +134,15 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
               ),
           ],
         ),
-      bottomNavigationBar: ERPBottomNavigationBar(
-        actions: [
-          // 1. Filter
-          NavActionItem(
-            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
-            icon: Icons.filter_alt,
-            color: AppColor.primary,
-            onPressed: _showFilterDialog,
-          ),
-
-          NavActionItem(
+          bottomNavigationBar: ERPBottomNavigationBar(
+            actions: [
+              NavActionItem(
+                label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
+                icon: Icons.filter_alt,
+                color: AppColor.primary,
+                onPressed: _showFilterDialog,
+              ),
+              NavActionItem(
             label: ref.watchTr('search'),
             icon: Icons.search,
             color: AppColor.primary,
@@ -153,9 +152,7 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
               });
             },
           ),
-
-          // 3. ADD NEW (Floating Center)
-          NavActionItem(
+              NavActionItem(
             label: ref.watchTr('add_new'),
             icon: Icons.add,
             color: AppColor.primary,
@@ -194,8 +191,8 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
         ],
       ),
     ),
-      if (pdfState.isLoading)
-        Container(
+        if (pdfState.isLoading)
+          Container(
           color: Colors.black.withOpacity(0.5),
           child: const Center(
             child: CircularProgressIndicator(),
@@ -302,6 +299,7 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
             },
             onEdit: () => Get.toNamed(AppRoutes.craftsmanAdd, arguments: craftsman.id.toString()),
             onDetail: () => Get.toNamed(AppRoutes.craftsmanView, arguments: craftsman.id.toString()),
+
           ),
         );
       },
@@ -350,21 +348,6 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
     );
   }
 
-
-
-  // -------------------------------------------------------------------------
-  // EDIT & VIEW
-  // -------------------------------------------------------------------------
-  Future<void> _editCraftsman() async {
-    final id = selectedIds.first;
-    // await ref.read(craftsmanListProvider.notifier).craftManDetails(id, context);
-    // if (mounted) {
-    //   context.push(
-    //     '${RouteNames.settings}/add',
-    //     extra: {"screen": "CraftsMan", "type": "Edit", "id": id},
-    //   );
-    // }
-  }
 
   void _showFilterDialog() {
     UniversalFilterDialog.show(

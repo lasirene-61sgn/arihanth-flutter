@@ -37,7 +37,10 @@ class DesignCard extends StatefulWidget {
     this.isApproving = false,
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.showQrCode = true,
   });
+
+  final bool showQrCode;
 
   @override
   State<DesignCard> createState() => _DesignCardState();
@@ -408,18 +411,38 @@ class _DesignCardState extends State<DesignCard> {
                                         color: AppColor.primary,
                                       ),
                                     )
-                                  : IconButton(
-                                      icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
-                                      onPressed: () async {
-                                        setState(() => _isSharing = true);
-                                        try {
-                                          await widget.onShare();
-                                        } finally {
-                                          if (mounted) setState(() => _isSharing = false);
-                                        }
-                                      },
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.zero,
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // WhatsApp Icon
+                                        IconButton(
+                                          icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
+                                          onPressed: () async {
+                                            setState(() => _isSharing = true);
+                                            try {
+                                              await widget.onShare();
+                                            } finally {
+                                              if (mounted) setState(() => _isSharing = false);
+                                            }
+                                          },
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        
+                                        // QR Code Icon (Only if qrImageUrl is not empty, status is accepted and showQrCode is true)
+                                        if (widget.showQrCode &&
+                                            widget.design.qrImageUrl != null && 
+                                            widget.design.qrImageUrl!.isNotEmpty && 
+                                            widget.design.designStatus?.toLowerCase() == 'accepted') ...[
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(Icons.qr_code_2, color: AppColor.primary, size: 24),
+                                            onPressed: () => FullScreenImageViewer.show(context, widget.design.qrImageUrl!),
+                                            constraints: const BoxConstraints(),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                        ],
+                                      ],
                                     ),
                           ],
                         ),

@@ -19,6 +19,9 @@ import 'package:arianth/screens/contact_us/ui/contact_us_screen.dart';
 import 'package:arianth/screens/repairs/ui/repairs_screen.dart';
 import 'package:arianth/screens/my_profile/ui/my_profile_screen.dart';
 import 'package:arianth/screens/my_favorites/ui/my_favorites_screen.dart';
+import 'package:arianth/screens/live_stock_order/ui/live_stock_order.dart';
+import 'package:arianth/screens/chat/ui/chat_list_screen.dart';
+import 'package:arianth/screens/meetings/ui/meetings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -56,6 +59,9 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     RepairsScreen(),
     MyProfileScreen(), // Index 16
     MyFavoritesScreen(), // Index 17
+    LiveStockOrder(), // Index 18
+    ChatListScreen(), // Index 19
+    MeetingsScreen(), // Index 20
   ];
 
   @override

@@ -24,6 +24,7 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
   late TabController _tabController;
   String? role;
   late List<Map<String, String>> _tabs;
+  int _lastTabIndex = 0;
 
   final Map<String, String> normalUrls = {
     'New': 'api/common/purchase-orders?tab=created',
@@ -77,7 +78,10 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
 
     // Listen to tab changes
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
+      if (_tabController.index != _lastTabIndex) {
+        setState(() {
+          _lastTabIndex = _tabController.index;
+        });
         _handleTabSelection(_tabs[_tabController.index]['value']!);
       }
     });

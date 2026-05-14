@@ -334,34 +334,38 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              isAllSelectedOnPage ? "Deselect All" : "Select All Items",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColor.textSecondary,
-                fontSize: 14,
-              ),
+            Column(
+              children: [
+                Text(
+                  isAllSelectedOnPage ? "Deselect All" : "Select All Items",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                if(selectedIds.isNotEmpty)Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColor.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "${selectedIds.length} Selected",
+                    style: const TextStyle(
+                      color: AppColor.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Spacer(),
             if (selectedIds.isNotEmpty)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColor.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      "${selectedIds.length} Selected",
-                      style: const TextStyle(
-                        color: AppColor.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
                   const SizedBox(width: 8),
                   _buildBulkActions(isFab: false),
                 ],

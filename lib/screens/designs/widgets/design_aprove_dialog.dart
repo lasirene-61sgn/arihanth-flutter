@@ -217,7 +217,6 @@ class _DesignAproveDialogState extends ConsumerState<DesignAproveDialog> {
                             : 'api/common/designs/${widget.designId}/reject';
 
                    await ref.read(designsProvider.notifier).saveDesign(
-                          // {'design_code': _designCodeCtrl.text.trim()},
                      {},
                           id: widget.designId,
                           url: endpoint,

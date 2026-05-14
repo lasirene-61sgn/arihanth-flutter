@@ -49,6 +49,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
   bool isAscending = true;
   bool isGridMode = false;
   bool _isBulkSharing = false;
+  int _lastTabIndex = 0;
 
   late final TabController _tabController;
   // tab = '' means All (no ?tab= param)
@@ -65,12 +66,17 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
     role = SharedPreferencesHelper().getString("role");
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) return;
-      final tabValue = _tabs[_tabController.index]['value']!;
-      final url = tabValue.isEmpty
-          ? 'api/common/designs?tab=all'
-          : 'api/common/designs?tab=$tabValue';
-      ref.read(designsProvider.notifier).fetchDesigns(url: url);
+      if (_tabController.index != _lastTabIndex) {
+        setState(() {
+          _lastTabIndex = _tabController.index;
+          selectedIds.clear();
+        });
+        final tabValue = _tabs[_tabController.index]['value']!;
+        final url = tabValue.isEmpty
+            ? 'api/common/designs?tab=all'
+            : 'api/common/designs?tab=$tabValue';
+        ref.read(designsProvider.notifier).fetchDesigns(url: url);
+      }
     });
     Future.microtask(() {
       if (role == 'super_admin') {
@@ -426,16 +432,20 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              isAllSelectedOnPage ? 'Deselect All' : 'Select All',
-              style: const TextStyle(color: AppColor.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+            Column(
+              children: [
+                Text(
+                  isAllSelectedOnPage ? 'Deselect All' : 'Select All',
+                  style: const TextStyle(color: AppColor.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                if(selectedIds.isNotEmpty) Text(
+                  '${selectedIds.length} Selected',
+                  style: const TextStyle(color: AppColor.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             const Spacer(),
             if (selectedIds.isNotEmpty) ...[
-              Text(
-                '${selectedIds.length} Selected',
-                style: const TextStyle(color: AppColor.primary, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
               if (role?.toLowerCase() == 'super_admin' && _getTabValue() == 'pending') ...[
                 const SizedBox(width: 12),
                 if (state.isBulkAcceptLoading)
@@ -544,12 +554,13 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
                 return ;
               }
                     if (design.id != null) {
-                     await ref.read(favoritesProvider.notifier).toggleFavorite(design.id!).then((_) async {
-                       await ref.read(designsProvider.notifier).fetchDesigns(url: state.currentUrl);
+                      await ref.read(favoritesProvider.notifier).toggleFavorite(design.id!).then((_) async {
+                        await ref.read(designsProvider.notifier).fetchDesigns(url: state.currentUrl);
                       });
                     }
                   }
                 : null,
+            showQrCode: _getTabValue() != 'all',
           );
         },
       );
@@ -610,6 +621,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               DesignAproveDialog.show(context, ref, design.id.toString());
             },
             isApproving: state.savingDesignId == design.id.toString(),
+            showQrCode: _getTabValue() != 'all',
           ),
         );
       },

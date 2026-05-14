@@ -203,7 +203,7 @@ class _RepairFormScreenState extends ConsumerState<RepairFormScreen> {
                     if (!isMobile) const SizedBox(height: 16),
                     
                     _buildResponsiveFormRow([
-                      _buildInputField('Weight (gm)', _weightController, hint: 'Enter weight', keyboardType: TextInputType.number),
+                      _buildInputField('Weight (gm)', _weightController, hint: 'Enter weight'),
                       _buildInputField('Item Given To', _itemGivenToController, hint: 'Enter name'),
                     ], isMobile),
 

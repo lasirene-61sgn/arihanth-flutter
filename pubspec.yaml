@@ -41,6 +41,11 @@ dependencies:
   in_app_update: ^4.0.2
   upgrader: ^13.1.0
   package_info_plus: ^9.0.1
+  simple_barcode_scanner: ^0.6.0
+  mobile_scanner: ^7.2.0
+  audioplayers: ^6.1.0
+  web_socket_channel: ^3.0.3
+  agora_rtc_engine: ^6.5.3
 
 dev_dependencies:
   flutter_test:

@@ -261,6 +261,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         else if (type == 'catalogue') targetIndex = 11;
         else if (type == 'kyc_pending') targetIndex = 12;
         else if (type == 'finance') targetIndex = 13;
+        else if (type == 'stock_order') targetIndex = 18;
+        else if (type == 'chat') targetIndex = 19;
+        else if (type == 'meetings') targetIndex = 20;
 
         if (targetIndex != null) {
           ref.read(menuIndexProvider.notifier).state = targetIndex;
@@ -369,6 +372,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         {'type': 'finance', 'icon': Icons.analytics_outlined, 'title': 'Finance', 'count': ''},
       if (hasPermission('kyc_pending'))
         {'type': 'kyc_pending', 'icon': Icons.verified_user_outlined, 'title': ref.watchTr('kyc_pending'), 'count': getCount(data?.businessPartnerKyc)},
+      if (hasPermission('stock_order'))
+        {'type': 'stock_order', 'icon': Icons.list_alt_outlined, 'title': 'Live Stock Order', 'count': ''},
+      {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
+      if (hasPermission('meetings'))
+        {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': 'Meetings', 'count': ''},
     ];
   }
 
