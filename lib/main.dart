@@ -23,7 +23,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  print("Handling background message: ${message.messageId}");
+  if (kDebugMode) {
+    print("Handling background message: ${message.messageId}");
+    print("Data: ${message.data}");
+  }
+
+  if (message.data['action'] == 'join_meeting') {
+    await NotificationService.showCallKitIncoming(message.data);
+  }
 }
 
 Future<void> main() async {
@@ -36,8 +43,8 @@ Future<void> main() async {
   // Register background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await NotificationService.init();
   await SharedPreferencesHelper().init();
+  await NotificationService.init();
 
   if (defaultTargetPlatform == TargetPlatform.iOS) {
     String? apnsToken = await NotificationService.getAPNSToken();
@@ -64,8 +71,6 @@ Future<void> main() async {
     print("App launched from terminated state via notification");
     // You can handle redirection logic here or inside NotificationService
   }
-
-  await SharedPreferencesHelper().init();
 
   final String? token = SharedPreferencesHelper().getString("token");
   final String initialRoute = (token != null && token.isNotEmpty)

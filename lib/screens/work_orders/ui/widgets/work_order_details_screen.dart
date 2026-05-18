@@ -134,44 +134,77 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Image Section ---
-            if (wo.productImageUrl != null || wo.productImage != null)
-              Container(
-                height: 220,
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Builder(builder: (context) {
-                    final imageUrl = wo.productImageUrl ?? wo.productImage!;
-                    if (imageUrl.toLowerCase().endsWith('.pdf')) {
-                      return GestureDetector(
-                        onTap: () => Get.to(() => PdfFullViewerScreen(
-                                url: imageUrl,
-                                title: wo.workOrderNumber,
-                                enableRedaction: true,
-                                backgroundColor: AppColor.background,
-                                appBarColor: AppColor.background,
-                                textColor: AppColor.textPrimary,
-                              )),
-                        child: PdfThumbnail(
-                          url: imageUrl,
-                          fit: BoxFit.contain,
-                          showAllPages: true,
-                          enableRedaction: true,
-                        ),
-                      );
-                    }
-                    return GestureDetector(
-                      onTap: () => FullScreenImageViewer.show(context, imageUrl),
-                      child: Image.network(imageUrl, fit: BoxFit.contain),
-                    );
-                  }),
-                ),
-              ),
+            Builder(builder: (context) {
+              final List<String> allImages = [];
+              if (wo.galleryImages != null && wo.galleryImages!.isNotEmpty) {
+                allImages.addAll(wo.galleryImages!);
+              } else if (wo.images != null && wo.images!.isNotEmpty) {
+                allImages.addAll(wo.images!);
+              } else if (wo.productImageUrl != null && wo.productImageUrl != 'null') {
+                allImages.add(wo.productImageUrl!);
+              } else if (wo.productImage != null && wo.productImage != 'null') {
+                allImages.add(wo.productImage!);
+              }
+
+              if (allImages.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                children: [
+                  Container(
+                    height: 250,
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 10),
+                    child: PageView.builder(
+                      itemCount: allImages.length,
+                      itemBuilder: (context, index) {
+                        final imageUrl = allImages[index];
+                        final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: isPdf
+                                ? GestureDetector(
+                                    onTap: () => Get.to(() => PdfFullViewerScreen(
+                                          url: imageUrl,
+                                          title: wo.workOrderNumber,
+                                          enableRedaction: true,
+                                          backgroundColor: AppColor.background,
+                                          appBarColor: AppColor.background,
+                                          textColor: AppColor.textPrimary,
+                                        )),
+                                    child: PdfThumbnail(
+                                      url: imageUrl,
+                                      fit: BoxFit.contain,
+                                      showAllPages: true,
+                                      enableRedaction: true,
+                                    ),
+                                  )
+                                : GestureDetector(
+                                    onTap: () => FullScreenImageViewer.show(context, imageUrl),
+                                    child: Image.network(imageUrl, fit: BoxFit.contain),
+                                  ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (allImages.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        "Swipe to see all ${allImages.length} images",
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      ),
+                    ),
+                ],
+              );
+            }),
 
             const SizedBox(height: 10),
             // const Divider(thickness: 1),
@@ -224,6 +257,7 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
             _buildInfoRow("Length", wo.length),
             _buildInfoRow("Stone", wo.stone),
             _buildInfoRow("Enamel", wo.enamel),
+            _buildInfoRow("Screw", wo.screwName),
 
             // const Divider(thickness: 1, height: 30),
 
@@ -255,43 +289,31 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
       ),
       floatingActionButton: (wo != null && !state.isLoading)
           ? FloatingActionButton(
-
         onPressed: _isSharing ? null : () async {
           setState(() => _isSharing = true);
           try {
-            final imageUrl = wo.productImageUrl ?? wo.productImage;
-             final bool isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
-
-            // Always show image in share card as per latest request "user show image"
-            final String? shareImageUrl = imageUrl;
-
-            // Format date with time for sharing
-            String? sharedOrderDate;
-            if (wo.createdAt != null && wo.createdAt.toString().isNotEmpty && wo.createdAt.toString() != 'null') {
-              try {
-                final parsed = DateTime.parse(wo.createdAt.toString());
-                sharedOrderDate = DateFormat('dd-MMM-yyyy HH:mm').format(parsed);
-              } catch (e) {
-                sharedOrderDate = wo.createdAt.toString();
-              }
+            final List<String> allImages = [];
+            if (wo.galleryImages != null && wo.galleryImages!.isNotEmpty) {
+              allImages.addAll(wo.galleryImages!);
+            } else if (wo.images != null && wo.images!.isNotEmpty) {
+              allImages.addAll(wo.images!);
+            } else if (wo.productImageUrl != null && wo.productImageUrl != 'null') {
+              allImages.add(wo.productImageUrl!);
+            } else if (wo.productImage != null && wo.productImage != 'null') {
+              allImages.add(wo.productImage!);
             }
 
-            // Format due date without timezone
-            String? sharedDueDate;
-            if (wo.dueDate != null && wo.dueDate!.isNotEmpty && wo.dueDate != 'null') {
-              try {
-                final parsed = DateTime.parse(wo.dueDate!);
-                sharedDueDate = DateFormat('dd-MMM-yyyy').format(parsed);
-              } catch (e) {
-                sharedDueDate = wo.dueDate;
-              }
+            if (allImages.isEmpty) {
+              Toaster.showError("No images to share");
+              return;
             }
 
-            await ShareCardService.share(
-              context,
-              ShareCardItem(
+            // Generate a ShareCardItem for each image
+            final List<ShareCardItem> shareItems = allImages.map((imageUrl) {
+              final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+              return ShareCardItem(
                 workOrderNumber: wo.workOrderNumber,
-                imageUrl: shareImageUrl,
+                imageUrl: imageUrl,
                 title: wo.productName,
                 category: wo.productCategory,
                 quantity: wo.quantity,
@@ -303,12 +325,15 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
                 hallmark: wo.hallmark,
                 rodium: wo.rodium,
                 hook: wo.hook,
+                screwName: wo.screwName,
                 openClose: wo.openClose,
                 narration: wo.narrationCraftsman,
                 isPdf: isPdf,
                 subtitle: 'WO# ${wo.workOrderNumber ?? ""}',
-              ),
-            );
+              );
+            }).toList();
+
+            await ShareCardService.shareMultiple(context, shareItems);
           } finally {
             if (mounted) setState(() => _isSharing = false);
           }

@@ -1,6 +1,8 @@
 import 'package:arianth/screens/live_stock_order/riverpod/live_stock_order_notifier.dart';
 import 'package:arianth/screens/live_stock_order/model/stock_order_detail_model.dart';
 import 'package:arianth/screens/live_stock_order/widgets/stock_order_card.dart';
+import 'package:arianth/screens/live_stock_order/widgets/status_card.dart';
+import 'package:arianth/screens/live_stock_order/widgets/bulk_action_dialogs.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/localization/language_selector.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
@@ -32,14 +34,27 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
   String? role;
   bool searchToggle = false;
   final TextEditingController _searchController = TextEditingController();
+  String _activeStatus = 'New';
+
+  final Map<String, String> statusToTab = {
+    'All': 'all-orders',
+    'New': 'new-orders',
+    'Allocated': 'allocated-orders',
+    'In Process': 'in-process-orders',
+    'For Approval': 'for-approval-orders',
+    'Completed': 'completed-orders',
+    'Rejected': 'rejected-orders',
+  };
+
+  String _getTabValue() {
+    return statusToTab[_activeStatus] ?? 'all-orders';
+  }
 
   @override
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
-    Future.microtask(() {
-      ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders();
-    });
+    // Initial status set in StockOrderStatusCards will trigger first fetch
   }
 
   bool get isMobile => MediaQuery.of(context).size.width < 600;
@@ -83,7 +98,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
                 controller: _searchController,
                 hintText: 'Search order number...',
                 onChanged: (value) {
-                  final url = "api/common/stock-orders?search=$value";
+                  final url = "api/common/stock-orders?tab=${_getTabValue()}&search=$value";
                   notifier.fetchLiveStockOrders(customUrl: url);
                 },
                 onCancel: () {
@@ -91,7 +106,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
                     _searchController.clear();
                     searchToggle = false;
                   });
-                  notifier.fetchLiveStockOrders();
+                  notifier.fetchLiveStockOrders(customUrl: "api/common/stock-orders?tab=${_getTabValue()}");
                 },
               ),
         actions: [
@@ -103,6 +118,13 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
       ),
       body: Column(
         children: [
+          StockOrderStatusCards(
+            key: const PageStorageKey('stock_order_tabs'),
+            onStatusChanged: (status) => setState(() {
+              _activeStatus = status;
+              selectedIds.clear();
+            }),
+          ),
           _buildSelectAllBar(state),
           const SizedBox(height: 10),
           Expanded(child: _buildPreTable(state)),
@@ -140,7 +162,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
           ),
           if (role?.toLowerCase() != 'craftsman')
             NavActionItem(
-              label: ref.watchTr('add_new'),
+              label: ref.watchTr('create'),
               icon: Icons.add,
               color: AppColor.primary,
               isFloatingCenter: true,
@@ -217,33 +239,95 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              isAllSelectedOnPage ? "Deselect All" : "Select All Items",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColor.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-            const Spacer(),
-            if (selectedIds.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColor.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "${selectedIds.length} Selected",
+            Column(
+              children: [
+                Text(
+                  isAllSelectedOnPage ? "Deselect All" : "Select All Items",
                   style: const TextStyle(
-                    color: AppColor.primary,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    color: AppColor.textSecondary,
+                    fontSize: 14,
                   ),
                 ),
-              ),
+               if(selectedIds.isNotEmpty)...[
+
+                 const SizedBox(height: 2),
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                   decoration: BoxDecoration(
+                     color: AppColor.primary.withOpacity(0.1),
+                     borderRadius: BorderRadius.circular(20),
+                   ),
+                   child: Text(
+                     "${selectedIds.length} Selected",
+                     style: const TextStyle(
+                       color: AppColor.primary,
+                       fontWeight: FontWeight.bold,
+                       fontSize: 12,
+                     ),
+                   ),
+                 ),
+               ]
+              ],
+            ),
+            const Spacer(),
+            if (selectedIds.isNotEmpty) ...[
+              _buildBulkActions(),
+
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBulkActions() {
+    final r = role?.toLowerCase();
+    if (r == 'buyer') return const SizedBox.shrink();
+
+    final List<Widget> actions = [];
+
+    if (_activeStatus == 'New' && r == 'super_admin') {
+      actions.add(_actionBtn('Allocate', Icons.assignment_ind, () async {
+        await StockOrderBulkAllocateDialog.show(context, ref, selectedIds);
+        setState(() => selectedIds.clear());
+      }));
+    } else if (_activeStatus == 'For Approval' && r == 'super_admin') {
+      actions.add(_actionBtn('Approve', Icons.check_circle_outline, () async {
+        await StockOrderBulkCompleteDialog.show(context, ref, selectedIds);
+        setState(() => selectedIds.clear());
+      }, color: Colors.green));
+    } else if (_activeStatus == 'Allocated' && r == 'craftsman') {
+      actions.add(_actionBtn('Reject', Icons.cancel_outlined, () async {
+        await StockOrderBulkRejectDialog.show(context, ref, selectedIds);
+        setState(() => selectedIds.clear());
+      }, color: Colors.red));
+      actions.add(const SizedBox(width: 8));
+      actions.add(_actionBtn('Accept', Icons.check_circle_outline, () async {
+        await StockOrderBulkAcceptDialog.show(context, ref, selectedIds);
+        setState(() => selectedIds.clear());
+      }, color: Colors.green));
+    } else if (_activeStatus == 'In Process' && r == 'craftsman') {
+      actions.add(_actionBtn('Complete', Icons.check_circle_outline, () async {
+        await StockOrderBulkCompleteDialog.show(context, ref, selectedIds);
+        setState(() => selectedIds.clear());
+      }, color: Colors.green));
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: actions);
+  }
+
+  Widget _actionBtn(String label, IconData icon, VoidCallback onPressed, {Color? color}) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: Colors.white),
+      label: Text(label, style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color ?? AppColor.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -384,7 +468,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
     }
 
     final ids = selectedIds.join(',');
-    final endpoint = "api/common/stock-orders/generate-pdf?ids=$ids";
+    final endpoint = "api/common/stock-orders/generate-pdf?ids=$ids&tab=${_getTabValue()}";
 
     await ref.read(pdfDownloadProvider.notifier).downloadPDF(
       endpoint: endpoint,

@@ -22,6 +22,15 @@ class LiveStockOrderState {
   final bool isCompleting;
   final StockOrderDetailModel? stockOrderDetail;
 
+  // Status counts
+  final int newOrders;
+  final int allocatedOrders;
+  final int inProcessOrders;
+  final int forApprovalOrders;
+  final int completedOrders;
+  final int rejectedOrders;
+  final int allOrders;
+
   LiveStockOrderState({
     this.isLoading = false,
     this.error,
@@ -37,6 +46,13 @@ class LiveStockOrderState {
     this.isRejecting = false,
     this.isCompleting = false,
     this.stockOrderDetail,
+    this.newOrders = 0,
+    this.allocatedOrders = 0,
+    this.inProcessOrders = 0,
+    this.forApprovalOrders = 0,
+    this.completedOrders = 0,
+    this.rejectedOrders = 0,
+    this.allOrders = 0,
   });
 
   LiveStockOrderState copyWith({
@@ -55,6 +71,13 @@ class LiveStockOrderState {
     bool? isCompleting,
     StockOrderDetailModel? stockOrderDetail,
     bool clearStockOrderDetail = false,
+    int? newOrders,
+    int? allocatedOrders,
+    int? inProcessOrders,
+    int? forApprovalOrders,
+    int? completedOrders,
+    int? rejectedOrders,
+    int? allOrders,
   }) {
     return LiveStockOrderState(
       isLoading: isLoading ?? this.isLoading,
@@ -71,6 +94,13 @@ class LiveStockOrderState {
       isRejecting: isRejecting ?? this.isRejecting,
       isCompleting: isCompleting ?? this.isCompleting,
       stockOrderDetail: clearStockOrderDetail ? null : (stockOrderDetail ?? this.stockOrderDetail),
+      newOrders: newOrders ?? this.newOrders,
+      allocatedOrders: allocatedOrders ?? this.allocatedOrders,
+      inProcessOrders: inProcessOrders ?? this.inProcessOrders,
+      forApprovalOrders: forApprovalOrders ?? this.forApprovalOrders,
+      completedOrders: completedOrders ?? this.completedOrders,
+      rejectedOrders: rejectedOrders ?? this.rejectedOrders,
+      allOrders: allOrders ?? this.allOrders,
     );
   }
 }
@@ -79,19 +109,23 @@ class LiveStockOrderNotifier extends StateNotifier<LiveStockOrderState> {
   LiveStockOrderNotifier() : super(LiveStockOrderState());
 
   Future<void> fetchLiveStockOrders({String? customUrl, bool isNext = false}) async {
+    final String endpoint = customUrl ?? state.urls ?? 'api/common/stock-orders?tab=all-orders';
+    
     state = state.copyWith(
       isLoading: true,
       error: null,
-      urls: customUrl ?? state.urls,
+      urls: endpoint,
     );
-
-    String endpoint = customUrl ?? 'api/common/stock-orders';
 
     try {
       final response = await ApiClient().get(endpoint: endpoint);
       if (response != null && response["status"] == 1) {
         final actualResponse = response["data"];
-        final rawPaginationData = actualResponse["data"] ?? actualResponse; // Handle different API formats
+        
+        // Handle nested response format similar to WorkOrder
+        final bool isSuccess = actualResponse["success"] == true;
+        final rawPaginationData = isSuccess ? actualResponse["data"] : actualResponse;
+        final counts = isSuccess ? actualResponse["counts"] : null;
 
         final List<dynamic> listData = rawPaginationData["data"] ?? [];
         final orders = listData.map((json) => StockOrderDetailModel.fromJson(json)).toList();
@@ -102,6 +136,13 @@ class LiveStockOrderNotifier extends StateNotifier<LiveStockOrderState> {
           count: rawPaginationData["total"] ?? orders.length,
           nextUrl: rawPaginationData["next_page_url"],
           previousUrl: rawPaginationData["prev_page_url"],
+          newOrders: counts?['new-orders'] ?? 0,
+          allocatedOrders: counts?['allocated-orders'] ?? 0,
+          inProcessOrders: counts?['in-process-orders'] ?? 0,
+          forApprovalOrders: counts?['for-approval-orders'] ?? 0,
+          completedOrders: counts?['completed-orders'] ?? 0,
+          rejectedOrders: counts?['rejected-orders'] ?? 0,
+          allOrders: counts?['all-orders'] ?? 0,
         );
       } else {
         String errorMsg = response?["message"]?.toString() ?? "Failed to fetch stock orders";
@@ -120,7 +161,7 @@ class LiveStockOrderNotifier extends StateNotifier<LiveStockOrderState> {
 
   Future<void> goToNextPage() async {
     if (state.nextUrl != null && !state.isLoading) {
-      await fetchLiveStockOrders(customUrl: state.nextUrl, isNext: false);
+      await fetchLiveStockOrders(customUrl: state.nextUrl, isNext: true);
     }
   }
 
@@ -281,6 +322,97 @@ class LiveStockOrderNotifier extends StateNotifier<LiveStockOrderState> {
       Toaster.showError("Error: $e");
     } finally {
       state = state.copyWith(isAllocating: false);
+    }
+  }
+
+  Future<void> bulkAllocateStockOrders(Map<String, dynamic> payload) async {
+    state = state.copyWith(isAllocating: true, error: null);
+    try {
+      final response = await ApiClient().post(
+        endpoint: "api/common/stock-orders/bulk-allocate",
+        body: payload,
+      );
+
+      if (response != null && response["status"] == 1) {
+        Toaster.showSuccess("Orders allocated successfully");
+        await fetchLiveStockOrders();
+      } else {
+        final errorMsg = response?["message"]?.toString() ?? "Failed to allocate stock orders";
+        Toaster.showError(errorMsg);
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isAllocating: false);
+    }
+  }
+
+  Future<void> bulkAcceptStockOrders(List<int> ids) async {
+    state = state.copyWith(isAccepting: true, error: null);
+    try {
+      final response = await ApiClient().post(
+        endpoint: "api/common/stock-orders/bulk-accept",
+        body: {"order_ids": ids},
+      );
+
+      if (response != null && response["status"] == 1) {
+        Toaster.showSuccess("Orders accepted successfully");
+        await fetchLiveStockOrders();
+      } else {
+        final errorMsg = response?["message"]?.toString() ?? "Failed to accept stock orders";
+        Toaster.showError(errorMsg);
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isAccepting: false);
+    }
+  }
+
+  Future<void> bulkRejectStockOrders(List<int> ids, String reason) async {
+    state = state.copyWith(isRejecting: true, error: null);
+    try {
+      final response = await ApiClient().post(
+        endpoint: "api/common/stock-orders/bulk-reject",
+        body: {
+          "order_ids": ids,
+          "rejection_reason": reason,
+        },
+      );
+
+      if (response != null && response["status"] == 1) {
+        Toaster.showSuccess("Orders rejected successfully");
+        await fetchLiveStockOrders();
+      } else {
+        final errorMsg = response?["message"]?.toString() ?? "Failed to reject stock orders";
+        Toaster.showError(errorMsg);
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isRejecting: false);
+    }
+  }
+
+  Future<void> bulkCompleteStockOrders(List<int> ids) async {
+    state = state.copyWith(isCompleting: true, error: null);
+    try {
+      final response = await ApiClient().post(
+        endpoint: "api/common/stock-orders/bulk-complete",
+        body: {"order_ids": ids},
+      );
+
+      if (response != null && response["status"] == 1) {
+        Toaster.showSuccess("Orders marked as completed");
+        await fetchLiveStockOrders();
+      } else {
+        final errorMsg = response?["message"]?.toString() ?? "Failed to complete stock orders";
+        Toaster.showError(errorMsg);
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isCompleting: false);
     }
   }
 

@@ -155,7 +155,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
           ),
 
           actions: [
-          if (selectedIds.isNotEmpty)
+          if (selectedIds.isNotEmpty && role == 'super_admin')
             _isBulkSharing
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),

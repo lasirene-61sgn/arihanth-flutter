@@ -398,7 +398,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'For Approval' && !isCraftsman) {
+    } else if (_activeStatus == 'For Approval' && role?.toLowerCase() == 'super_admin') {
       actions.add(
         _buildActionBtn(
           label: 'Approve',

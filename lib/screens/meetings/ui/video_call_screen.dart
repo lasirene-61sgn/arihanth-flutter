@@ -2,6 +2,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/meetings/riverpod/video_call_notifier.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
+import 'package:arianth/services/api/notification_service/notifiction_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,6 +36,12 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
             uid: widget.uid,
           );
     });
+  }
+
+  @override
+  void dispose() {
+    NotificationService.endAllCalls();
+    super.dispose();
   }
 
   @override
@@ -215,6 +222,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
               isFilled: true,
               onTap: () async {
                 if (await _onWillPop(context)) {
+                  await NotificationService.endAllCalls();
                   Navigator.pop(context);
                 }
               },

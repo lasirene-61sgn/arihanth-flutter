@@ -141,7 +141,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
                         child: GestureDetector(
                           onTap: widget.onFavoriteToggle,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.8),
                               shape: BoxShape.circle,
@@ -149,7 +149,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
                             child: Icon(
                               widget.isFavorite ? Icons.favorite : Icons.favorite_border,
                               color: Colors.red,
-                              size: 18,
+                              size: 26,
                             ),
                           ),
                         ),
@@ -161,6 +161,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // WhatsApp Icon
+                          if (role?.toLowerCase() == 'super_admin')
                           GestureDetector(
                             onTap: _shareViaWhatsApp,
                             child: Container(

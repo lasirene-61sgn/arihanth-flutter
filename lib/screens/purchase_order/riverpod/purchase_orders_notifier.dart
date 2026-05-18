@@ -640,6 +640,27 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
     }
   }
 
+  Future<void> completePurchaseOrderItems(String id, List<int> itemIndices) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await ApiClient().post(
+        endpoint: "api/common/purchase-orders/$id/complete-items",
+        body: {"selected_items": itemIndices},
+      );
+      if (response != null && response["status"] == 1) {
+        Toaster.showSuccess(response["data"]?["message"] ?? "Order items completed successfully");
+        fetchPurchaseOrders(customUrl: state.urls);
+        purchaseOrderDetail(id); // Refresh details if on details screen
+      } else {
+        Toaster.showError(response?["message"] ?? "Failed to complete order items");
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
   void resetCurrentOrder() {
     state = state.copyWith(currentPurchaseOrderDetail: null);
   }

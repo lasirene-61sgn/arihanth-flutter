@@ -4,6 +4,7 @@ import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:get/get.dart';
 
@@ -12,20 +13,20 @@ const _sentinel = Object();
 class MeetingsState {
   final bool isLoading;
   final bool isLoaded;
-  final bool isApproving;
-  final bool isCancelling;
+  final String? approvingMeetingId;
+  final String? cancellingMeetingId;
   final bool isSaving;
-  final bool isJoining;
+  final String? joiningRoomId;
   final String? error;
   final List<MeetingModel> meetings;
 
   const MeetingsState({
     this.isLoading = false,
     this.isLoaded = false,
-    this.isApproving = false,
-    this.isCancelling = false,
+    this.approvingMeetingId,
+    this.cancellingMeetingId,
     this.isSaving = false,
-    this.isJoining = false,
+    this.joiningRoomId,
     this.error,
     this.meetings = const [],
   });
@@ -33,20 +34,20 @@ class MeetingsState {
   MeetingsState copyWith({
     bool? isLoading,
     bool? isLoaded,
-    bool? isApproving,
-    bool? isCancelling,
+    dynamic approvingMeetingId = _sentinel,
+    dynamic cancellingMeetingId = _sentinel,
     bool? isSaving,
-    bool? isJoining,
+    dynamic joiningRoomId = _sentinel,
     dynamic error = _sentinel,
     List<MeetingModel>? meetings,
   }) {
     return MeetingsState(
       isLoading: isLoading ?? this.isLoading,
       isLoaded: isLoaded ?? this.isLoaded,
-      isApproving: isApproving ?? this.isApproving,
-      isCancelling: isCancelling ?? this.isCancelling,
+      approvingMeetingId: approvingMeetingId == _sentinel ? this.approvingMeetingId : approvingMeetingId as String?,
+      cancellingMeetingId: cancellingMeetingId == _sentinel ? this.cancellingMeetingId : cancellingMeetingId as String?,
       isSaving: isSaving ?? this.isSaving,
-      isJoining: isJoining ?? this.isJoining,
+      joiningRoomId: joiningRoomId == _sentinel ? this.joiningRoomId : joiningRoomId as String?,
       error: error == _sentinel ? this.error : error as String?,
       meetings: meetings ?? this.meetings,
     );
@@ -148,7 +149,7 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
   }
 
   Future<void> approveMeeting(int id) async {
-    state = state.copyWith(isApproving: true);
+    state = state.copyWith(approvingMeetingId: id.toString());
     try {
       final response = await ApiClient().post(
         endpoint: "api/common/meetings/$id/approve",
@@ -164,12 +165,12 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
     } catch (e) {
       Toaster.showError("Error: ${e.toString()}");
     } finally {
-      state = state.copyWith(isApproving: false);
+      state = state.copyWith(approvingMeetingId: null);
     }
   }
 
   Future<void> rejectMeeting(int id) async {
-    state = state.copyWith(isCancelling: true);
+    state = state.copyWith(cancellingMeetingId: id.toString());
     try {
       final response = await ApiClient().post(
         endpoint: "api/common/meetings/$id/cancel",
@@ -185,11 +186,11 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
     } catch (e) {
       Toaster.showError("Error: ${e.toString()}");
     } finally {
-      state = state.copyWith(isCancelling: false);
+      state = state.copyWith(cancellingMeetingId: null);
     }
   }
   Future<void> joinMeeting(String roomId) async {
-    state = state.copyWith(isJoining: true);
+    state = state.copyWith(joiningRoomId: roomId);
     debugPrint("Attempting to join meeting: $roomId");
     try {
       final response = await ApiClient().get(
@@ -205,12 +206,24 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
           final agoraData = actualResponse["data"];
           if (agoraData != null) {
             debugPrint("Agora Data extracted: $agoraData");
-            Get.to(() => VideoCallScreen(
-              appId: agoraData["app_id"],
-              channelName: agoraData["channel_name"],
-              token: agoraData["token"],
-              uid: agoraData["uid"] is int ? agoraData["uid"] : int.tryParse(agoraData["uid"].toString()) ?? 0,
-            ));
+            
+            // --- Permission Check ---
+            final cameraStatus = await Permission.camera.request();
+            final micStatus = await Permission.microphone.request();
+
+            if (cameraStatus.isGranted && micStatus.isGranted) {
+              Get.to(() => VideoCallScreen(
+                appId: agoraData["app_id"],
+                channelName: agoraData["channel_name"],
+                token: agoraData["token"],
+                uid: agoraData["uid"] is int ? agoraData["uid"] : int.tryParse(agoraData["uid"].toString()) ?? 0,
+              ));
+            } else {
+              Toaster.showError("Camera and Microphone permissions are required to join the meeting.");
+              if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+                openAppSettings();
+              }
+            }
           } else {
             debugPrint("Error: Agora data is null");
             Toaster.showError("Failed to retrieve Agora credentials");
@@ -230,7 +243,7 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
       debugPrint("Stacktrace: $stackTrace");
       Toaster.showError("Error: ${e.toString()}");
     } finally {
-      state = state.copyWith(isJoining: false);
+      state = state.copyWith(joiningRoomId: null);
     }
   }
 }

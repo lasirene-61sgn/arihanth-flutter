@@ -25,6 +25,7 @@ class _PurchaseOrderDetailScreenState
   String? role;
   final Set<int> _acceptIndices = {};
   final Set<int> _rejectIndices = {};
+  final Set<int> _completeIndices = {};
   final Set<int> _sharingIndices = {};
 
   @override
@@ -343,6 +344,52 @@ class _PurchaseOrderDetailScreenState
                                                   ),
                                           ],
                                         ),
+                                          if (role == "craftsman" && order.status == "in_process") ...[
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                // Complete Checkbox
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    SizedBox(
+                                                      height: 30,
+                                                      width: 30,
+                                                      child: Transform.scale(
+                                                        scale: 1.2,
+                                                        child: Checkbox(
+                                                          value: _completeIndices.contains(index),
+                                                          activeColor: Colors.green.shade400,
+                                                          side: const BorderSide(color: AppColor.black, width: 1.5),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(4),
+                                                          ),
+                                                          onChanged: (bool? value) {
+                                                            setState(() {
+                                                              if (value == true) {
+                                                                _completeIndices.add(index);
+                                                              } else {
+                                                                _completeIndices.remove(index);
+                                                              }
+                                                            });
+                                                          },
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Text(
+                                                      "Complete",
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w500,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         const SizedBox(height: 4),
                                         _buildItemDetail(
                                           "Design",
@@ -536,25 +583,30 @@ class _PurchaseOrderDetailScreenState
               ),
             ),
       floatingActionButton: (role == "craftsman" &&
-              order?.status == "created" &&
-              (order?.items != null && (_acceptIndices.length + _rejectIndices.length == order!.items!.length)))
+              ((order?.status == "created" && (order?.items != null && (_acceptIndices.length + _rejectIndices.length == order!.items!.length))) ||
+              (order?.status == "in_process" && _completeIndices.isNotEmpty)))
           ? FloatingActionButton.extended(
-              onPressed: state.isProcessingItems
+              onPressed: state.isLoading || state.isProcessingItems
                   ? null
                   : () {
-                      ref
-                          .read(purchaseOrderListProvider.notifier)
-                          .processPurchaseOrderItems(
-                            orderId: widget.purchaseId,
-                            acceptIndices: _acceptIndices.toList(),
-                            rejectIndices: _rejectIndices.toList(),
-                          );
-                      setState(() {
-                        _acceptIndices.clear();
-                        _rejectIndices.clear();
-                      });
+                      if (order?.status == "in_process") {
+                        ref.read(purchaseOrderListProvider.notifier).completePurchaseOrderItems(widget.purchaseId, _completeIndices.toList());
+                        setState(() {
+                          _completeIndices.clear();
+                        });
+                      } else {
+                        ref.read(purchaseOrderListProvider.notifier).processPurchaseOrderItems(
+                              orderId: widget.purchaseId,
+                              acceptIndices: _acceptIndices.toList(),
+                              rejectIndices: _rejectIndices.toList(),
+                            );
+                        setState(() {
+                          _acceptIndices.clear();
+                          _rejectIndices.clear();
+                        });
+                      }
                     },
-              label: state.isProcessingItems
+              label: (state.isLoading || state.isProcessingItems)
                   ? const SizedBox(
                       height: 20,
                       width: 20,
@@ -563,14 +615,14 @@ class _PurchaseOrderDetailScreenState
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
-                      "Process All Item",
-                      style: TextStyle(
+                  : Text(
+                      order?.status == "in_process" ? "Complete Selected" : "Process All Item",
+                      style: const TextStyle(
                         color: AppColor.textWhite,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-              icon: state.isProcessingItems
+              icon: (state.isLoading || state.isProcessingItems)
                   ? null
                   : const Icon(
                       Icons.task_alt,

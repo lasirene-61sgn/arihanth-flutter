@@ -168,9 +168,10 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                         children: [
                                           Expanded(
                                             child: ElevatedButton(
-                                              onPressed: (meetingsState.isApproving || meetingsState.isCancelling)
-                                                  ? null 
-                                                  : () => ref.read(meetingsProvider.notifier).approveMeeting(meeting.id!),
+                                              onPressed: () {
+                                                if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
+                                                ref.read(meetingsProvider.notifier).approveMeeting(meeting.id!);
+                                              },
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.green,
                                                 foregroundColor: Colors.white,
@@ -178,7 +179,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                               ),
-                                              child: meetingsState.isApproving 
+                                              child: meetingsState.approvingMeetingId == meeting.id.toString() 
                                                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                                   : const Text('APPROVE'),
                                             ),
@@ -186,9 +187,10 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: ElevatedButton(
-                                              onPressed: (meetingsState.isApproving || meetingsState.isCancelling)
-                                                  ? null 
-                                                  : () => ref.read(meetingsProvider.notifier).rejectMeeting(meeting.id!),
+                                              onPressed: () {
+                                                if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
+                                                ref.read(meetingsProvider.notifier).rejectMeeting(meeting.id!);
+                                              },
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.red,
                                                 foregroundColor: Colors.white,
@@ -196,7 +198,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                               ),
-                                              child: meetingsState.isCancelling 
+                                              child: meetingsState.cancellingMeetingId == meeting.id.toString() 
                                                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                                   : const Text('CANCEL'),
                                             ),
@@ -209,11 +211,12 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton.icon(
-                                        onPressed: meetingsState.isJoining 
-                                            ? null 
-                                            : () => ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!),
-                                        icon: meetingsState.isJoining ? const SizedBox.shrink() : const Icon(Icons.videocam_outlined),
-                                        label: meetingsState.isJoining 
+                                        onPressed: () {
+                                          if (meetingsState.joiningRoomId != null) return;
+                                          ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!);
+                                        },
+                                        icon: meetingsState.joiningRoomId == meeting.roomId ? const SizedBox.shrink() : const Icon(Icons.videocam_outlined),
+                                        label: meetingsState.joiningRoomId == meeting.roomId 
                                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                             : const Text('JOIN MEETING'),
                                         style: ElevatedButton.styleFrom(
@@ -371,7 +374,7 @@ class _CreateMeetingFormState extends ConsumerState<CreateMeetingForm> {
                             const SizedBox(width: 8),
                             Text(_selectedDate == null 
                                 ? 'Select Date' 
-                                : DateFormat('yyyy-MM-dd').format(_selectedDate!)),
+                                : DateFormat('dd-MM-yyyy').format(_selectedDate!)),
                           ],
                         ),
                       ),

@@ -1,23 +1,22 @@
 import 'package:arianth/app_color/app_color.dart';
-import 'package:arianth/screens/work_orders/riverpod/work_orders_notifier.dart';
+import 'package:arianth/screens/live_stock_order/riverpod/live_stock_order_notifier.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class WorkOrderStatusCards extends ConsumerStatefulWidget {
+class StockOrderStatusCards extends ConsumerStatefulWidget {
   final ValueChanged<String> onStatusChanged;
-  const WorkOrderStatusCards({super.key, required this.onStatusChanged});
+  const StockOrderStatusCards({super.key, required this.onStatusChanged});
 
   @override
-  ConsumerState<WorkOrderStatusCards> createState() => _WorkOrderStatusCardsState();
+  ConsumerState<StockOrderStatusCards> createState() => _StockOrderStatusCardsState();
 }
 
-class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
+class _StockOrderStatusCardsState extends ConsumerState<StockOrderStatusCards>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? role;
 
-  // Optimized Status List based on Admin Role
   final List<String> _baseStatuses = [
     'All',
     'New',
@@ -25,22 +24,19 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
     'In Process',
     'For Approval',
     'Completed',
-    'Overdue',
     'Rejected',
   ];
 
   List<String> _visibleStatuses = [];
 
-  // Mapping strictly to api/super-admin URLs
-  final Map<String, String> adminUrls = {
-    'All': 'api/common/work-orders?tab=all-orders',
-    'New': 'api/common/work-orders?tab=new-orders',
-    'Allocated': 'api/common/work-orders?tab=allocated-orders',
-    'In Process': 'api/common/work-orders?tab=in-process-orders',
-    'For Approval': 'api/common/work-orders?tab=for-approval-orders',
-    'Completed': 'api/common/work-orders?tab=completed-orders',
-    'Rejected': 'api/common/work-orders?tab=rejected-orders',
-    'Overdue': 'api/common/work-orders?tab=overdue-orders',
+  final Map<String, String> statusToTab = {
+    'All': 'all-orders',
+    'New': 'new-orders',
+    'Allocated': 'allocated-orders',
+    'In Process': 'in-process-orders',
+    'For Approval': 'for-approval-orders',
+    'Completed': 'completed-orders',
+    'Rejected': 'rejected-orders',
   };
 
   @override
@@ -84,8 +80,9 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
   }
 
   void _handleStatusChange(String status) {
-    final url = adminUrls[status] ?? adminUrls['All']!;
-    ref.read(workOrderListProvider.notifier).fetchWorkOrders(urls: url);
+    final tab = statusToTab[status] ?? 'all-orders';
+    final url = "api/common/stock-orders?tab=$tab";
+    ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders(customUrl: url);
     widget.onStatusChanged(status);
   }
 
@@ -97,20 +94,20 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(workOrderListProvider);
+    final state = ref.watch(liveStockOrderNotifierProvider);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1), width: 0.5)),
+        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 0.5)),
       ),
       child: Container(
         height: 40,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.05),
+          color: Theme.of(context).dividerColor.withOpacity(0.05),
           borderRadius: BorderRadius.circular(10),
         ),
         child: TabBar(
@@ -136,13 +133,13 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   Text(displayName),
+                  Text(displayName),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: _tabController.index == _visibleStatuses.indexOf(status)
-                          ? AppColor.textWhite.withValues(alpha: 0.2)
+                          ? AppColor.textWhite.withOpacity(0.2)
                           : AppColor.divider,
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -164,10 +161,11 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
       ),
     );
   }
-  int _getCountForStatus(String status, WorkOrderListState state) {
+
+  int _getCountForStatus(String status, LiveStockOrderState state) {
     switch (status) {
       case 'All':
-        return state.totalCount;
+        return state.allOrders;
       case 'New':
         return state.newOrders;
       case 'Allocated':
@@ -180,8 +178,6 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
         return state.completedOrders;
       case 'Rejected':
         return state.rejectedOrders;
-      case 'Overdue':
-        return state.overdueOrders; // Correctly mapped to the new state field
       default:
         return 0;
     }

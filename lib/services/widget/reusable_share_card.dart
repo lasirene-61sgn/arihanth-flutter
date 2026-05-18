@@ -35,6 +35,7 @@ class ShareCardItem {
   final String? hook;
   final String? openClose;
   final String? workOrderNumber;
+  final String? screwName;
   final bool isPdf;
   final bool isLocked;
   final bool showWatermark;
@@ -65,6 +66,7 @@ class ShareCardItem {
     this.hook,
     this.openClose,
     this.workOrderNumber,
+    this.screwName,
     this.isPdf = false,
     this.isLocked = false,
     this.showWatermark = false,
@@ -99,6 +101,7 @@ extension ShareCardItemExtension on ShareCardItem {
       hook: hook,
       openClose: openClose,
       workOrderNumber: workOrderNumber,
+      screwName: screwName,
       isPdf: isPdf,
       isLocked: isLocked,
       showWatermark: showWatermark,
@@ -188,6 +191,7 @@ class ShareCardService {
       if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
       if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
       if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
+      if (item.screwName?.isNotEmpty == true) parts.add('Screw: ${item.screwName}');
       if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
 
       // 7. Open system share sheet (user can pick WhatsApp, email, etc.)
@@ -302,6 +306,7 @@ class ShareCardService {
         if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
         if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
         if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
+        if (item.screwName?.isNotEmpty == true) parts.add('Screw: ${item.screwName}');
         if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
         
         combinedText.add(parts.join('\n'));
@@ -380,6 +385,7 @@ class _ShareCardWidget extends StatelessWidget {
     if (item.bpCode != null && item.bpCode!.isNotEmpty) details.add('BP Code: ${item.bpCode}');
     if (item.dueDate != null && item.dueDate!.isNotEmpty) details.add('Due: ${item.dueDate}');
     if (item.orderDate != null && item.orderDate!.isNotEmpty) details.add('Order Date: ${item.orderDate}');
+    if (item.screwName != null && item.screwName!.isNotEmpty) details.add('Screw: ${item.screwName}');
     if (item.gramsDetail != null && item.gramsDetail!.isNotEmpty) details.add('Grams Detail:\n${item.gramsDetail}');
     if (item.narration != null && item.narration!.isNotEmpty) details.add('Item Note: ${item.narration}');
     if (item.orderNote != null && item.orderNote!.isNotEmpty) details.add('Order Note: ${item.orderNote}');

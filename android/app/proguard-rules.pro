@@ -23,3 +23,6 @@
 
 # Play Core (Referenced by Flutter deferred components, but often not included)
 -dontwarn com.google.android.play.core.**
+
+# Flutter Callkit Incoming
+-keep class com.hiennv.flutter_callkit_incoming.** { *; }

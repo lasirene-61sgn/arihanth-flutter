@@ -204,10 +204,10 @@ class _WorkOrderFormState extends ConsumerState<WorkOrderForm> {
 
         _selectedType = data.type ?? '';
         _selectedStone = data.stone ?? '';
-        _selectedScrew = data.hook ?? '';
         _selectedOpenClose = data.openClose ?? '';
         _selectedHallmark = data.hallmark ?? '';
         _selectedRodium = data.rodium ?? '';
+        _selectedScrew = data.screwName ?? '';
 
         _serverImageUrl = data.images?.map((e) => e.toString()).toList() ?? [];
       });
@@ -344,6 +344,7 @@ class _WorkOrderFormState extends ConsumerState<WorkOrderForm> {
       size: _sizeCtrl.text.trim(),
       stone: _selectedStone,
       enamel: _selectedEnamel,
+      screwName: _selectedScrew,
       length: _lengthCtrl.text.trim().isEmpty ? null : _lengthCtrl.text.trim(),
       designCode: _productCodeCtrl.text.trim(),
       productName: "",
@@ -503,7 +504,15 @@ class _WorkOrderFormState extends ConsumerState<WorkOrderForm> {
                               onChanged: (v) =>
                                   setState(() => _selectedType = v!),
                             ),
-
+                            WorkOrderDropdownWidget(
+                              label: 'Screw',
+                              fieldKeyName: 'screw',
+                              hintText: 'Select Screw',
+                              items: const ['north screw', 'south screw'],
+                              value: _selectedScrew,
+                              onChanged: (v) =>
+                                  setState(() => _selectedScrew = v!),
+                            ),
                           ]),
                           const SizedBox(height: 8),
 

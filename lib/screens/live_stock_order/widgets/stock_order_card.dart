@@ -5,7 +5,9 @@ import 'package:arianth/services/widget/reusable_share_card.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:arianth/services/routes/route_name/route_name.dart';
 import '../../../../services/widget/full_screen_image_viewer.dart';
 
 class StockOrderCard extends StatefulWidget {
@@ -187,38 +189,44 @@ class _StockOrderCardState extends State<StockOrderCard> {
                     ),
                     const SizedBox(height: 8),
 
-                    if (order.grams != null)
+                    const SizedBox(height: 4),
+                    if (widget.role?.toLowerCase() != "craftsman" &&
+                        ![
+                          'buyer',
+                          'key_user',
+                          'user',
+                        ].contains(widget.role?.toLowerCase())) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        '${order.grams} gm × ${order.quantity ?? 1} = ${order.totalWeightDisplay}',
-                        style: const TextStyle(color: AppColor.textSecondary, fontSize: 11),
-                      ),
-
-                    if (order.hasSize)
-                      Text(
-                        'Size: ${order.size}',
+                        '${order.buyer?.bpCode ?? ""}-${order.buyer?.businessName ?? ""}',
                         style: const TextStyle(
                           color: AppColor.textPrimary,
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ],
 
                     const Spacer(),
 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (order.createdAt != null)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Date:', style: TextStyle(color: AppColor.textSecondary, fontSize: 9)),
-                              Text(
-                                _formatDate(order.createdAt) ?? '',
-                                style: const TextStyle(color: AppColor.success, fontSize: 11, fontWeight: FontWeight.bold),
+                        if (widget.role?.toLowerCase() != "craftsman")
+                          if (!( (widget.role?.toLowerCase() == 'super_admin' || widget.role?.toLowerCase() == 'buyer' || widget.role?.toLowerCase() == 'key_user' || widget.role?.toLowerCase() == 'user') && 
+                                 (order.status?.toLowerCase() != 'new' && order.status?.toLowerCase() != 'pending') ))
+                            SizedBox(
+                              height: 28,
+                              child: FormFeildCommonButton(
+                                text: order.status == 'Completed' ? "Copy" : "Edit",
+                                onPressed: () => Get.toNamed(
+                                  AppRoutes.stockOrderAdd,
+                                  arguments: order.id.toString(),
+                                ),
                               ),
-                            ],
-                          ),
+                            ),
+                        if (widget.role?.toLowerCase() != "craftsman")
+                          const SizedBox(width: 8),
                         SizedBox(
                           height: 28,
                           child: FormFeildCommonButton(

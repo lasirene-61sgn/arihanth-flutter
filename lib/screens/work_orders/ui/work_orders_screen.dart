@@ -415,30 +415,45 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           .where((item) => selectedIds.contains(item.id.toString()))
           .toList();
 
-      final List<ShareCardItem> shareItems = selectedItems.map((partner) {
-        final imageUrl = partner.productImageUrl ?? partner.productImage;
-        final bool isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
+      final List<ShareCardItem> shareItems = [];
+      for (var partner in selectedItems) {
+        final List<String> allImages = [];
+        if (partner.galleryImages != null && partner.galleryImages!.isNotEmpty) {
+          allImages.addAll(partner.galleryImages!);
+        } else if (partner.images != null && partner.images!.isNotEmpty) {
+          allImages.addAll(partner.images!);
+        } else if (partner.productImageUrl != null && partner.productImageUrl != 'null') {
+          allImages.add(partner.productImageUrl!);
+        } else if (partner.productImage != null && partner.productImage != 'null') {
+          allImages.add(partner.productImage!);
+        }
 
-        return ShareCardItem(
-          workOrderNumber: partner.workOrderNumber,
-          imageUrl: imageUrl,
-          title: partner.productName,
-          category: partner.productCategory,
-          quantity: partner.quantity,
-          weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
-          size: partner.size,
-          stone: partner.stone,
-          enamel: partner.enamel,
-          hallmark: partner.hallmark,
-          rodium: partner.rodium,
-          hook: partner.hook,
-          type: partner.type,
-          openClose: partner.openClose,
-          isPdf: isPdf,
-          narration: partner.narrationCraftsman,
-          subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
-        );
-      }).toList();
+        if (allImages.isEmpty) continue;
+
+        for (var imageUrl in allImages) {
+          final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+          shareItems.add(ShareCardItem(
+            workOrderNumber: partner.workOrderNumber,
+            imageUrl: imageUrl,
+            title: partner.productName,
+            category: partner.productCategory,
+            quantity: partner.quantity,
+            weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
+            size: partner.size,
+            stone: partner.stone,
+            enamel: partner.enamel,
+            hallmark: partner.hallmark,
+            rodium: partner.rodium,
+            hook: partner.hook,
+            screwName: partner.screwName,
+            type: partner.type,
+            openClose: partner.openClose,
+            isPdf: isPdf,
+            narration: partner.narrationCraftsman,
+            subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
+          ));
+        }
+      }
 
       if (shareItems.isEmpty) {
         Toaster.showError("No selected items found on current page");
@@ -551,36 +566,27 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                       Get.toNamed(AppRoutes.workOrdersAdd, arguments: id.toString());
                     },
                     onShare: () async {
-                      final imageUrl = partner.productImageUrl ?? partner.productImage;
-                      final bool isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
-
-                      // 1. DATES: Format with time for Order Date
-                      String? sharedOrderDate;
-                      if (partner.createdAt != null && partner.createdAt.toString() != 'null') {
-                        try {
-                          final parsed = DateTime.parse(partner.createdAt.toString());
-                          sharedOrderDate = DateFormat('dd-MMM-yyyy HH:mm').format(parsed);
-                        } catch (e) {
-                          sharedOrderDate = partner.createdAt.toString();
-                        }
+                      final List<String> allImages = [];
+                      if (partner.galleryImages != null && partner.galleryImages!.isNotEmpty) {
+                        allImages.addAll(partner.galleryImages!);
+                      } else if (partner.images != null && partner.images!.isNotEmpty) {
+                        allImages.addAll(partner.images!);
+                      } else if (partner.productImageUrl != null && partner.productImageUrl != 'null') {
+                        allImages.add(partner.productImageUrl!);
+                      } else if (partner.productImage != null && partner.productImage != 'null') {
+                        allImages.add(partner.productImage!);
                       }
 
-                      // 2. DATES: Format Due Date
-                      String? sharedDueDate;
-                      if (partner.dueDate != null && partner.dueDate != 'null') {
-                        try {
-                          final parsed = DateTime.parse(partner.dueDate!);
-                          sharedDueDate = DateFormat('dd-MMM-yyyy').format(parsed);
-                        } catch (e) {
-                          sharedDueDate = partner.dueDate;
-                        }
+                      if (allImages.isEmpty) {
+                        Toaster.showError("No images to share");
+                        return;
                       }
 
-                      await ShareCardService.share(
-                        context,
-                        ShareCardItem(
+                      final List<ShareCardItem> shareItems = allImages.map((imageUrl) {
+                        final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+                        return ShareCardItem(
                           workOrderNumber: partner.workOrderNumber,
-                          imageUrl: imageUrl, // The Service must handle downloading/converting this if isPdf is true
+                          imageUrl: imageUrl,
                           title: partner.productName,
                           category: partner.productCategory,
                           quantity: partner.quantity,
@@ -591,13 +597,16 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                           hallmark: partner.hallmark,
                           rodium: partner.rodium,
                           hook: partner.hook,
+                          screwName: partner.screwName,
                           type: partner.type,
                           openClose: partner.openClose,
                           isPdf: isPdf,
                           narration: partner.narrationCraftsman,
                           subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
-                        ),
-                      );
+                        );
+                      }).toList();
+
+                      await ShareCardService.shareMultiple(context, shareItems);
                     },
                   ),
                 );
@@ -634,7 +643,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'For Approval') {
+    } else if (_activeStatus == 'For Approval' && role?.toLowerCase() == 'super_admin') {
       actions.add(
         _buildActionBtn(
           label: 'Approve',

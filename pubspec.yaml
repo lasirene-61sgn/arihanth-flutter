@@ -46,6 +46,8 @@ dependencies:
   audioplayers: ^6.1.0
   web_socket_channel: ^3.0.3
   agora_rtc_engine: ^6.5.3
+  flutter_callkit_incoming: ^2.0.4
+  uuid: ^4.3.3
 
 dev_dependencies:
   flutter_test:

@@ -35,6 +35,7 @@ import 'package:arianth/screens/common/order_success_screen.dart';
 import 'package:arianth/screens/my_favorites/ui/my_favorites_screen.dart';
 import 'package:arianth/screens/chat/ui/chat_list_screen.dart';
 import 'package:arianth/screens/chat/ui/chat_detail_screen.dart';
+import 'package:arianth/screens/registration/ui/registration_screen.dart';
 import 'package:get/get.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 
@@ -58,6 +59,11 @@ class AppPages {
       name: AppRoutes.login,
       page: () => const LoginScreen(),
       transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: AppRoutes.register,
+      page: () => const RegistrationScreen(),
+      transition: Transition.rightToLeftWithFade,
     ),
     GetPage(
       name: AppRoutes.forgotPassword,

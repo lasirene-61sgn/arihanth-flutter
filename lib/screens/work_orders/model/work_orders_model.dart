@@ -28,6 +28,7 @@ class WorkOrder {
   final String? size;
   final String? stone;
   final String? enamel;
+  final String? screwName;
   final String? length;
   final String? productCode;
   final String? designCode;
@@ -82,6 +83,7 @@ class WorkOrder {
     this.size,
     this.stone,
     this.enamel,
+    this.screwName,
     this.length,
     this.productCode,
     this.designCode,
@@ -135,6 +137,7 @@ class WorkOrder {
     String? size,
     String? stone,
     String? enamel,
+    String? screwName,
     String? length,
     String? productCode,
     String? designCode,
@@ -187,6 +190,7 @@ class WorkOrder {
       size: size ?? this.size,
       stone: stone ?? this.stone,
       enamel: enamel ?? this.enamel,
+      screwName: screwName ?? this.screwName,
       length: length ?? this.length,
       productCode: productCode ?? this.productCode,
       designCode: designCode ?? this.designCode,
@@ -242,6 +246,7 @@ class WorkOrder {
       size: json['size']?.toString(),
       stone: json['stone'],
       enamel: json['enamel'],
+      screwName: json['screw_name'],
       length: json['length']?.toString(),
       productCode: json['product_code'],
       designCode: json['design_code'],
@@ -310,6 +315,7 @@ class WorkOrder {
       if (size != null) 'size': size,
       if (stone != null) 'stone': stone,
       if (enamel != null) 'enamel': enamel,
+      if (screwName != null) 'screw_name': screwName,
       if (length != null) 'length': length,
       if (productCode != null) 'select_product': productCode,
       if (designCode != null) 'design_code': designCode,

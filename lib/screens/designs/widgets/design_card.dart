@@ -243,7 +243,7 @@ class _DesignCardState extends State<DesignCard> {
                           child: GestureDetector(
                             onTap: widget.onFavoriteToggle,
                             child: Container(
-                              padding: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.8),
                                 shape: BoxShape.circle,
@@ -251,7 +251,7 @@ class _DesignCardState extends State<DesignCard> {
                               child: Icon(
                                 widget.isFavorite ? Icons.favorite : Icons.favorite_border,
                                 color: Colors.red,
-                                size: 18,
+                                size: 26,
                               ),
                             ),
                           ),
