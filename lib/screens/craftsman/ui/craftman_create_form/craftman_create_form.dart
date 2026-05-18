@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/craftsman/model/craftsman_model.dart';
 import 'package:arianth/screens/craftsman/riverpod/craftsman_notifier.dart';
-
+import 'package:arianth/services/localization/app_localization.dart';
 import 'package:arianth/services/pincode_service/pincode_client.dart';
 import 'package:arianth/services/widget/custom_button.dart';
 import 'package:arianth/services/widget/custom_input_feild.dart';
@@ -101,7 +101,7 @@ class _CraftManCreationFormState extends ConsumerState<CraftManCreationForm> wit
 
   // permission Tap
   final List<String> _allPermissions =[
-    "product","design", "catalogue","work_order", "finance","purchase_order", "stock_order", "meetings"];
+    "product","design", "catalogue","work_order", "finance","purchase_order", "stock_order", "meetings", "favorites"];
   List<String> _selectedPermissions = [];
 
   // --- TAB 6: WORKER CONTROLLERS ---
@@ -662,7 +662,7 @@ class _CraftManCreationFormState extends ConsumerState<CraftManCreationForm> wit
                     activeColor: AppColor.primary,
                     activeTrackColor: AppColor.primary.withOpacity(0.3),
                     title: Text(
-                      perm.replaceAll('_', ' ').toUpperCase(), // Format text nicely
+                      ref.watchTr(perm).toUpperCase(), // Format text nicely
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColor.textPrimary),
                     ),
                     value: isSelected,

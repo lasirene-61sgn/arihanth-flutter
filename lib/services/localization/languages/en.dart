@@ -118,4 +118,8 @@ final Map<String, String> en = {
   'aadhar_no': 'Aadhar No',
   'my_profile': 'My Profile',
   'my_favorites': 'My Favorites',
+  'finance': 'Finance',
+  'live_stock_order': 'Live Stock Order',
+  'meetings': 'Meetings',
+  'stock_order': 'Live Stock Order',
 };

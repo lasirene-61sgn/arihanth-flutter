@@ -117,4 +117,7 @@ final Map<String, String> or = {
   'business_name': 'ବ୍ୟବସାୟ ନାମ',
   'aadhar_no': 'ଆଧାର ନମ୍ବର',
   'my_profile': 'ମୋର ପ୍ରୋଫାଇଲ୍',
+  'finance': 'ଫାଇନାନ୍ସ',
+  'live_stock_order': 'ଲାଇଭ୍ ଷ୍ଟକ୍ ଅର୍ଡର',
+  'meetings': 'ମିଟିଂ',
 };

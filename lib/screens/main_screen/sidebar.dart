@@ -139,11 +139,11 @@ class _SidebarState extends ConsumerState<Sidebar> {
       if (permissions.contains('favorites')) {
         menu.add(_navItem(Icons.favorite_outline, ref.watchTr('my_favorites'), 17, selectedIndex));
       }
-      menu.add(_navItem(Icons.chat_outlined, "Chat", 19, selectedIndex));
+      // menu.add(_navItem(Icons.chat_outlined, "Chat", 19, selectedIndex));
     }
     
     if (hasPermission('meetings')) {
-      menu.add(_navItem(Icons.video_call_outlined, "Meetings", 20, selectedIndex));
+      menu.add(_navItem(Icons.video_call_outlined, ref.watchTr('meetings'), 20, selectedIndex));
     }
     menu.add(const SizedBox(height: 15));
 
@@ -220,7 +220,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
       }
 
       if (hasStockOrder) {
-        menu.add(_navItem(Icons.list_alt_outlined, "Live Stock Order", 18, selectedIndex));
+        menu.add(_navItem(Icons.list_alt_outlined, ref.watchTr('live_stock_order'), 18, selectedIndex));
       }
 
       menu.add(const SizedBox(height: 20));
@@ -259,7 +259,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
     bool hasFinance = hasPermission('finance');
     if (hasFinance) {
       menu.add(_sectionTitle("FINANCE"));
-      menu.add(_navItem(Icons.analytics_outlined, "Finance", 13, selectedIndex));
+      menu.add(_navItem(Icons.analytics_outlined, ref.watchTr('finance'), 13, selectedIndex));
       menu.add(const SizedBox(height: 15));
     }
 

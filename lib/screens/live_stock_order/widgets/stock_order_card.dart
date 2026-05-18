@@ -48,8 +48,21 @@ class _StockOrderCardState extends State<StockOrderCard> {
     final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman']
         .contains(widget.role?.toLowerCase());
 
+    Color cardColor = AppColor.white;
+    if (order.colorHex != null && order.colorHex!.trim().isNotEmpty) {
+      String hexColor = order.colorHex!.toUpperCase().replaceAll("#", "");
+      if (hexColor.length == 6) {
+        hexColor = "FF$hexColor";
+      }
+      try {
+        cardColor = Color(int.parse(hexColor, radix: 16));
+      } catch (e) {
+        cardColor = AppColor.white;
+      }
+    }
+
     return Card(
-      color: AppColor.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

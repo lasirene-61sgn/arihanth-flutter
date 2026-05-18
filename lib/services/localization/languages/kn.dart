@@ -117,4 +117,7 @@ final Map<String, String> kn = {
   'business_name': 'ವ್ಯಾಪಾರದ ಹೆಸರು',
   'aadhar_no': 'ಆಧಾರ್ ಸಂಖ್ಯೆ',
   'my_profile': 'ನನ್ನ ಪ್ರೊಫೈಲ್',
+  'finance': 'ಹಣಕಾಸು',
+  'live_stock_order': 'ಲೈವ್ ಸ್ಟಾಕ್ ಆರ್ಡರ್',
+  'meetings': 'ಸಭೆಗಳು',
 };

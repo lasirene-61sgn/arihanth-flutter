@@ -117,4 +117,7 @@ final Map<String, String> ta = {
   'business_name': 'வணிகப் பெயர்',
   'aadhar_no': 'ஆதார் எண்',
   'my_profile': 'எனது சுயவிவரம்',
+  'finance': 'நிதி',
+  'live_stock_order': 'லைவ் ஸ்டாக் ஆர்டர்',
+  'meetings': 'கூட்டங்கள்',
 };

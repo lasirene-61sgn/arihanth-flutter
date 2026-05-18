@@ -86,9 +86,9 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
           },
         ),
         title: !searchToggle
-            ? const Text(
-                'Live Stock Order',
-                style: TextStyle(
+            ? Text(
+                ref.watchTr('live_stock_order'),
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,

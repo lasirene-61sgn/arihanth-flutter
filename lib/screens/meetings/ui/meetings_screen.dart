@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:arianth/screens/chat/model/chat_model.dart';
 import 'package:arianth/screens/work_orders/ui/widgets/work_order_dropdown_widget.dart';
+import 'package:arianth/services/localization/app_localization.dart';
 
 class MeetingsScreen extends ConsumerStatefulWidget {
   const MeetingsScreen({super.key});
@@ -49,9 +50,9 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
     return Scaffold(
       backgroundColor: AppColor.background,
       appBar: AppBar(
-        title: const Text(
-          'Meetings',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          ref.watchTr('meetings'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColor.primary,
         iconTheme: const IconThemeData(color: Colors.white),

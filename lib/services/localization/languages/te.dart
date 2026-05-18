@@ -117,4 +117,7 @@ final Map<String, String> te = {
   'business_name': 'వ్యాపార పేరు',
   'aadhar_no': 'ఆధార్ సంఖ్య',
   'my_profile': 'నా ప్రొఫైల్',
+  'finance': 'ఫైనాన్స్',
+  'live_stock_order': 'లైవ్ స్టాక్ ఆర్డర్',
+  'meetings': 'సమావేశాలు',
 };

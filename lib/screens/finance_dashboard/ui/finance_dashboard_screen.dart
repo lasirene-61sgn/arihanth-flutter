@@ -1,6 +1,7 @@
 import 'package:arianth/app_color/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:arianth/services/localization/app_localization.dart';
 
 class FinanceDashboardScreen extends ConsumerStatefulWidget {
   const FinanceDashboardScreen({super.key});
@@ -19,9 +20,9 @@ class _FinanceDashboardScreenState extends ConsumerState<FinanceDashboardScreen>
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        title: const Text(
-          'Finance',
-          style: TextStyle(
+        title: Text(
+          ref.watchTr('finance'),
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: AppColor.white,

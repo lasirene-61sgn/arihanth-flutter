@@ -151,6 +151,8 @@ class StockOrderDetailModel {
   final int? quantity;
   final String? itemStatus;
   final String? imageUrl;
+  final String? colorKey;
+  final String? colorHex;
   final StockOrderDetailBuyer? buyer;
   final StockOrderDetailCraftsman? craftsman;
 
@@ -174,6 +176,8 @@ class StockOrderDetailModel {
     this.quantity,
     this.itemStatus,
     this.imageUrl,
+    this.colorKey,
+    this.colorHex,
     this.buyer,
     this.craftsman,
   });
@@ -204,6 +208,8 @@ class StockOrderDetailModel {
             : int.tryParse(json['quantity']?.toString() ?? ''),
         itemStatus: json['item_status']?.toString(),
         imageUrl: json['image_url']?.toString(),
+        colorKey: json['color_key']?.toString(),
+        colorHex: json['color_hex']?.toString(),
         buyer: json['buyer'] is Map<String, dynamic>
             ? StockOrderDetailBuyer.fromJson(json['buyer'] as Map<String, dynamic>)
             : null,
@@ -237,6 +243,8 @@ class StockOrderDetailModel {
     int? quantity,
     String? itemStatus,
     String? imageUrl,
+    String? colorKey,
+    String? colorHex,
     StockOrderDetailBuyer? buyer,
     StockOrderDetailCraftsman? craftsman,
   }) {
@@ -260,6 +268,8 @@ class StockOrderDetailModel {
       quantity: quantity ?? this.quantity,
       itemStatus: itemStatus ?? this.itemStatus,
       imageUrl: imageUrl ?? this.imageUrl,
+      colorKey: colorKey ?? this.colorKey,
+      colorHex: colorHex ?? this.colorHex,
       buyer: buyer ?? this.buyer,
       craftsman: craftsman ?? this.craftsman,
     );

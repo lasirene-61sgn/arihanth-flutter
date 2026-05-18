@@ -117,4 +117,7 @@ final Map<String, String> pa = {
   'business_name': 'ਕਾਰੋਬਾਰ ਦਾ ਨਾਮ',
   'aadhar_no': 'ਆਧાર ਨੰਬਰ',
   'my_profile': 'ਮੇਰੀ ਪ੍ਰੋਫਾਈਲ',
+  'finance': 'ਫਾਇਨਾਂਸ',
+  'live_stock_order': 'ਲਾਈਵ ਸਟਾਕ ਆਰਡਰ',
+  'meetings': 'ਮੀਟਿੰਗਾਂ',
 };

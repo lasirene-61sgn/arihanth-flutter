@@ -117,4 +117,7 @@ final Map<String, String> gu = {
   'business_name': 'વ્યાપારનું નામ',
   'aadhar_no': 'આધાર નંબર',
   'my_profile': 'મારી પ્રોફાઇલ',
+  'finance': 'ફાઇનાન્સ',
+  'live_stock_order': 'લાઇવ સ્ટોક ઓર્ડર',
+  'meetings': 'મીટિંગ્સ',
 };

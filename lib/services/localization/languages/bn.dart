@@ -117,4 +117,7 @@ final Map<String, String> bn = {
   'business_name': 'ব্যবসায়ের নাম',
   'aadhar_no': 'আধার নম্বর',
   'my_profile': 'আমার প্রোফাইল',
+  'finance': 'অর্থায়ন',
+  'live_stock_order': 'লাইভ স্টক অর্ডার',
+  'meetings': 'মিটিং',
 };

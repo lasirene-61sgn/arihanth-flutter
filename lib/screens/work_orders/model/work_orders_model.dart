@@ -54,6 +54,8 @@ class WorkOrder {
   final SubcategoryRelation? subcategoryRelation;
   final Craftsman? craftsman;
   final List<String>? images;
+  final String? colorKey;
+  final String? colorHex;
 
   WorkOrder({
     this.id,
@@ -107,6 +109,8 @@ class WorkOrder {
     this.subcategoryRelation,
     this.craftsman,
     this.images,
+    this.colorKey,
+    this.colorHex,
   });
 
   WorkOrder copyWith({
@@ -161,6 +165,8 @@ class WorkOrder {
     SubcategoryRelation? subcategoryRelation,
     Craftsman? craftsman,
     List<String>? images,
+    String? colorKey,
+    String? colorHex,
   }) {
     return WorkOrder(
       id: id ?? this.id,
@@ -214,6 +220,8 @@ class WorkOrder {
       subcategoryRelation: subcategoryRelation ?? this.subcategoryRelation,
       craftsman: craftsman ?? this.craftsman,
       images: images ?? this.images,
+      colorKey: colorKey ?? this.colorKey,
+      colorHex: colorHex ?? this.colorHex,
     );
   }
 
@@ -282,6 +290,8 @@ class WorkOrder {
       images: (json['images'] as List?)
           ?.map((e) => e.toString())
           .toList(),
+      colorKey: json['color_key']?.toString(),
+      colorHex: json['color_hex']?.toString(),
     );
   }
 
@@ -326,6 +336,8 @@ class WorkOrder {
       if (approvedBy != null) 'approved_by': approvedBy,
       if (craftsmanStatus != null) 'craftsman_status': craftsmanStatus,
       if (rejectionReason != null) 'rejection_reason': rejectionReason,
+      if (colorKey != null) 'color_key': colorKey,
+      if (colorHex != null) 'color_hex': colorHex,
     };
   }
 }

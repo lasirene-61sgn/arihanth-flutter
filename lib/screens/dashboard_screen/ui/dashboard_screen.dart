@@ -369,14 +369,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (hasPermission('catalogue'))
         {'type': 'catalogue', 'icon': Icons.menu_book_outlined, 'title': ref.watchTr('catalogue'), 'count': getCount(data?.catalogues)},
       if (hasPermission('finance'))
-        {'type': 'finance', 'icon': Icons.analytics_outlined, 'title': 'Finance', 'count': ''},
+        {'type': 'finance', 'icon': Icons.analytics_outlined, 'title': ref.watchTr('finance'), 'count': ''},
       if (hasPermission('kyc_pending'))
         {'type': 'kyc_pending', 'icon': Icons.verified_user_outlined, 'title': ref.watchTr('kyc_pending'), 'count': getCount(data?.businessPartnerKyc)},
       if (hasPermission('stock_order'))
-        {'type': 'stock_order', 'icon': Icons.list_alt_outlined, 'title': 'Live Stock Order', 'count': ''},
-      {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
+        {'type': 'stock_order', 'icon': Icons.list_alt_outlined, 'title': ref.watchTr('live_stock_order'), 'count': ''},
+      // {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
       if (hasPermission('meetings'))
-        {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': 'Meetings', 'count': ''},
+        {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': ref.watchTr('meetings'), 'count': ''},
     ];
   }
 

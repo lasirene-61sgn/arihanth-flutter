@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/buyer/model/buyer_model.dart';
 import 'package:arianth/screens/buyer/riverpod/buyer_notifier.dart';
-
+import 'package:arianth/services/localization/app_localization.dart';
 import 'package:arianth/services/pincode_service/pincode_client.dart';
 import 'package:arianth/services/widget/custom_button.dart';
 import 'package:arianth/services/widget/custom_input_feild.dart';
@@ -98,7 +98,7 @@ class _BPCreationFormState extends ConsumerState<BPCreationForm> with SingleTick
   };
 
   // permission Tap
-  final List<String> _allPermissions =["product","design", "catalogue","work_order", "user_management" , "key_user", "finance", "stock_order", "meetings"];
+  final List<String> _allPermissions =["product","design", "catalogue","work_order", "user_management" , "key_user", "finance", "stock_order", "meetings", "favorites"];
   List<String> _selectedPermissions = [];
   KycDocument _tempBankDoc = KycDocument();
   KycDocument _tempPanDoc = KycDocument();
@@ -595,7 +595,7 @@ class _BPCreationFormState extends ConsumerState<BPCreationForm> with SingleTick
                     activeColor: AppColor.primary,
                     activeTrackColor: AppColor.primary.withOpacity(0.3),
                     title: Text(
-                      perm.replaceAll('_', ' ').toUpperCase(), // Format text nicely
+                      ref.watchTr(perm).toUpperCase(), // Use translated string
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColor.textPrimary),
                     ),
                     value: isSelected,

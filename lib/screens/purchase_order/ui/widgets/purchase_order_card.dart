@@ -100,8 +100,21 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
     final items = widget.purchaseOrder.items ?? [];
     final itemCount = items.length;
 
+    Color cardColor = AppColor.white;
+    if (widget.purchaseOrder.colorHex != null && widget.purchaseOrder.colorHex!.trim().isNotEmpty) {
+      String hexColor = widget.purchaseOrder.colorHex!.toUpperCase().replaceAll("#", "");
+      if (hexColor.length == 6) {
+        hexColor = "FF$hexColor";
+      }
+      try {
+        cardColor = Color(int.parse(hexColor, radix: 16));
+      } catch (e) {
+        cardColor = AppColor.white;
+      }
+    }
+
     return Card(
-      color: AppColor.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

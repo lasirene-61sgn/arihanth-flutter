@@ -65,8 +65,22 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                 workOrder.allocatedCraftsmanBpCode ??
                 '')
             .trim();
+
+    Color cardColor = AppColor.white;
+    if (workOrder.colorHex != null && workOrder.colorHex!.trim().isNotEmpty) {
+      String hexColor = workOrder.colorHex!.toUpperCase().replaceAll("#", "");
+      if (hexColor.length == 6) {
+        hexColor = "FF$hexColor";
+      }
+      try {
+        cardColor = Color(int.parse(hexColor, radix: 16));
+      } catch (e) {
+        cardColor = AppColor.white;
+      }
+    }
+
     return Card(
-      color: AppColor.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

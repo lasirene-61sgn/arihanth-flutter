@@ -117,4 +117,7 @@ final Map<String, String> ml = {
   'business_name': 'ബിസിനസ് പേര്',
   'aadhar_no': 'ആധാർ നമ്പർ',
   'my_profile': 'എന്റെ പ്രொഫൈൽ',
+  'finance': 'ഫിനാൻസ്',
+  'live_stock_order': 'ലൈവ് സ്റ്റോക്ക് ഓർഡർ',
+  'meetings': 'മീറ്റിംഗുകൾ',
 };

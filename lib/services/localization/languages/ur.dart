@@ -117,4 +117,7 @@ final Map<String, String> ur = {
   'business_name': 'کاروبار کا نام',
   'aadhar_no': 'آدھار نمبر',
   'my_profile': 'میری پروفائل',
+  'finance': 'فنانس',
+  'live_stock_order': 'لائیو اسٹاک آرڈر',
+  'meetings': 'میٹنگز',
 };

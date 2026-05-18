@@ -12,16 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 class ApiClient {
-  // static const String baseUrl = "https://overlabor-unmixed-doing.ngrok-free.dev/";
-  static const String baseUrl = "https://arianth.lasirene.xyz/";
+  static const String baseUrl = "https://overlabor-unmixed-doing.ngrok-free.dev/";
+  // static const String baseUrl = "https://arianth.lasirene.xyz/";
   // static const String baseUrl = "https://arihanthjewellers.in/";
   late final Dio _dio;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
-  // Set to false to stop Dio logs
   static const bool isDevPrint = true;
 
-  // ------------------ INIT ------------------
   ApiClient() {
     _dio = Dio(
       BaseOptions(

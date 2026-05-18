@@ -117,4 +117,7 @@ final Map<String, String> mr = {
   'business_name': 'व्यावसायिक नाव',
   'aadhar_no': 'आधार क्रमांक',
   'my_profile': 'माझी प्रोफाइल',
+  'finance': 'वित्त',
+  'live_stock_order': 'लाईव्ह स्टॉक ऑर्डर',
+  'meetings': 'मीटिंग्ज',
 };
