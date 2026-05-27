@@ -5,6 +5,7 @@ import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/services/widget/custom_button.dart';
 import 'package:arianth/services/widget/custom_input_feild.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
@@ -160,29 +161,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           textColor: AppColor.textWhite,
                         ),
 
-                        const SizedBox(height: 20),
-                        Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Don't have an account? ",
-                                style: TextStyle(color: AppColor.textSecondary, fontSize: 14),
-                              ),
-                              GestureDetector(
-                                onTap: () => Get.toNamed(AppRoutes.register),
-                                child: const Text(
-                                  "Register",
-                                  style: TextStyle(
-                                    color: AppColor.primary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                        if (!Platform.isIOS) ...[
+                          const SizedBox(height: 20),
+                          Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Don't have an account? ",
+                                  style: TextStyle(color: AppColor.textSecondary, fontSize: 14),
+                                ),
+                                GestureDetector(
+                                  onTap: () => Get.toNamed(AppRoutes.register),
+                                  child: const Text(
+                                    "Register",
+                                    style: TextStyle(
+                                      color: AppColor.primary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
 
                         Center(
                           child: TextButton(

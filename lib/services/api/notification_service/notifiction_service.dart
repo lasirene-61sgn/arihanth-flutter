@@ -168,10 +168,7 @@ class NotificationService {
             uid: uid,
           ));
         } else {
-          Toaster.showError("Camera and Microphone permissions are required to join the meeting.");
-          if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
-            openAppSettings();
-          }
+          Toaster.showError("Camera and Microphone permissions are required to join the meeting. Please enable them in Settings.");
         }
       }
     } catch (e) {

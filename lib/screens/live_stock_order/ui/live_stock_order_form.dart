@@ -154,8 +154,9 @@ class _LiveStockOrderFormState extends ConsumerState<LiveStockOrderForm> {
       _hasCameraPermission = status.isGranted;
     });
     
+    // Removed automatic redirect to settings to comply with App Store Guidelines.
     if (status.isPermanentlyDenied) {
-      openAppSettings();
+      Toaster.showError("Camera permission is required. Please enable it in Settings.");
     }
   }
 
@@ -550,7 +551,7 @@ class _LiveStockOrderFormState extends ConsumerState<LiveStockOrderForm> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
               ),
-              child: const Text("Grant Permission", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              child: const Text("Continue", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             ),
           ),
         ],

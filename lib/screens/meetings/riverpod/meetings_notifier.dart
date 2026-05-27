@@ -219,10 +219,7 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
                 uid: agoraData["uid"] is int ? agoraData["uid"] : int.tryParse(agoraData["uid"].toString()) ?? 0,
               ));
             } else {
-              Toaster.showError("Camera and Microphone permissions are required to join the meeting.");
-              if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
-                openAppSettings();
-              }
+              Toaster.showError("Camera and Microphone permissions are required to join the meeting. Please enable them in Settings.");
             }
           } else {
             debugPrint("Error: Agora data is null");

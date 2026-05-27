@@ -44,7 +44,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
   Widget build(BuildContext context) {
     final meetingsState = ref.watch(meetingsProvider);
     final loginState = ref.watch(loginProvider);
-    final role = loginState.user?.role?.toLowerCase() ?? SharedPreferencesHelper().getString("role")?.toLowerCase() ?? '';
+    final role = loginState.user?.role.toLowerCase() ?? SharedPreferencesHelper().getString("role")?.toLowerCase() ?? '';
     final isSuperAdmin = role == 'super_admin';
 
     return Scaffold(
