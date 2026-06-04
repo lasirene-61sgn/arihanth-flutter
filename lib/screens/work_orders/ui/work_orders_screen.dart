@@ -528,8 +528,11 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                   subtitle: "We couldn't find any orders matching your criteria. Try adjusting your filters or search.",
                   icon: Icons.assignment_outlined,
                 )
-              : isMobile
-          ? ListView.separated(
+              :
+      // isMobile
+          // ?
+      ListView.separated(
+
               itemCount: state.workOrders.length + (state.isLoading ? 1 : 0),
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -612,15 +615,15 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                 );
               },
             )
-          : WorkOrdersTable(
-              state: state,
-              role: role,
-              activeStatus: _activeStatus,
-              selectedIds: selectedIds,
-              onSelectionChanged: (newSelection) {
-                setState(() => selectedIds = newSelection);
-              },
-            ),
+          // : WorkOrdersTable(
+          //     state: state,
+          //     role: role,
+          //     activeStatus: _activeStatus,
+          //     selectedIds: selectedIds,
+          //     onSelectionChanged: (newSelection) {
+          //       setState(() => selectedIds = newSelection);
+          //     },
+          //   ),
     );
   }
 

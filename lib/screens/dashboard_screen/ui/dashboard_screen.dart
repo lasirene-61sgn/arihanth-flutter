@@ -10,6 +10,8 @@ import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
+import 'dart:convert';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:arianth/services/localization/app_localization.dart';
 
@@ -28,12 +30,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isRateExpanded = false;
   final String goldRate = "₹ 7,250 /g";
   final String silverRate = "₹ 92.50 /g";
+  List<String> _savedOrder = [];
 
   @override
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
     name = SharedPreferencesHelper().getString("name") ?? '';
+    
+    final savedOrderStr = SharedPreferencesHelper().getString('dashboard_order');
+    if (savedOrderStr != null && savedOrderStr.isNotEmpty) {
+      try {
+        _savedOrder = List<String>.from(jsonDecode(savedOrderStr));
+      } catch (e) {
+        _savedOrder = [];
+      }
+    }
+
     Future.microtask(() {
       ref.read(dashboardProvider.notifier).fetchDashBoard();
       ref.read(productListProvider.notifier).fetchBPCodes();
@@ -52,6 +65,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final dashboardData = dashboardState.dashboardData;
 
     final summaryCards = _getSummaryCards(dashboardData);
+    
+    List<Map<String, dynamic>> orderedCards = List.from(summaryCards);
+    if (_savedOrder.isNotEmpty) {
+      orderedCards.sort((a, b) {
+        int indexA = _savedOrder.indexOf(a['type'] as String);
+        int indexB = _savedOrder.indexOf(b['type'] as String);
+        if (indexA == -1) indexA = 9999;
+        if (indexB == -1) indexB = 9999;
+        return indexA.compareTo(indexB);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColor.background,
@@ -125,7 +149,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 20),
 
-            GridView.builder(
+            ReorderableGridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -134,8 +158,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 mainAxisSpacing: 12,
                 childAspectRatio: w < 1024 ? 1.4 : 1.6,
               ),
-              itemCount: summaryCards.length,
-              itemBuilder: (context, index) => _buildSummaryCard(summaryCards[index]),
+              itemCount: orderedCards.length,
+              itemBuilder: (context, index) {
+                final card = orderedCards[index];
+                return Container(
+                  key: ValueKey(card['type']),
+                  child: _buildSummaryCard(card),
+                );
+              },
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  final element = orderedCards.removeAt(oldIndex);
+                  orderedCards.insert(newIndex, element);
+                  _savedOrder = orderedCards.map((c) => c['type'] as String).toList();
+                  SharedPreferencesHelper().setString('dashboard_order', jsonEncode(_savedOrder));
+                });
+              },
             ),
             const SizedBox(height: 10),
 

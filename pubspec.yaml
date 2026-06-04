@@ -48,6 +48,8 @@ dependencies:
   agora_rtc_engine: ^6.5.3
   flutter_callkit_incoming: ^2.0.4
   uuid: ^4.3.3
+  reorderable_grid_view: ^2.2.8
+  wakelock_plus: ^1.5.2
 
 dev_dependencies:
   flutter_test:

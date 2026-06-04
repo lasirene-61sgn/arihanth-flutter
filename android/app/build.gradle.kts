@@ -50,10 +50,7 @@ android {
 
     buildTypes {
         getByName("release") {
-            // ✅ This links to the release signing config above
             signingConfig = signingConfigs.getByName("release")
-
-            // Optimization settings
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(

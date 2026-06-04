@@ -5,6 +5,7 @@ import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:arianth/services/api/notification_service/notifiction_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class VideoCallScreen extends ConsumerStatefulWidget {
   final String appId;
@@ -28,6 +29,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
     Future.microtask(() {
       ref.read(videoCallProvider.notifier).initAgora(
             appId: widget.appId,
@@ -40,6 +42,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     NotificationService.endAllCalls();
     super.dispose();
   }
