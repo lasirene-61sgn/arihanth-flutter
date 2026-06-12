@@ -185,7 +185,7 @@ class NotificationService {
     String logoPath = "";
     try {
       final byteData = await rootBundle.load('assets/image/app_lancher_logo_img.jpeg');
-      final file = File('${(await getTemporaryDirectory()).path}/app_logo.jpeg');
+      final file = File('${(await getApplicationDocumentsDirectory()).path}/app_logo.jpeg');
       await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
       logoPath = file.path;
     } catch (e) {
@@ -196,7 +196,7 @@ class NotificationService {
       id: uuid,
       nameCaller: data['caller_name'] ?? 'Meeting Invitation',
       appName: 'Arihanth',
-      avatar: logoPath.isNotEmpty ? logoPath : 'https://i.pravatar.cc/100',
+      avatar: logoPath.isNotEmpty ? 'file://$logoPath' : '',
       handle: data['channel_name'] ?? 'Join Meeting',
       type: 0, // 0: Audio, 1: Video
       duration: 30000,
@@ -211,10 +211,10 @@ class NotificationService {
       extra: data,
       android: AndroidParams(
         isCustomNotification: true,
-        isShowLogo: false,
+        isShowLogo: true,
         ringtonePath: 'system_ringtone_default',
-        backgroundColor: '#0955fa',
-        backgroundUrl: logoPath.isNotEmpty ? logoPath : 'https://i.pravatar.cc/500',
+        backgroundColor: '#A57C52',
+        backgroundUrl: '',
         actionColor: '#4CAF50',
       ),
       ios: const IOSParams(
@@ -265,10 +265,8 @@ class NotificationService {
     if (calls is List && calls.isNotEmpty) {
       final call = calls.first;
       if (call['extra'] != null) {
-        // Check if token exists
         final String? token = SharedPreferencesHelper().getString("token");
         if (token != null && token.isNotEmpty) {
-          // Add a small delay to ensure GetMaterialApp is initialized
           Future.delayed(const Duration(seconds: 1), () {
             _navigateToMeeting(Map<String, dynamic>.from(call['extra']));
           });

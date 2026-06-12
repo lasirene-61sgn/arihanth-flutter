@@ -31,6 +31,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final String goldRate = "₹ 7,250 /g";
   final String silverRate = "₹ 92.50 /g";
   List<String> _savedOrder = [];
+  List<String> _hiddenCards = [];
 
   @override
   void initState() {
@@ -44,6 +45,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _savedOrder = List<String>.from(jsonDecode(savedOrderStr));
       } catch (e) {
         _savedOrder = [];
+      }
+    }
+
+    final hiddenCardsStr = SharedPreferencesHelper().getString('dashboard_hidden');
+    if (hiddenCardsStr != null && hiddenCardsStr.isNotEmpty) {
+      try {
+        _hiddenCards = List<String>.from(jsonDecode(hiddenCardsStr));
+      } catch (e) {
+        _hiddenCards = [];
       }
     }
 
@@ -67,6 +77,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final summaryCards = _getSummaryCards(dashboardData);
     
     List<Map<String, dynamic>> orderedCards = List.from(summaryCards);
+    orderedCards.removeWhere((card) => _hiddenCards.contains(card['type']));
+
     if (_savedOrder.isNotEmpty) {
       orderedCards.sort((a, b) {
         int indexA = _savedOrder.indexOf(a['type'] as String);
@@ -104,6 +116,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.dashboard_customize, color: Colors.white),
+            onPressed: () => _showManageDashboardBottomSheet(summaryCards),
+          ),
           IconButton(
             icon: const Icon(Icons.language, color: Colors.white),
             onPressed: () => LanguageSelector.show(context, ref),
@@ -281,68 +297,83 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 
   Widget _buildSummaryCard(Map<String, dynamic> card) {
-    return InkWell(
-      onTap: () {
-        int? targetIndex;
-        final type = card['type'];
-        if (type == 'partners') targetIndex = 1;
-        else if (type == 'buyers') targetIndex = 2;
-        else if (type == 'craftsman') targetIndex = 3;
-        else if (type == 'admins') targetIndex = 4;
-        else if (type == 'keyusers') targetIndex = 5;
-        else if (type == 'users') targetIndex = 6;
-        else if (type == 'work_orders') targetIndex = 7;
-        else if (type == 'repairs') targetIndex = 15;
-        else if (type == 'purchase_orders') targetIndex = 8;
-        else if (type == 'products') targetIndex = 9;
-        else if (type == 'designs') targetIndex = 10;
-        else if (type == 'catalogue') targetIndex = 11;
-        else if (type == 'kyc_pending') targetIndex = 12;
-        else if (type == 'finance') targetIndex = 13;
-        else if (type == 'stock_order') targetIndex = 18;
-        else if (type == 'chat') targetIndex = 19;
-        else if (type == 'meetings') targetIndex = 20;
-
-        if (targetIndex != null) {
-          ref.read(menuIndexProvider.notifier).state = targetIndex;
-        } else if (card['route'] != null) {
-          Get.toNamed(card['route']);
-        }
+    return TweenAnimationBuilder(
+      key: ValueKey(card['type']),
+      tween: Tween<double>(begin: 0.8, end: 1.0),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutBack,
+      builder: (context, double scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: ((scale - 0.8) * 5).clamp(0.0, 1.0), // scales opacity from 0 to 1 as scale goes 0.8 -> 1.0 and clamps it
+            child: child,
+          ),
+        );
       },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColor.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColor.primary),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColor.divider,
-                  child: card['icon'] is IconData
-                      ? Icon(card['icon'], size: 18, color: AppColor.primary)
-                      : Image.asset(card['icon'] as String, width: 18, color: AppColor.primary),
-                ),
-                Text(
-                  card['count'],
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColor.textPrimary),
-                ),
-              ],
-            ),
-            Text(
-              card['title'],
-              style: const TextStyle(fontSize: 12, color: AppColor.black, fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+      child: InkWell(
+        onTap: () {
+          int? targetIndex;
+          final type = card['type'];
+          if (type == 'partners') targetIndex = 1;
+          else if (type == 'buyers') targetIndex = 2;
+          else if (type == 'craftsman') targetIndex = 3;
+          else if (type == 'admins') targetIndex = 4;
+          else if (type == 'keyusers') targetIndex = 5;
+          else if (type == 'users') targetIndex = 6;
+          else if (type == 'work_orders') targetIndex = 7;
+          else if (type == 'repairs') targetIndex = 15;
+          else if (type == 'purchase_orders') targetIndex = 8;
+          else if (type == 'products') targetIndex = 9;
+          else if (type == 'designs') targetIndex = 10;
+          else if (type == 'catalogue') targetIndex = 11;
+          else if (type == 'kyc_pending') targetIndex = 12;
+          else if (type == 'finance') targetIndex = 13;
+          else if (type == 'stock_order') targetIndex = 18;
+          else if (type == 'chat') targetIndex = 19;
+          else if (type == 'meetings') targetIndex = 20;
+
+          if (targetIndex != null) {
+            ref.read(menuIndexProvider.notifier).state = targetIndex;
+          } else if (card['route'] != null) {
+            Get.toNamed(card['route']);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColor.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColor.primary),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColor.divider,
+                    child: card['icon'] is IconData
+                        ? Icon(card['icon'], size: 18, color: AppColor.primary)
+                        : Image.asset(card['icon'] as String, width: 18, color: AppColor.primary),
+                  ),
+                  Text(
+                    card['count'],
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColor.textPrimary),
+                  ),
+                ],
+              ),
+              Text(
+                card['title'],
+                style: const TextStyle(fontSize: 12, color: AppColor.black, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -365,6 +396,106 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showManageDashboardBottomSheet(List<Map<String, dynamic>> allCards) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColor.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.6,
+              maxChildSize: 0.9,
+              minChildSize: 0.4,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Custom Dashboard',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColor.textPrimary),
+                        ),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: 'This is only for your own temp dashboard customize',
+                          triggerMode: TooltipTriggerMode.tap,
+                          showDuration: const Duration(seconds: 2),
+                          child: const Icon(Icons.info_outline, color: AppColor.primary, size: 22),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: allCards.length,
+                        itemBuilder: (context, index) {
+                          final card = allCards[index];
+                          final isHidden = _hiddenCards.contains(card['type']);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            child: Card(
+                              elevation: 0,
+                              color: AppColor.background,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: AppColor.divider.withOpacity(0.5)),
+                              ),
+                              child: SwitchListTile(
+                                title: Text(card['title'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                                value: !isHidden,
+                                onChanged: (bool value) {
+                                  setSheetState(() {
+                                    if (value) {
+                                      _hiddenCards.remove(card['type']);
+                                    } else {
+                                      _hiddenCards.add(card['type'] as String);
+                                    }
+                                  });
+                                  setState(() {});
+                                  SharedPreferencesHelper().setString('dashboard_hidden', jsonEncode(_hiddenCards));
+                                },
+                                secondary: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: AppColor.primary.withOpacity(0.1),
+                                  child: card['icon'] is IconData
+                                      ? Icon(card['icon'], color: AppColor.primary, size: 20)
+                                      : Image.asset(card['icon'] as String, width: 20, color: AppColor.primary),
+                                ),
+                                activeColor: AppColor.primary,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
