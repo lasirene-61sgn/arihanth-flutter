@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 1.0.3+15
+version: 1.0.5+17
 
 environment:
   sdk: ^3.9.2
@@ -50,6 +50,7 @@ dependencies:
   uuid: ^4.3.3
   reorderable_grid_view: ^2.2.8
   wakelock_plus: ^1.5.2
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +66,9 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/image/tara_logo_color.jpeg"
+  macos:
+    generate: true
+    image_path: "assets/image/tara_logo_color.jpeg"
 
 
 flutter:

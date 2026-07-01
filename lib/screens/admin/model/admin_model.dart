@@ -21,6 +21,7 @@ class Admin {
   final String? createdAt;
   final String? updatedAt;
   final int? isFrozen;
+  final String? category;
 
   Admin({
     required this.id,
@@ -43,6 +44,7 @@ class Admin {
     this.createdAt,
     this.updatedAt,
     this.isFrozen,
+    this.category,
   });
   factory Admin.fromJson(Map<String, dynamic> json) {
     final rawPermissions = json['permissions'];
@@ -86,6 +88,7 @@ class Admin {
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
       isFrozen: json['is_frozen'],
+      category: json['category'],
     );
   }
 
@@ -111,6 +114,7 @@ class Admin {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'is_frozen': isFrozen,
+      'category': category,
     };
   }
 }

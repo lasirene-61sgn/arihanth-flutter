@@ -1,5 +1,9 @@
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/dashboard_screen/model/dashboard_model.dart';
+import 'package:arianth/screens/dashboard_screen/model/new_update_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:io';
 import 'package:arianth/screens/dashboard_screen/riverpod/dashboard_notifier.dart';
 import 'package:arianth/screens/login/riverpod/login_notifier.dart';
 import 'package:arianth/screens/main_screen/main_layout.dart';
@@ -32,6 +36,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final String silverRate = "₹ 92.50 /g";
   List<String> _savedOrder = [];
   List<String> _hiddenCards = [];
+  OverlayEntry? _newUpdatesOverlayEntry;
+  bool _isUpdatesBoxOpen = false;
+  @override
+  void dispose() {
+    if (_newUpdatesOverlayEntry != null) {
+      _newUpdatesOverlayEntry!.remove();
+      _newUpdatesOverlayEntry = null;
+    }
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -57,10 +71,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     }
 
-    Future.microtask(() {
-      ref.read(dashboardProvider.notifier).fetchDashBoard();
-      ref.read(productListProvider.notifier).fetchBPCodes();
-      ref.read(productListProvider.notifier).fetchCraftBPCodes();
+    Future.microtask(() async {
+      if (!mounted) return;
+      await ref.read(dashboardProvider.notifier).fetchDashBoard();
+      
+      if (!mounted) return;
+      final state = ref.read(dashboardProvider);
+      if (state.newUpdates != null && state.newUpdates!.isNotEmpty) {
+        final hasUnseen = state.newUpdates!.any((u) => u.isSeen == false);
+        if (hasUnseen) {
+          _showNewUpdatesOverlay(context, state.newUpdates!);
+        }
+      }
+
+      if (!mounted) return;
+      await Future.wait([
+        ref.read(productListProvider.notifier).fetchBPCodes(),
+        ref.read(productListProvider.notifier).fetchCraftBPCodes(),
+      ]);
     });
   }
 
@@ -116,6 +144,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         actions: [
+          if (dashboardState.newUpdates != null && dashboardState.newUpdates!.isNotEmpty)
+            IconButton(
+              icon: Icon(
+                _isUpdatesBoxOpen ? Icons.close : Icons.new_releases_outlined,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                if (_isUpdatesBoxOpen) {
+                  _closeNewUpdatesOverlay();
+                } else {
+                  _showNewUpdatesOverlay(context, dashboardState.newUpdates!);
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.dashboard_customize, color: Colors.white),
             onPressed: () => _showManageDashboardBottomSheet(summaryCards),
@@ -553,4 +595,372 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     {"title": "Gold Rate Today", "url": "https://arihanthjewellers.com/"},
     {"title": "Gst Verify", "url": "https://services.gst.gov.in/services/searchtp"},
   ];
+  void _closeNewUpdatesOverlay() {
+    if (_newUpdatesOverlayEntry != null) {
+      _newUpdatesOverlayEntry!.remove();
+      _newUpdatesOverlayEntry = null;
+    }
+    if (mounted) {
+      setState(() {
+        _isUpdatesBoxOpen = false;
+      });
+    }
+  }
+
+  void _showNewUpdatesOverlay(BuildContext context, List<NewUpdateModel> updates) {
+    if (_newUpdatesOverlayEntry != null) {
+      _newUpdatesOverlayEntry!.remove();
+      _newUpdatesOverlayEntry = null;
+    }
+
+    setState(() {
+      _isUpdatesBoxOpen = true;
+    });
+
+    _newUpdatesOverlayEntry = OverlayEntry(
+      builder: (context) => NewUpdatesOverlayWidget(
+        updates: updates,
+        onClose: _closeNewUpdatesOverlay,
+      ),
+    );
+
+    Overlay.of(context).insert(_newUpdatesOverlayEntry!);
+  }
+}
+
+class NewUpdatesOverlayWidget extends StatefulWidget {
+  final List<NewUpdateModel> updates;
+  final VoidCallback onClose;
+  const NewUpdatesOverlayWidget({
+    super.key,
+    required this.updates,
+    required this.onClose,
+  });
+
+  @override
+  State<NewUpdatesOverlayWidget> createState() => _NewUpdatesOverlayWidgetState();
+}
+
+class _NewUpdatesOverlayWidgetState extends State<NewUpdatesOverlayWidget> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  bool _isVideoFile(String? path) {
+    if (path == null) return false;
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.3gp');
+  }
+
+  double _calculateHeight(NewUpdateModel update) {
+    double height = 0.0;
+    height += 60.0;
+    
+    final mediaUrlStr = (update.mediaUrl != null && update.mediaUrl!.isNotEmpty) 
+        ? update.mediaUrl 
+        : update.mediaPath;
+        
+    if (mediaUrlStr != null && mediaUrlStr.isNotEmpty) {
+      height += 250.0;
+      height += 16.0;
+    } else {
+      height += 110.0;
+    }
+    
+    if (update.title != null && update.title!.isNotEmpty) {
+      height += 40.0;
+    }
+    
+    final desc = update.description ?? update.newupdates ?? "";
+    if (desc.isNotEmpty) {
+      int lines = (desc.length / 30).ceil();
+      if (lines < 1) lines = 1;
+      if (lines > 6) lines = 6;
+      height += (lines * 20.0);
+      height += 16.0;
+    }
+    
+    if (widget.updates.length > 1) {
+      height += 30.0;
+    }
+    
+    final maxHeight = MediaQuery.of(context).size.height * 0.7;
+    if (height > maxHeight) return maxHeight;
+    if (height < 250) return 250;
+    return height;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onClose,
+            child: Container(
+              color: Colors.black54,
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.center,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24.0),
+              width: 340,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20.0),
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: SizedBox(
+                              height: _calculateHeight(widget.updates[_currentPage]),
+                              child: PageView.builder(
+                                controller: _pageController,
+                                itemCount: widget.updates.length,
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _currentPage = index;
+                                  });
+                                },
+                                itemBuilder: (context, index) {
+                                  final update = widget.updates[index];
+                                  final displayTitle = update.title ?? "";
+                                  final displayDescription = update.description ?? update.newupdates ?? "";
+                                  final mediaUrlStr = (update.mediaUrl != null && update.mediaUrl!.isNotEmpty) 
+                                      ? update.mediaUrl 
+                                      : update.mediaPath;
+
+                                  return SingleChildScrollView(
+                                    padding: const EdgeInsets.fromLTRB(20.0, 36.0, 20.0, 16.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (mediaUrlStr != null && mediaUrlStr.isNotEmpty) ...[
+                                          Container(
+                                            height: 280,
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.05),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Center(
+                                                child: _isVideoFile(mediaUrlStr)
+                                                    ? NewUpdatesVideoPlayer(videoUrl: mediaUrlStr)
+                                                    : CachedNetworkImage(
+                                                        imageUrl: mediaUrlStr,
+                                                        placeholder: (context, url) => const Center(
+                                                          child: CircularProgressIndicator(),
+                                                        ),
+                                                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ] else ...[
+                                          Center(
+                                            child: Container(
+                                              width: 80,
+                                              height: 80,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFF6F0EA),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Center(
+                                                child: Text(
+                                                  '👋',
+                                                  style: TextStyle(fontSize: 36),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                        if (displayTitle.isNotEmpty) ...[
+                                          Text(
+                                            displayTitle,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF1E293B),
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                        if (displayDescription.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            displayDescription,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFF64748B),
+                                              height: 1.4,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          if (widget.updates.length > 1) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  widget.updates.length,
+                                  (index) => Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                                    width: 8.0,
+                                    height: 8.0,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _currentPage == index
+                                          ? const Color(0xFF1E293B)
+                                          : const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey),
+                        onPressed: widget.onClose,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class NewUpdatesVideoPlayer extends StatefulWidget {
+  final String videoUrl;
+  const NewUpdatesVideoPlayer({super.key, required this.videoUrl});
+
+  @override
+  State<NewUpdatesVideoPlayer> createState() => _NewUpdatesVideoPlayerState();
+}
+
+class _NewUpdatesVideoPlayerState extends State<NewUpdatesVideoPlayer> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.videoUrl),
+      httpHeaders: const {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    )..initialize().then((_) {
+        if (mounted) {
+          setState(() {
+            _initialized = true;
+          });
+          _controller.setLooping(true);
+          _controller.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const SizedBox(
+        height: 150,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return AspectRatio(
+      aspectRatio: _controller.value.aspectRatio,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          VideoPlayer(_controller),
+          VideoProgressIndicator(_controller, allowScrubbing: true),
+          Align(
+            alignment: Alignment.center,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _controller.value.isPlaying
+                      ? _controller.pause()
+                      : _controller.play();
+                });
+              },
+              child: CircleAvatar(
+                backgroundColor: Colors.black26,
+                child: Icon(
+                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
 }

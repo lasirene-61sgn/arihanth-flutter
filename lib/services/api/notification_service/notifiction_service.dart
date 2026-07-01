@@ -13,30 +13,47 @@ import 'package:uuid/uuid.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:arianth/services/api/api_client/api_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  static Future<void> init() async {
-    // Request permission for iOS/Android
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
+  static bool _isInitialized = false;
 
-    // Set presentation options for iOS foreground notifications
-    await messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+  static Future<void> init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+
+    if (Platform.isAndroid) {
+      await Permission.notification.request();
+    }
+
+    // Request permission for iOS/Android
+    try {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      // Set presentation options for iOS foreground notifications
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print("FirebaseMessaging initialization failed: $e");
+      }
+    }
 
     // Initialize local notifications
     const AndroidInitializationSettings androidInitializationSettings =
@@ -45,9 +62,13 @@ class NotificationService {
     const DarwinInitializationSettings iosInitializationSettings =
         DarwinInitializationSettings();
 
+    const DarwinInitializationSettings macOSInitializationSettings =
+        DarwinInitializationSettings();
+
     const InitializationSettings initializationSettings = InitializationSettings(
       android: androidInitializationSettings,
       iOS: iosInitializationSettings,
+      macOS: macOSInitializationSettings,
     );
 
     await _notificationsPlugin.initialize(
@@ -60,11 +81,83 @@ class NotificationService {
       },
     );
 
+    if (Platform.isIOS) {
+      try {
+        await _notificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      } catch (e) {
+        if (kDebugMode) {
+          print("IOS notifications permission request failed: $e");
+        }
+      }
+    } else if (Platform.isMacOS) {
+      try {
+        await _notificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                MacOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      } catch (e) {
+        if (kDebugMode) {
+          print("MacOS notifications permission request failed: $e");
+        }
+      }
+    }
+
     // Initialize CallKit Listener
-    listenerCallKit();
-    
-    // Check for current call if app was launched from CallKit
-    _checkCurrentCall();
+    if (Platform.isAndroid || Platform.isIOS) {
+      listenerCallKit();
+      
+      // Check for current call if app was launched from CallKit
+      _checkCurrentCall();
+    }
+
+    // Set up MethodChannel to handle iOS Siri/CallKit start call intents
+    if (Platform.isIOS) {
+      const intentChannel = MethodChannel('com.arihanth.app/call_intent');
+      intentChannel.setMethodCallHandler((call) async {
+        if (call.method == 'handleStartCallIntent') {
+          final Map<String, dynamic> data = Map<String, dynamic>.from(call.arguments);
+          if (kDebugMode) {
+            print("Received start call intent from channel: $data");
+          }
+          final String? token = SharedPreferencesHelper().getString("token");
+          if (token != null && token.isNotEmpty) {
+            _navigateToMeeting(data);
+          }
+        }
+        return null;
+      });
+
+      try {
+        final pendingCall = await intentChannel.invokeMethod('getPendingCallIntent');
+        if (pendingCall != null) {
+          final Map<String, dynamic> data = Map<String, dynamic>.from(pendingCall);
+          if (kDebugMode) {
+            print("Received pending start call intent: $data");
+          }
+          final String? token = SharedPreferencesHelper().getString("token");
+          if (token != null && token.isNotEmpty) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              _navigateToMeeting(data);
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error checking pending call intent: $e");
+        }
+      }
+    }
 
     // Foreground notification handling
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -148,11 +241,73 @@ class NotificationService {
 
   static Future<void> _navigateToMeeting(Map<String, dynamic> data) async {
     try {
-      final appId = data['app_id']?.toString() ?? "";
-      final channelName = data['channel_name']?.toString() ?? "";
-      final token = data['token']?.toString() ?? "";
-      final uidStr = data['uid']?.toString() ?? "0";
-      final uid = int.tryParse(uidStr) ?? 0;
+      var appId = data['app_id']?.toString() ?? "";
+      var channelName = data['channel_name']?.toString() ?? data['handle']?.toString() ?? "";
+      var token = data['token']?.toString() ?? "";
+      var uidStr = data['uid']?.toString() ?? "0";
+      var uid = int.tryParse(uidStr) ?? 0;
+
+      if (appId.isEmpty && channelName.isNotEmpty) {
+        // Look up meetingId from SharedPreferences to notify/wake up opponent
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final meetingId = prefs.getInt('meeting_id_$channelName');
+          if (meetingId != null) {
+            if (kDebugMode) print("Found meeting ID: $meetingId for channel: $channelName. Waking up opponent.");
+            await ApiClient().post(
+              endpoint: "api/common/meetings/$meetingId/approve",
+              body: {},
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) print("Error approving meeting on recall: $e");
+        }
+
+        // Fetch meeting details/token dynamically from API
+        final response = await ApiClient().get(
+          endpoint: "api/common/meetings/$channelName/token",
+        );
+        if (response != null && response["status"] == 1) {
+          final actualResponse = response["data"];
+          if (actualResponse != null && actualResponse["success"] == true) {
+            final agoraData = actualResponse["data"];
+            if (agoraData != null) {
+              appId = agoraData["app_id"]?.toString() ?? "";
+              channelName = agoraData["channel_name"]?.toString() ?? channelName;
+              token = agoraData["token"]?.toString() ?? "";
+              uid = agoraData["uid"] is int ? agoraData["uid"] : int.tryParse(agoraData["uid"].toString()) ?? 0;
+              
+              // Persist fetched caller/host name if available
+              final String? hostName = agoraData["host_name"]?.toString() ?? agoraData["caller_name"]?.toString();
+              if (hostName != null && hostName.isNotEmpty) {
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('caller_name_$channelName', hostName);
+                } catch (e) {
+                  if (kDebugMode) print("Error saving fetched caller name to prefs: $e");
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Extract opponent/caller name from data payload or fallback to SharedPreferences
+      String? opponentName = data['caller_name']?.toString() ??
+          data['callerName']?.toString() ??
+          data['host_name']?.toString() ??
+          data['hostName']?.toString() ??
+          data['sender_name']?.toString() ??
+          data['title']?.toString();
+
+      if (opponentName == null || opponentName.isEmpty) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          opponentName = prefs.getString('caller_name_$channelName');
+        } catch (e) {
+          if (kDebugMode) print("Error reading opponent name from prefs: $e");
+        }
+      }
 
       if (appId.isNotEmpty && channelName.isNotEmpty) {
         // --- Permission Check ---
@@ -166,6 +321,7 @@ class NotificationService {
             channelName: channelName,
             token: token,
             uid: uid,
+            opponentName: opponentName,
           ));
         } else {
           Toaster.showError("Camera and Microphone permissions are required to join the meeting. Please enable them in Settings.");
@@ -178,7 +334,24 @@ class NotificationService {
     }
   }
 
+  static final Map<String, DateTime> _processedMeetings = {};
+
   static Future<void> showCallKitIncoming(Map<String, dynamic> data) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    final meetingId = data['meeting_id']?.toString() ?? data['room_id']?.toString() ?? data['channel_name']?.toString() ?? '';
+    if (meetingId.isNotEmpty) {
+      final now = DateTime.now();
+      final lastProcessed = _processedMeetings[meetingId];
+      if (lastProcessed != null && now.difference(lastProcessed).inSeconds < 10) {
+        if (kDebugMode) {
+          print("Duplicate meeting notification ignored for meeting_id: $meetingId");
+        }
+        return;
+      }
+      _processedMeetings[meetingId] = now;
+      _processedMeetings.removeWhere((key, value) => now.difference(value).inSeconds > 60);
+    }
+
     final uuid = const Uuid().v4();
     
     // Get logo path from assets
@@ -192,12 +365,36 @@ class NotificationService {
       if (kDebugMode) print("Error loading logo asset: $e");
     }
 
+    final String callerName = data['caller_name']?.toString() ??
+        data['host_name']?.toString() ??
+        data['hostName']?.toString() ??
+        data['sender_name']?.toString() ??
+        data['title']?.toString() ??
+        'Meeting Invitation';
+
+    final String channelName = data['channel_name']?.toString() ?? 'Join Meeting';
+
+    // Persist caller name and meeting ID in SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('caller_name_$channelName', callerName);
+      final rawMeetingId = data['meeting_id'] ?? data['id'] ?? data['room_id'];
+      if (rawMeetingId != null) {
+        final mId = int.tryParse(rawMeetingId.toString());
+        if (mId != null) {
+          await prefs.setInt('meeting_id_$channelName', mId);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error saving details to prefs: $e");
+    }
+
     final callKitParams = CallKitParams(
       id: uuid,
-      nameCaller: data['caller_name'] ?? 'Meeting Invitation',
+      nameCaller: callerName,
       appName: 'Arihanth',
       avatar: logoPath.isNotEmpty ? 'file://$logoPath' : '',
-      handle: data['channel_name'] ?? 'Join Meeting',
+      handle: channelName,
       type: 0, // 0: Audio, 1: Video
       duration: 30000,
       textAccept: 'Attend',
@@ -228,6 +425,7 @@ class NotificationService {
         ringtonePath: 'system_ringtone_default',
       ),
     );
+
     await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
   }
 
@@ -235,9 +433,12 @@ class NotificationService {
     FlutterCallkitIncoming.onEvent.listen((CallEvent? event) {
       switch (event!.event) {
         case Event.actionCallAccept:
-          if (event.body['extra'] != null) {
-            _navigateToMeeting(Map<String, dynamic>.from(event.body['extra']));
-          }
+        case Event.actionCallStart:
+        case Event.actionCallCallback:
+          final Map<String, dynamic> data = (event.body['extra'] != null && (event.body['extra'] as Map).isNotEmpty)
+              ? Map<String, dynamic>.from(event.body['extra'])
+              : Map<String, dynamic>.from(event.body);
+          _navigateToMeeting(data);
           break;
         case Event.actionCallDecline:
           endAllCalls();
@@ -253,7 +454,10 @@ class NotificationService {
 
   static Future<void> endAllCalls() async {
     try {
-      await FlutterCallkitIncoming.endAllCalls();
+      final activeCalls = await FlutterCallkitIncoming.activeCalls();
+      if (activeCalls is List && activeCalls.isNotEmpty) {
+        await FlutterCallkitIncoming.endAllCalls();
+      }
     } catch (e) {
       if (kDebugMode) print("Error ending all calls: $e");
     }
@@ -276,6 +480,8 @@ class NotificationService {
   }
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {
+    if (Platform.isIOS) return;
+
     final notification = message.notification;
     final android = message.notification?.android;
 
@@ -301,6 +507,26 @@ class NotificationService {
 
   static Future<String?> getToken() async {
     try {
+      if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+        // Wait until the APNs token is available
+        String? apnsToken;
+        int retries = 0;
+        while (apnsToken == null && retries < 10) {
+          try {
+            apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+          } catch (_) {}
+          if (apnsToken == null) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            retries++;
+          }
+        }
+        if (apnsToken == null) {
+          if (kDebugMode) {
+            print("APNS token not set after retries. Cannot get FCM token.");
+          }
+          return null;
+        }
+      }
       return await FirebaseMessaging.instance.getToken();
     } catch (e) {
       if (kDebugMode) {
@@ -312,8 +538,24 @@ class NotificationService {
 
   static Future<String?> getAPNSToken() async {
     try {
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        return await FirebaseMessaging.instance.getAPNSToken();
+      if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+        print("---");
+        String? apnsToken;
+        int retries = 0;
+        while (apnsToken == null && retries < 10) {
+          try {
+            print("error From fb handling");
+            apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+
+          } catch (e) {
+            print("error From fb handling$e");
+          }
+          if (apnsToken == null) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            retries++;
+          }
+        }
+        return apnsToken;
       }
       return null;
     } catch (e) {

@@ -53,6 +53,7 @@ class _AdminDetailsScreenState extends ConsumerState<AdminDetailsScreen> {
         title: "Basic Information",
         items: [
           DetailItem(label: "Full Name", value: a.fullName),
+          DetailItem(label: "Designation", value: a.category),
           DetailItem(label: "User Code", value: a.bpCode, copyable: true),
           // DetailItem(label: "BP Code", value: a.bpCode, copyable: true),
           DetailItem(label: "Email ID", value: a.emailId, copyable: true),

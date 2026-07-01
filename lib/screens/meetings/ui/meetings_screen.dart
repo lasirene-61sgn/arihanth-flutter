@@ -1,7 +1,9 @@
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/chat/riverpod/chat_notifier.dart';
+import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/screens/login/riverpod/login_notifier.dart';
 import 'package:arianth/screens/meetings/riverpod/meetings_notifier.dart';
+import 'package:arianth/screens/meetings/model/meeting_participant_model.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/widget/custom_button.dart';
 import 'package:arianth/services/widget/custom_input_feild.dart';
@@ -214,7 +216,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                                       child: ElevatedButton.icon(
                                         onPressed: () {
                                           if (meetingsState.joiningRoomId != null) return;
-                                          ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!);
+                                          ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!, opponentName: meeting.host?.fullName, meetingId: meeting.id);
                                         },
                                         icon: meetingsState.joiningRoomId == meeting.roomId ? const SizedBox.shrink() : const Icon(Icons.videocam_outlined),
                                         label: meetingsState.joiningRoomId == meeting.roomId 
@@ -236,7 +238,6 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                           );
                         },
                       ),
-
     );
   }
 
@@ -302,14 +303,23 @@ class CreateMeetingForm extends ConsumerStatefulWidget {
 
 class _CreateMeetingFormState extends ConsumerState<CreateMeetingForm> {
   final _formKey = GlobalKey<FormState>();
-  ChatModel? _selectedParticipant;
   DateTime? _selectedDate = DateTime.now();
   TimeOfDay? _selectedTime = TimeOfDay.now();
   final _durationController = TextEditingController(text: '30');
 
+  final List<String> _selectedRoles = [];
+  MeetingParticipantModel? _selectedParticipant;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(meetingsProvider.notifier).fetchCategories();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(chatProvider);
     final meetingsState = ref.watch(meetingsProvider);
 
     return Container(
@@ -338,22 +348,93 @@ class _CreateMeetingFormState extends ConsumerState<CreateMeetingForm> {
               ),
               const SizedBox(height: 24),
               
-              // Participant Dropdown
-              const Text('Select Participant', style: TextStyle(fontWeight: FontWeight.w600)),
+              // Role Selection (Checkboxes)
+              const Text('Select Role', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              WorkOrderDropdownWidget<ChatModel>(
-                label: 'Participant',
-                fieldKeyName: 'participant_id',
-                items: chatState.chats,
-                itemLabel: (chat) => '${chat.name} (${chat.bpCode})',
-                selectedItemLabel: (chat) => '${chat.name} (${chat.bpCode})',
-                value: _selectedParticipant,
-                isSearchable: true,
-                hintText: 'Select Participant',
-                isLoading: chatState.isLoading,
-                onChanged: (ChatModel? val) => setState(() => _selectedParticipant = val),
-              ),
+              meetingsState.isLoadingCategories
+                  ? const SizedBox(
+                      height: 40,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: meetingsState.categories.map((role) {
+                        final isChecked = _selectedRoles.contains(role);
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: isChecked,
+                              activeColor: AppColor.primary,
+                              onChanged: (bool? val) {
+                                setState(() {
+                                  _selectedRoles.clear();
+                                  if (val == true) {
+                                    _selectedRoles.add(role);
+                                  }
+                                  _selectedParticipant = null;
+                                });
+                                ref.read(meetingsProvider.notifier).fetchParticipantsForRoles(_selectedRoles);
+                              },
+                            ),
+                            Text(
+                              role.toUpperCase(),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
               const SizedBox(height: 20),
+
+              // Participant Dropdown
+              if (_selectedRoles.isNotEmpty) ...[
+                const Text('Select Participant', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                meetingsState.isLoadingParticipants
+                    ? const SizedBox(
+                        height: 40,
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              
+                              SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                "Loading participants...",
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : WorkOrderDropdownWidget<MeetingParticipantModel>(
+                        label: 'Participant',
+                        fieldKeyName: 'participant_id',
+                        items: meetingsState.participants,
+                        itemLabel: (part) => part.fullName.isEmpty
+                            ? "${part.userCode} [${part.category ?? 'N/A'}]"
+                            : "${part.fullName} (${part.userCode}) [${part.category ?? 'N/A'}]",
+                        selectedItemLabel: (part) => part.fullName.isEmpty
+                            ? part.userCode
+                            : "${part.fullName} (${part.userCode})",
+                        value: _selectedParticipant,
+                        isSearchable: true,
+                        hintText: 'Select Participant',
+                        isLoading: meetingsState.isLoadingParticipants,
+                        onChanged: (MeetingParticipantModel? val) => setState(() => _selectedParticipant = val),
+                      ),
+                const SizedBox(height: 20),
+              ],
 
               // Date Picker
               const Text('Scheduled At', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -471,12 +552,11 @@ class _CreateMeetingFormState extends ConsumerState<CreateMeetingForm> {
     );
 
     final data = {
-      'participant_id': _selectedParticipant?.bpCode,
+      'participant_id': _selectedParticipant?.userCode,
       'scheduled_at': DateFormat('yyyy-MM-dd HH:mm:ss').format(scheduledAt),
       'duration_minutes': int.tryParse(_durationController.text) ?? 30,
     };
 
     await ref.read(meetingsProvider.notifier).saveMeeting(data);
   }
-
 }

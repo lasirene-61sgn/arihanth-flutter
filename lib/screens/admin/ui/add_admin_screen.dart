@@ -22,6 +22,7 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
   final _formKey = GlobalKey<FormState>();
   String? _adminId;
   // Controllers
+  final _categoryController = TextEditingController();
   final _nameController = TextEditingController();
   final userCode = TextEditingController();
   final _mobileController = TextEditingController();
@@ -79,6 +80,7 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
     final detail = ref.read(adminProvider).adminDetail;
     if (detail != null) {
       setState(() {
+        _categoryController.text = detail.category ?? '';
         _nameController.text = detail.fullName ?? '';
         userCode.text = detail.userCode ?? '';
         _mobileController.text = detail.mobileNo ?? '';
@@ -101,6 +103,7 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
 
   @override
   void dispose() {
+    _categoryController.dispose();
     _pincodeDebounce?.cancel();
     _pincodeController.removeListener(_onPincodeChanged);
     _pincodeController.dispose();
@@ -176,6 +179,7 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             const SizedBox(height: 20),
+            _input("Designation", _categoryController),
             _input("Full Name", _nameController, isReq: true),
             _input("User Code", userCode, isReq: true),
             _input(
@@ -395,6 +399,7 @@ class _AddAdminScreenState extends ConsumerState<AddAdminScreen> {
     if (_formKey.currentState!.validate()) {
       // 1. Prepare the JSON Map
       final Map<String, dynamic> postData = {
+        "category": _categoryController.text.trim(),
         "full_name": _nameController.text.trim(),
         "user_code": userCode.text.trim(),
         "bp_code": userCode.text.trim(),

@@ -1,5 +1,10 @@
 import 'package:arianth/screens/meetings/model/meeting_model.dart';
+import 'package:arianth/screens/meetings/model/meeting_participant_model.dart';
 import 'package:arianth/screens/meetings/ui/video_call_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:uuid/uuid.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +24,10 @@ class MeetingsState {
   final String? joiningRoomId;
   final String? error;
   final List<MeetingModel> meetings;
+  final List<String> categories;
+  final List<MeetingParticipantModel> participants;
+  final bool isLoadingCategories;
+  final bool isLoadingParticipants;
 
   const MeetingsState({
     this.isLoading = false,
@@ -29,6 +38,10 @@ class MeetingsState {
     this.joiningRoomId,
     this.error,
     this.meetings = const [],
+    this.categories = const [],
+    this.participants = const [],
+    this.isLoadingCategories = false,
+    this.isLoadingParticipants = false,
   });
 
   MeetingsState copyWith({
@@ -40,6 +53,10 @@ class MeetingsState {
     dynamic joiningRoomId = _sentinel,
     dynamic error = _sentinel,
     List<MeetingModel>? meetings,
+    List<String>? categories,
+    List<MeetingParticipantModel>? participants,
+    bool? isLoadingCategories,
+    bool? isLoadingParticipants,
   }) {
     return MeetingsState(
       isLoading: isLoading ?? this.isLoading,
@@ -50,12 +67,100 @@ class MeetingsState {
       joiningRoomId: joiningRoomId == _sentinel ? this.joiningRoomId : joiningRoomId as String?,
       error: error == _sentinel ? this.error : error as String?,
       meetings: meetings ?? this.meetings,
+      categories: categories ?? this.categories,
+      participants: participants ?? this.participants,
+      isLoadingCategories: isLoadingCategories ?? this.isLoadingCategories,
+      isLoadingParticipants: isLoadingParticipants ?? this.isLoadingParticipants,
     );
   }
 }
 
 class MeetingsNotifier extends StateNotifier<MeetingsState> {
   MeetingsNotifier() : super(const MeetingsState());
+
+  Future<void> fetchCategories() async {
+    state = state.copyWith(isLoadingCategories: true, error: null);
+    try {
+      final response = await ApiClient().get(endpoint: "api/common/meetings/participants");
+      print("category$response");
+      if (response != null && response["status"] == 1 && response["data"] != null && response["data"]["success"] == true) {
+        final categoriesList = response["data"]["allowed_categories"];
+        if (categoriesList is List) {
+          state = state.copyWith(
+            categories: List<String>.from(categoriesList),
+            isLoadingCategories: false,
+          );
+        } else {
+          state = state.copyWith(isLoadingCategories: false);
+        }
+      } else {
+        state = state.copyWith(isLoadingCategories: false, error: response?["message"] ?? "Failed to load categories");
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingCategories: false,
+        error: "Failed to load categories: ${e.toString()}",
+      );
+    }
+  }
+
+  Future<void> fetchParticipants(String category) async {
+    state = state.copyWith(isLoadingParticipants: true, error: null, participants: []);
+    try {
+      final response = await ApiClient().get(endpoint: "api/common/meetings/participants?category=$category");
+      print("response------- $response");
+      if (response != null && response["status"] == 1 && response["data"] != null && response["data"]["success"] == true) {
+        final data = response["data"]["data"];
+        if (data is List) {
+          final participants = data.map((item) => MeetingParticipantModel.fromJson(item)).toList();
+          state = state.copyWith(
+            participants: participants,
+            isLoadingParticipants: false,
+          );
+        } else {
+          state = state.copyWith(isLoadingParticipants: false);
+        }
+      } else {
+        state = state.copyWith(isLoadingParticipants: false, error: response?["message"] ?? "Failed to load participants");
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingParticipants: false,
+        error: "Failed to load participants: ${e.toString()}",
+      );
+    }
+  }
+
+  Future<void> fetchParticipantsForRoles(List<String> roles) async {
+    if (roles.isEmpty) {
+      state = state.copyWith(participants: []);
+      return;
+    }
+    state = state.copyWith(isLoadingParticipants: true, error: null, participants: []);
+    try {
+      final List<MeetingParticipantModel> allParticipants = [];
+      for (final role in roles) {
+        final response = await ApiClient().get(endpoint: "api/common/meetings/participants?category=$role");
+        print("============$response");
+        if (response != null && response['status'] == 1 && response["data"] != null && response["data"]["success"] == true) {
+          final data = response["data"]['data'];
+          if (data is List) {
+            final participants = data.map((item) => MeetingParticipantModel.fromJson(item)).toList();
+            allParticipants.addAll(participants);
+          }
+        }
+      }
+      state = state.copyWith(
+        participants: allParticipants,
+        isLoadingParticipants: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingParticipants: false,
+        error: "Failed to load participants: ${e.toString()}",
+      );
+    }
+  }
 
   Future<void> fetchMeetings() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -189,10 +294,26 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
       state = state.copyWith(cancellingMeetingId: null);
     }
   }
-  Future<void> joinMeeting(String roomId) async {
+  Future<void> joinMeeting(String roomId, {String? opponentName, int? meetingId}) async {
     state = state.copyWith(joiningRoomId: roomId);
     debugPrint("Attempting to join meeting: $roomId");
     try {
+      if (opponentName != null && opponentName.isNotEmpty) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('caller_name_$roomId', opponentName);
+        } catch (e) {
+          debugPrint("Error saving opponent name: $e");
+        }
+      }
+      if (meetingId != null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('meeting_id_$roomId', meetingId);
+        } catch (e) {
+          debugPrint("Error saving meeting ID: $e");
+        }
+      }
       final response = await ApiClient().get(
         endpoint: "api/common/meetings/$roomId/token",
       );
@@ -211,12 +332,38 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
             final cameraStatus = await Permission.camera.request();
             final micStatus = await Permission.microphone.request();
 
-            if (cameraStatus.isGranted && micStatus.isGranted) {
+             if (cameraStatus.isGranted && micStatus.isGranted) {
+              // Trigger CallKit outgoing call registration to add it to system call logs
+              final uuid = const Uuid().v4();
+              final callKitParams = CallKitParams(
+                id: uuid,
+                nameCaller: opponentName ?? 'Meeting Invitation',
+                appName: 'Arihanth',
+                handle: roomId,
+                type: 0, // 0: Audio, 1: Video
+                duration: 30000,
+                extra: <String, dynamic>{'room_id': roomId},
+                android: const AndroidParams(
+                  isCustomNotification: true,
+                  isShowLogo: true,
+                  ringtonePath: 'system_ringtone_default',
+                  backgroundColor: '#A57C52',
+                  actionColor: '#4CAF50',
+                ),
+                ios: const IOSParams(
+                  iconName: 'AppIcon',
+                  handleType: 'generic',
+                  supportsVideo: true,
+                ),
+              );
+              await FlutterCallkitIncoming.startCall(callKitParams);
+
               Get.to(() => VideoCallScreen(
                 appId: agoraData["app_id"],
                 channelName: agoraData["channel_name"],
                 token: agoraData["token"],
                 uid: agoraData["uid"] is int ? agoraData["uid"] : int.tryParse(agoraData["uid"].toString()) ?? 0,
+                opponentName: opponentName,
               ));
             } else {
               Toaster.showError("Camera and Microphone permissions are required to join the meeting. Please enable them in Settings.");

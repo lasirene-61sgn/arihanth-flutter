@@ -12,6 +12,7 @@ class VideoCallScreen extends ConsumerStatefulWidget {
   final String channelName;
   final String token;
   final int uid;
+  final String? opponentName;
 
   const VideoCallScreen({
     super.key,
@@ -19,6 +20,7 @@ class VideoCallScreen extends ConsumerStatefulWidget {
     required this.channelName,
     required this.token,
     required this.uid,
+    this.opponentName,
   });
 
   @override
@@ -124,7 +126,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              'LIVE | ${widget.channelName.substring(0, 8)}...',
+              'LIVE | ${widget.opponentName ?? (widget.channelName.length > 8 ? "${widget.channelName.substring(0, 8)}..." : widget.channelName)}',
               style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],

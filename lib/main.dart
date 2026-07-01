@@ -46,7 +46,7 @@ Future<void> main() async {
   await SharedPreferencesHelper().init();
   await NotificationService.init();
 
-  if (defaultTargetPlatform == TargetPlatform.iOS) {
+  if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
     String? apnsToken = await NotificationService.getAPNSToken();
     if (apnsToken != null) {
       print("--------- APNS TOKEN ---------");
