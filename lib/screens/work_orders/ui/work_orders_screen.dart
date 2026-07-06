@@ -547,8 +547,15 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                 }
                 final partner = state.workOrders[index];
                 return GestureDetector(
-                  onTap: (){
-                    Get.toNamed(AppRoutes.workOrdersDetails, arguments: partner.id.toString());
+                  onTap: () {
+                    final isSelected = selectedIds.contains(partner.id.toString());
+                    setState(() {
+                      if (!isSelected) {
+                        selectedIds.add(partner.id.toString());
+                      } else {
+                        selectedIds.remove(partner.id.toString());
+                      }
+                    });
                   },
                   child: WorkOrderCard(
                     workOrder: partner,
@@ -563,6 +570,9 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                           selectedIds.remove(partner.id.toString());
                         }
                       });
+                    },
+                    onView: () {
+                      Get.toNamed(AppRoutes.workOrdersDetails, arguments: partner.id.toString());
                     },
                     onEdit: () async {
                       final id = partner.id;

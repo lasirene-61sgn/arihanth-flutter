@@ -17,6 +17,7 @@ class WorkOrderCard extends StatefulWidget {
   final String? activeStatus;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectionChanged;
+  final VoidCallback onView;
   final VoidCallback onEdit;
   final Future<void> Function() onShare;
 
@@ -27,6 +28,7 @@ class WorkOrderCard extends StatefulWidget {
     this.activeStatus,
     this.isSelected = false,
     this.onSelectionChanged,
+    required this.onView,
     required this.onEdit,
     required this.onShare,
   });
@@ -46,6 +48,7 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
     final isSelected = widget.isSelected;
     final onSelectionChanged = widget.onSelectionChanged;
     final onEdit = widget.onEdit;
+    final onView = widget.onView;
     final onShare = widget.onShare;
 
     final List<String> allImages = [];
@@ -423,58 +426,60 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                       ),
                     ),
                   const SizedBox(height: 12),
-                  Row(
+                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      if (role?.toLowerCase() != "craftsman")
-                        if ([
-                              'buyer',
-                              'key_user',
-                              'user',
-                            ].contains(role?.toLowerCase())
-                            ? activeStatus == 'New'
-                            : true)
-                          SizedBox(
-                            height: 28,
-                            child: FormFeildCommonButton(
-                              text: activeStatus == 'Completed'
-                                  ? "Copy"
-                                  : "Edit",
-                              onPressed: onEdit,
-                            ),
+                      SizedBox(
+                        height: 28,
+                        child: FormFeildCommonButton(
+                          text: "View",
+                          onPressed: onView,
+                        ),
+                      ),
+                      if (role?.toLowerCase() != "craftsman" &&
+                          ([
+                            'buyer',
+                            'key_user',
+                            'user',
+                          ].contains(role?.toLowerCase())
+                              ? activeStatus == 'New'
+                              : true)) ...[
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 28,
+                          child: FormFeildCommonButton(
+                            text: activeStatus == 'Completed' ? "Copy" : "Edit",
+                            onPressed: onEdit,
                           ),
-                      if (role?.toLowerCase() != "craftsman")
-                        if ([
-                              'buyer',
-                              'key_user',
-                              'user',
-                            ].contains(role?.toLowerCase())
-                            ? activeStatus == 'New'
-                            : true)
-                          const SizedBox(width: 10),
+                        ),
+                      ],
                       if ((role?.toLowerCase() != "craftsman" ||
                               (activeStatus != 'Allocated' &&
-                                  activeStatus != 'All')) && (activeStatus != "New" && activeStatus != "All" || role?.toLowerCase() == 'super_admin'))
-                            SizedBox(
-                              height: 28,
-                              child: FormFeildCommonButton(
-                                text: "Share",
-                                isLoading: _isSharing,
-                                onPressed: _isSharing
-                                    ? null
-                                    : () async {
-                                        setState(() => _isSharing = true);
-                                        try {
-                                          await onShare();
-                                        } finally {
-                                          if (mounted)
-                                            setState(() => _isSharing = false);
-                                        }
-                                      },
-                              ),
-                            ),
-                        ],
-                      ),
+                                  activeStatus != 'All')) &&
+                          (activeStatus != "New" && activeStatus != "All" ||
+                              role?.toLowerCase() == 'super_admin')) ...[
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 28,
+                          child: FormFeildCommonButton(
+                            text: "Share",
+                            isLoading: _isSharing,
+                            onPressed: _isSharing
+                                ? null
+                                : () async {
+                                    setState(() => _isSharing = true);
+                                    try {
+                                      await onShare();
+                                    } finally {
+                                      if (mounted)
+                                        setState(() => _isSharing = false);
+                                    }
+                                  },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                     ],
                   ),
                 ),

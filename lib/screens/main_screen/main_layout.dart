@@ -57,11 +57,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     FinanceDashboardScreen(),
     ContactUsScreen(),
     RepairsScreen(),
-    MyProfileScreen(), // Index 16
-    MyFavoritesScreen(), // Index 17
-    LiveStockOrder(), // Index 18
-    ChatListScreen(), // Index 19
-    MeetingsScreen(), // Index 20
+    MyProfileScreen(),
+    MyFavoritesScreen(),
+    LiveStockOrder(),
+    ChatListScreen(),
+    MeetingsScreen(),
   ];
 
   @override
@@ -75,13 +75,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
 
-        // If drawer is open, close it
         if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
           _scaffoldKey.currentState?.closeDrawer();
           return;
         }
 
-        // Otherwise move to dashboard
         ref.read(menuIndexProvider.notifier).state = 0;
       },
       child: Scaffold(
