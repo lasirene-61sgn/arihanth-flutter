@@ -1,4 +1,4 @@
-
+import 'dart:async';
 import 'package:arianth/app_color/app_color.dart';
 import 'dart:ui'; // Added import for ImageFilter
 import 'package:arianth/screens/designs/model/designs_model.dart';
@@ -50,15 +50,35 @@ class _DesignCardState extends State<DesignCard> {
   late PageController _imageController;
   int _currentPage = 0;
   bool _isSharing = false;
+  Timer? _autoSlideTimer;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      final imageCount = widget.design.images?.length ?? 0;
+      if (imageCount > 1) {
+        if (_currentPage < imageCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
   }

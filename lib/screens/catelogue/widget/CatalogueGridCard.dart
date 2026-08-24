@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:arianth/screens/catelogue/model/catalogue_model.dart';
 import 'package:arianth/services/widget/pdf_thumbnail.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
@@ -5,7 +6,7 @@ import 'package:arianth/services/widget/full_screen_image_viewer.dart';
 import 'package:flutter/material.dart';
 import '../../../app_color/app_color.dart';
 
-class CatalogueGridCard extends StatelessWidget {
+class CatalogueGridCard extends StatefulWidget {
   final Catalogue item;
   final VoidCallback onTap;
 
@@ -16,13 +17,50 @@ class CatalogueGridCard extends StatelessWidget {
   });
 
   @override
+  State<CatalogueGridCard> createState() => _CatalogueGridCardState();
+}
+
+class _CatalogueGridCardState extends State<CatalogueGridCard> {
+  late PageController _imageController;
+  int _currentPage = 0;
+  Timer? _autoSlideTimer;
+  String? role;
+
+  @override
+  void initState() {
+    super.initState();
+    role = SharedPreferencesHelper().getString("role");
+    _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      final images = widget.item.images ?? [];
+      final imageCount = images.isNotEmpty ? images.length : (widget.item.productImage != null ? 1 : 0);
+      if (imageCount > 1) {
+        if (_currentPage < imageCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Use images array first, fallback to productImage
-    final String? role = SharedPreferencesHelper().getString("role");
-    final String? imageUrl = (item.images != null && item.images!.isNotEmpty)
-        ? item.images!.first.imageUrl
-        : item.productImage;
-    final bool isPdf = imageUrl?.toLowerCase().contains('.pdf') ?? false;
 
     return Container(
       decoration: BoxDecoration(
@@ -41,16 +79,51 @@ class CatalogueGridCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: onTap,
+          onTap: widget.onTap,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Media Section
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  color: AppColor.surface, 
-                  child: _buildMediaContent(context,isPdf, imageUrl),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      color: AppColor.surface, 
+                      child: _buildMediaContent(context),
+                    ),
+                    if ((widget.item.images?.length ?? 0) > 1) ...[
+                      if (_currentPage > 0)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              if (_currentPage > 0) {
+                                _imageController.animateToPage(_currentPage - 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      if (_currentPage < (widget.item.images?.length ?? 0) - 1)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              final count = widget.item.images?.length ?? 0;
+                              if (_currentPage < count - 1) {
+                                _imageController.animateToPage(_currentPage + 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
               ),
 
@@ -62,7 +135,7 @@ class CatalogueGridCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.productName?.toUpperCase() ?? '-',
+                      widget.item.productName?.toUpperCase() ?? '-',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -75,10 +148,10 @@ class CatalogueGridCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       role?.toLowerCase() == 'super_admin'
-                          ? (item.category?.name ?? '')
-                          : ((item.size != null && item.size!.isNotEmpty)
-                              ? item.size!
-                              : (item.category?.name ?? '-')),
+                          ? (widget.item.category?.name ?? '')
+                          : ((widget.item.size != null && widget.item.size!.isNotEmpty)
+                              ? widget.item.size!
+                              : (widget.item.category?.name ?? '-')),
                       style: const TextStyle(
                         color: AppColor.textSecondary,
                         fontSize: 11,
@@ -97,7 +170,7 @@ class CatalogueGridCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            item.designCode ?? '-',
+                            widget.item.designCode ?? '-',
                             style:  TextStyle(
                               fontSize: 10,
                               color: AppColor.secondary,
@@ -119,7 +192,7 @@ class CatalogueGridCard extends StatelessWidget {
   }
 
   Widget _buildStatusIcon() {
-    bool isAccepted = item.designStatus == "Accept" || item.designStatus == "Accepted";
+    bool isAccepted = widget.item.designStatus == "Accept" || widget.item.designStatus == "Accepted";
     return Icon(
       isAccepted ? Icons.check_circle_rounded : Icons.pending_rounded,
       size: 18,
@@ -127,8 +200,11 @@ class CatalogueGridCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaContent(BuildContext context,bool isPdf, String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) {
+  Widget _buildMediaContent(BuildContext context) {
+    final images = widget.item.images ?? [];
+    final imageCount = images.isNotEmpty ? images.length : (widget.item.productImage != null ? 1 : 0);
+
+    if (imageCount == 0) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -142,27 +218,39 @@ class CatalogueGridCard extends StatelessWidget {
       );
     }
 
-    if (isPdf) {
-      return PdfThumbnail(url: imageUrl, fit: BoxFit.contain);
-    }
+    return PageView.builder(
+      controller: _imageController,
+      onPageChanged: (index) {
+        setState(() => _currentPage = index);
+      },
+      itemCount: imageCount,
+      itemBuilder: (context, index) {
+        final imageUrl = images.isNotEmpty ? images[index].imageUrl : widget.item.productImage;
+        final isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
 
-    return GestureDetector(
-      onTap: () => FullScreenImageViewer.show(context, imageUrl),
-      child: Image.network(
-        imageUrl,
-        fit: BoxFit.contain,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColor.accent.withOpacity(0.5)),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) =>
-        const Icon(Icons.broken_image_outlined, color: AppColor.textSecondary, size: 30),
-      ),
+        if (isPdf) {
+          return PdfThumbnail(url: imageUrl!, fit: BoxFit.contain);
+        }
+
+        return GestureDetector(
+          onTap: () => FullScreenImageViewer.show(context, imageUrl!),
+          child: Image.network(
+            imageUrl!,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColor.accent.withOpacity(0.5)),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.broken_image_outlined, color: AppColor.textSecondary, size: 30),
+          ),
+        );
+      },
     );
   }
 }

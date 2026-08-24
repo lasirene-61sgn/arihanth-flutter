@@ -11,6 +11,44 @@ import '../../screens/products/model/category_model.dart';
 
 enum FilterModule { workOrder, product, design, catalogue, purchaseOrder, repair, buyer, craftsman, keyUser, stockOrder }
 
+
+class FilterData {
+  String code;
+  String name;
+  String weight;
+  String businessName;
+  String city;
+  String userCode;
+  String emailId;
+  String mobileNo;
+  String fullName;
+  BpBuyerModel? selectedBpModel;
+  BpBuyerModel? selectedCraftsmanModel;
+  String? selectedCategory;
+  String? selectedSubcategory;
+  DateTime? fromDate;
+  DateTime? toDate;
+
+  FilterData({
+    this.code = '',
+    this.name = '',
+    this.weight = '',
+    this.businessName = '',
+    this.city = '',
+    this.userCode = '',
+    this.emailId = '',
+    this.mobileNo = '',
+    this.fullName = '',
+    this.selectedBpModel,
+    this.selectedCraftsmanModel,
+    this.selectedCategory,
+    this.selectedSubcategory,
+    this.fromDate,
+    this.toDate,
+  });
+}
+
+
 class UniversalFilterDialog extends ConsumerStatefulWidget {
   final FilterModule module;
   final String? activeStatus; // For Work Orders / POs
@@ -24,6 +62,13 @@ class UniversalFilterDialog extends ConsumerStatefulWidget {
     this.role,
     required this.onApply,
   });
+
+
+  static final Map<FilterModule, FilterData> filterCache = {};
+
+  static void clearCache(FilterModule module) {
+    filterCache.remove(module);
+  }
 
   static Future<void> show(
     BuildContext context, 
@@ -81,6 +126,25 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
 
   @override
   void dispose() {
+    // Save to cache before disposing
+    UniversalFilterDialog.filterCache[widget.module] = FilterData(
+      code: _codeCtrl.text,
+      name: _nameCtrl.text,
+      weight: _weightCtrl.text,
+      businessName: _businessNameCtrl.text,
+      city: _cityCtrl.text,
+      userCode: _userCodeCtrl.text,
+      emailId: _emailIdCtrl.text,
+      mobileNo: _mobileNoCtrl.text,
+      fullName: _fullNameCtrl.text,
+      selectedBpModel: _selectedBpModel,
+      selectedCraftsmanModel: _selectedCraftsmanModel,
+      selectedCategory: _selectedCategory,
+      selectedSubcategory: _selectedSubcategory,
+      fromDate: _fromDate,
+      toDate: _toDate,
+    );
+
     _codeCtrl.dispose();
     _nameCtrl.dispose();
     _weightCtrl.dispose();
@@ -96,6 +160,27 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
   @override
   void initState() {
     super.initState();
+    
+    // Load from cache
+    if (UniversalFilterDialog.filterCache.containsKey(widget.module)) {
+      final cache = UniversalFilterDialog.filterCache[widget.module]!;
+      _codeCtrl.text = cache.code;
+      _nameCtrl.text = cache.name;
+      _weightCtrl.text = cache.weight;
+      _businessNameCtrl.text = cache.businessName;
+      _cityCtrl.text = cache.city;
+      _userCodeCtrl.text = cache.userCode;
+      _emailIdCtrl.text = cache.emailId;
+      _mobileNoCtrl.text = cache.mobileNo;
+      _fullNameCtrl.text = cache.fullName;
+      _selectedBpModel = cache.selectedBpModel;
+      _selectedCraftsmanModel = cache.selectedCraftsmanModel;
+      _selectedCategory = cache.selectedCategory;
+      _selectedSubcategory = cache.selectedSubcategory;
+      _fromDate = cache.fromDate;
+      _toDate = cache.toDate;
+    }
+
     Future.microtask(() {
       final notifier = ref.read(productListProvider.notifier);
       final state = ref.read(productListProvider);
@@ -107,6 +192,7 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
   }
 
   void _resetFilters() {
+    UniversalFilterDialog.clearCache(widget.module);
     setState(() {
       _codeCtrl.clear();
       _nameCtrl.clear();
@@ -124,6 +210,7 @@ class _UniversalFilterDialogState extends ConsumerState<UniversalFilterDialog> {
       _fromDate = null;
       _toDate = null;
     });
+    _applyFilters();
   }
 
   void _applyFilters() {

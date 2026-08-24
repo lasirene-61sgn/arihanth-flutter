@@ -89,6 +89,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
 
   @override
   void dispose() {
+    UniversalFilterDialog.clearCache(FilterModule.design);
     _tabController.dispose();
     super.dispose();
   }
@@ -234,7 +235,8 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
             fit: FlexFit.loose,
             child: Column(
               children: [
-                _buildSelectAllBar(state),
+                if (selectedFilter != null) _buildActiveFilterRibbon(),
+          _buildSelectAllBar(state),
                 const SizedBox(height: 8),
                 Expanded(child: _buildPreTable()),
               ],
@@ -257,7 +259,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
-            label: ref.watchTr('filter'),
+            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
             icon: Icons.filter_list_alt,
             color: AppColor.primary,
             onPressed: _showFilterDialog,
@@ -292,6 +294,51 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
   }
 
 
+
+
+  Widget _buildActiveFilterRibbon() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        border: Border(bottom: BorderSide(color: AppColor.divider)),
+      ),
+      child: Row(
+        children: [
+          Text("${ref.watchTr('filtering')}:", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColor.primary)),
+          const SizedBox(width: 8),
+          Chip(
+            label: Text("$selectedFilter: ${_searchController.text}", style:  const TextStyle(fontSize: 10)),
+            backgroundColor: AppColor.primary.withOpacity(0.1),
+            deleteIcon: const Icon(Icons.close, size: 12, color: AppColor.primary),
+            onDeleted: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.design);
+              });
+              ref.read(designsProvider.notifier).fetchDesigns();
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            side: BorderSide.none,
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.design);
+              });
+              ref.read(designsProvider.notifier).fetchDesigns();
+            },
+            child: Text(ref.watchTr('reset_btn'), style: const TextStyle(fontSize: 11, color: Colors.red)),
+          )
+        ],
+      ),
+    );
+  }
 
   void _showFilterDialog() {
     UniversalFilterDialog.show(

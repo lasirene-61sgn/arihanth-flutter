@@ -85,6 +85,7 @@ class _KeyUsersScreenState extends ConsumerState<KeyUsersScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.keyUser);
               });
               ref.read(keyUserProvider.notifier).fetchKeyUsers();
             },
@@ -97,6 +98,7 @@ class _KeyUsersScreenState extends ConsumerState<KeyUsersScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.keyUser);
               });
               ref.read(keyUserProvider.notifier).fetchKeyUsers();
             },

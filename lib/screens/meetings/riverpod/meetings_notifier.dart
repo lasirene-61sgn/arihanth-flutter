@@ -260,6 +260,7 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
         endpoint: "api/common/meetings/$id/approve",
         body: {},
       );
+      print(response);
 
       if (response != null && response["status"] == 1) {
         Toaster.showSuccess("Meeting approved successfully");

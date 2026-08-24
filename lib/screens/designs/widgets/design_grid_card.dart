@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:arianth/screens/designs/model/designs_model.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
@@ -45,11 +46,41 @@ class DesignGridCard extends StatefulWidget {
 class _DesignGridCardState extends State<DesignGridCard> {
   bool _isSharing = false;
   String? role;
+  late PageController _imageController;
+  int _currentPage = 0;
+  Timer? _autoSlideTimer;
 
   @override
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
+    _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      final images = widget.item.images ?? [];
+      final imageCount = images.isNotEmpty ? images.length : (widget.item.imageUrl != null ? 1 : 0);
+      if (imageCount > 1) {
+        if (_currentPage < imageCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _imageController.dispose();
+    super.dispose();
   }
 
   Future<void> _shareViaWhatsApp() async {
@@ -72,8 +103,6 @@ class _DesignGridCardState extends State<DesignGridCard> {
 
   @override
   Widget build(BuildContext context) {
-    final String? firstImageUrl = widget.item.imageUrl;
-    final bool isPdf = firstImageUrl?.toLowerCase().contains('.pdf') ?? false;
 
     return Container(
       decoration: BoxDecoration(
@@ -105,9 +134,40 @@ class _DesignGridCardState extends State<DesignGridCard> {
                       padding: const EdgeInsets.all(4),
                       color: AppColor.white,
                       child: Center(
-                        child: _buildMediaContent(isPdf, firstImageUrl),
+                        child: _buildMediaContent(),
                       ),
                     ),
+                    if ((widget.item.images?.length ?? 0) > 1) ...[
+                      if (_currentPage > 0)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              if (_currentPage > 0) {
+                                _imageController.animateToPage(_currentPage - 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      if (_currentPage < (widget.item.images?.length ?? 0) - 1)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              final count = widget.item.images?.length ?? 0;
+                              if (_currentPage < count - 1) {
+                                _imageController.animateToPage(_currentPage + 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                    ],
                     if (widget.item.isLocked != 1 && role?.toLowerCase() == 'super_admin')
                       Positioned(
                         top: 4,
@@ -369,34 +429,52 @@ class _DesignGridCardState extends State<DesignGridCard> {
     );
   }
 
-  Widget _buildMediaContent(bool isPdf, String? imageUrl) {
-    if (imageUrl == null) {
+  Widget _buildMediaContent() {
+    final images = widget.item.images ?? [];
+    final imageCount = images.isNotEmpty ? images.length : (widget.item.imageUrl != null ? 1 : 0);
+
+    if (imageCount == 0) {
       return const Icon(Icons.image_outlined, color: AppColor.textHint, size: 40);
     }
-    final content = isPdf
-        ? GestureDetector(
-            onTap: () => Get.to(() => PdfFullViewerScreen(url: imageUrl, title: widget.item.designName)),
-            child: PdfThumbnail(url: imageUrl),
-          )
-        : Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40),
-          );
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        ImageFiltered(
-          imageFilter: (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
-              ? ImageFilter.blur(sigmaX: 40.0, sigmaY: 40.0)
-              : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
-          child: content,
-        ),
-        if (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
-          Image.asset('assets/image/tara_text_bg.png', width: 60, height: 60, fit: BoxFit.contain),
-      ],
+    return PageView.builder(
+      controller: _imageController,
+      onPageChanged: (index) {
+        setState(() => _currentPage = index);
+      },
+      itemCount: imageCount,
+      itemBuilder: (context, index) {
+        final imageUrl = images.isNotEmpty ? images[index].imageUrl : widget.item.imageUrl;
+        final isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
+
+        final content = isPdf
+            ? GestureDetector(
+                onTap: () => Get.to(() => PdfFullViewerScreen(url: imageUrl!, title: widget.item.designName)),
+                child: PdfThumbnail(url: imageUrl!),
+              )
+            : (imageUrl != null && imageUrl.isNotEmpty)
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40),
+                  )
+                : const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40);
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            ImageFiltered(
+              imageFilter: (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
+                  ? ImageFilter.blur(sigmaX: 40.0, sigmaY: 40.0)
+                  : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+              child: content,
+            ),
+            if (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
+              Image.asset('assets/image/tara_text_bg.png', width: 60, height: 60, fit: BoxFit.contain),
+          ],
+        );
+      },
     );
   }
 

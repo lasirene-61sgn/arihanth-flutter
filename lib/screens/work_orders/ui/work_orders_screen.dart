@@ -217,6 +217,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           ),
 
           const SizedBox(height: 10),
+          if (selectedFilter != null) _buildActiveFilterRibbon(),
           _buildSelectAllBar(state),
           const SizedBox(height: 10),
           Flexible(fit: FlexFit.loose, child: _buildPreTable()),
@@ -239,7 +240,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
-            label: ref.watchTr('filter'),
+            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
             icon: Icons.filter_list_alt,
             color: AppColor.primary,
             onPressed: _showFilterDialog,
@@ -471,6 +472,53 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         });
       }
     }
+  }
+
+
+  Widget _buildActiveFilterRibbon() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        border: Border(bottom: BorderSide(color: AppColor.divider)),
+      ),
+      child: Row(
+        children: [
+          Text("${ref.watchTr('filtering')}:", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColor.primary)),
+          const SizedBox(width: 8),
+          Chip(
+            label: Text("$selectedFilter: ${_searchController.text}", style:  const TextStyle(fontSize: 10)),
+            backgroundColor: AppColor.primary.withOpacity(0.1),
+            deleteIcon: const Icon(Icons.close, size: 12, color: AppColor.primary),
+            onDeleted: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.workOrder);
+              });
+              String url = "api/common/work-orders?tab=${_getTabValue()}";
+              ref.read(workOrderListProvider.notifier).fetchWorkOrders(urls: url);
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            side: BorderSide.none,
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.workOrder);
+              });
+              String url = "api/common/work-orders?tab=${_getTabValue()}";
+              ref.read(workOrderListProvider.notifier).fetchWorkOrders(urls: url);
+            },
+            child: Text(ref.watchTr('reset_btn'), style: const TextStyle(fontSize: 11, color: Colors.red)),
+          )
+        ],
+      ),
+    );
   }
 
   void _showFilterDialog() {

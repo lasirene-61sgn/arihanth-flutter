@@ -75,169 +75,176 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             ? const Center(child: CircularProgressIndicator())
             : meetingsState.error != null && meetingsState.meetings.isEmpty
                 ? Center(child: Text(meetingsState.error!))
-                : meetingsState.meetings.isEmpty && meetingsState.isLoaded
-                    ? ListView(
-                        children: [
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.video_call_outlined,
-                                  size: 80,
-                                  color: AppColor.primary.withOpacity(0.5),
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No Meetings Scheduled',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: 200,
-                                  child: CustomButton(
-                                    text: 'Schedule Now',
-                                    onPressed: () => _showCreateMeetingBottomSheet(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: meetingsState.meetings.length,
-                        itemBuilder: (context, index) {
-                          final meeting = meetingsState.meetings[index];
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.only(bottom: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Meeting with ${meeting.host?.fullName ?? "Host"}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: AppColor.primary,
-                                          ),
-                                        ),
-                                      ),
-                                      _buildStatusBadge(meeting.status),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _formatDateTime(meeting.scheduledAt),
-                                        style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${meeting.durationMinutes ?? 0} Minutes',
-                                        style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
-                                      ),
-                                    ],
-                                  ),
-                                  if (meeting.status?.toLowerCase() == 'pending') ...[
-                                    if (isSuperAdmin) ...[
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: ElevatedButton(
-                                              onPressed: () {
-                                                if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
-                                                ref.read(meetingsProvider.notifier).approveMeeting(meeting.id!);
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.green,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              child: meetingsState.approvingMeetingId == meeting.id.toString() 
-                                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                                  : const Text('APPROVE'),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: ElevatedButton(
-                                              onPressed: () {
-                                                if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
-                                                ref.read(meetingsProvider.notifier).rejectMeeting(meeting.id!);
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              child: meetingsState.cancellingMeetingId == meeting.id.toString() 
-                                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                                  : const Text('CANCEL'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ] else if (meeting.status?.toLowerCase() == 'approved' || meeting.status?.toLowerCase() == 'started') ...[
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      await ref.read(meetingsProvider.notifier).fetchMeetings();
+                    },
+                    child: meetingsState.meetings.isEmpty && meetingsState.isLoaded
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.video_call_outlined,
+                                      size: 80,
+                                      color: AppColor.primary.withOpacity(0.5),
+                                    ),
                                     const SizedBox(height: 16),
+                                    const Text(
+                                      'No Meetings Scheduled',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
                                     SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          if (meetingsState.joiningRoomId != null) return;
-                                          ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!, opponentName: meeting.host?.fullName, meetingId: meeting.id);
-                                        },
-                                        icon: meetingsState.joiningRoomId == meeting.roomId ? const SizedBox.shrink() : const Icon(Icons.videocam_outlined),
-                                        label: meetingsState.joiningRoomId == meeting.roomId 
-                                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                            : const Text('JOIN MEETING'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColor.primary,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                        ),
+                                      width: 200,
+                                      child: CustomButton(
+                                        text: 'Schedule Now',
+                                        onPressed: () => _showCreateMeetingBottomSheet(context),
                                       ),
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: meetingsState.meetings.length,
+                            itemBuilder: (context, index) {
+                              final meeting = meetingsState.meetings[index];
+                              return Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'Meeting with ${meeting.host?.fullName ?? "Host"}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: AppColor.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          _buildStatusBadge(meeting.status),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _formatDateTime(meeting.scheduledAt),
+                                            style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${meeting.durationMinutes ?? 0} Minutes',
+                                            style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
+                                          ),
+                                        ],
+                                      ),
+                                      if (meeting.status?.toLowerCase() == 'pending') ...[
+                                        if (isSuperAdmin) ...[
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
+                                                    ref.read(meetingsProvider.notifier).approveMeeting(meeting.id!);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.green,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                  child: meetingsState.approvingMeetingId == meeting.id.toString() 
+                                                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                                      : const Text('APPROVE'),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    if (meetingsState.approvingMeetingId != null || meetingsState.cancellingMeetingId != null) return;
+                                                    ref.read(meetingsProvider.notifier).rejectMeeting(meeting.id!);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                  child: meetingsState.cancellingMeetingId == meeting.id.toString() 
+                                                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                                      : const Text('CANCEL'),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ] else if (meeting.status?.toLowerCase() == 'approved' || meeting.status?.toLowerCase() == 'started') ...[
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              if (meetingsState.joiningRoomId != null) return;
+                                              ref.read(meetingsProvider.notifier).joinMeeting(meeting.roomId!, opponentName: meeting.host?.fullName, meetingId: meeting.id);
+                                            },
+                                            icon: meetingsState.joiningRoomId == meeting.roomId ? const SizedBox.shrink() : const Icon(Icons.videocam_outlined),
+                                            label: meetingsState.joiningRoomId == meeting.roomId 
+                                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                                : const Text('JOIN MEETING'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColor.primary,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
     );
   }
 

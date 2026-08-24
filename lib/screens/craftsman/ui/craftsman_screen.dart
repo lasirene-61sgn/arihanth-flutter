@@ -326,6 +326,7 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.craftsman);
               });
               ref.read(craftsmanListProvider.notifier).fetchCraftsmen();
             },
@@ -338,6 +339,7 @@ class _CraftsmanScreenState extends ConsumerState<CraftsmanScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.craftsman);
               });
               ref.read(craftsmanListProvider.notifier).fetchCraftsmen();
             },

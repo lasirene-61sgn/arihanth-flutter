@@ -176,6 +176,7 @@ class _BuyerScreenState extends ConsumerState<BuyerScreen> {
                   selectedFilter = null;
                   selectedSort = null;
                 });
+                UniversalFilterDialog.clearCache(FilterModule.buyer);
               },
             )
           else
@@ -220,6 +221,7 @@ class _BuyerScreenState extends ConsumerState<BuyerScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.buyer);
               });
               ref.read(buyerListProvider.notifier).fetchBuyers();
             },
@@ -232,6 +234,7 @@ class _BuyerScreenState extends ConsumerState<BuyerScreen> {
               setState(() {
                 selectedFilter = null;
                 _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.buyer);
               });
               ref.read(buyerListProvider.notifier).fetchBuyers();
             },

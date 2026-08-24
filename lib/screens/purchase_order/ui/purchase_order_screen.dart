@@ -47,6 +47,21 @@ class PurchaseOrderScreen extends ConsumerStatefulWidget {
 }
 
 class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
+
+  String _getTabValue() {
+    final Map<String, String> statusToTab = {
+      'All': 'all',
+      'New': 'created',
+      'Allocated': 'allocated',
+      'Rejected': 'rejected',
+      'In Process': 'in_process',
+      'For Approval': 'for_approval',
+      'Completed': 'completed',
+      'Closed': 'closed'
+    };
+    return statusToTab[_activeStatus] ?? 'created';
+  }
+
   Set<String> selectedIds = {};
   String? selectedFilter;
   String? selectedSort;
@@ -213,7 +228,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
             fit: FlexFit.loose,
             child: Column(
               children: [
-                _buildSelectAllBar(state),
+                if (selectedFilter != null) _buildActiveFilterRibbon(),
+          _buildSelectAllBar(state),
                 const SizedBox(height: 10),
                 Expanded(child: _buildPreTable()),
               ],
@@ -239,7 +255,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
-            label: ref.watchTr('filter'),
+            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
             icon: Icons.filter_list_alt,
             color: AppColor.primary,
             onPressed: _showFilterDialog,
@@ -603,6 +619,53 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         });
       }
     }
+  }
+
+
+  Widget _buildActiveFilterRibbon() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        border: Border(bottom: BorderSide(color: AppColor.divider)),
+      ),
+      child: Row(
+        children: [
+          Text("${ref.watchTr('filtering')}:", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColor.primary)),
+          const SizedBox(width: 8),
+          Chip(
+            label: Text("$selectedFilter: ${_searchController.text}", style:  const TextStyle(fontSize: 10)),
+            backgroundColor: AppColor.primary.withOpacity(0.1),
+            deleteIcon: const Icon(Icons.close, size: 12, color: AppColor.primary),
+            onDeleted: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.purchaseOrder);
+              });
+              String url = "api/common/purchase-orders?tab=${_getTabValue()}";
+              ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(customUrl: url);
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            side: BorderSide.none,
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.purchaseOrder);
+              });
+              String url = "api/common/purchase-orders?tab=${_getTabValue()}";
+              ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(customUrl: url);
+            },
+            child: Text(ref.watchTr('reset_btn'), style: const TextStyle(fontSize: 11, color: Colors.red)),
+          )
+        ],
+      ),
+    );
   }
 
   void _showFilterDialog() {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/catelogue/model/catalogue_model.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
@@ -29,15 +30,35 @@ class _CatalogueCardState extends State<CatalogueCard> {
   late PageController _imageController;
   int _currentPage = 0;
   bool _isSharing = false;
+  Timer? _autoSlideTimer;
+  int _latestImageCount = 0;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (_latestImageCount > 1) {
+        if (_currentPage < _latestImageCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
   }
@@ -81,6 +102,7 @@ class _CatalogueCardState extends State<CatalogueCard> {
     }
 
     final imageCount = imageUrls.length;
+    _latestImageCount = imageCount;
     final String? role = SharedPreferencesHelper().getString("role");
 
     return GestureDetector(
@@ -277,16 +299,22 @@ class _CatalogueCardState extends State<CatalogueCard> {
                                   try {
                                     final String? role = SharedPreferencesHelper().getString("role");
                                     final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
-                                    await ShareCardService.share(
-                                      context,
-                                      ShareCardItem(
-                                        imageUrl: imageUrls.isNotEmpty ? imageUrls[0] : null,
-                                        title: widget.item.productName,
-                                        bpCode: widget.item.bpCode,
-                                        productCode: widget.item.designCode,
-                                        category: widget.item.category?.name,
-                                        weight: widget.item.weightFrom != null ? '${widget.item.weightFrom}g' : null,
-                                      ),
+                                      final currentUrl = (imageUrls.isNotEmpty && _currentPage < imageUrls.length)
+                                          ? imageUrls[_currentPage]
+                                          : null;
+                                      final isPdf = currentUrl?.toLowerCase().endsWith('.pdf') ?? false;
+
+                                      await ShareCardService.share(
+                                        context,
+                                        ShareCardItem(
+                                          imageUrl: currentUrl,
+                                          isPdf: isPdf,
+                                          title: widget.item.productName,
+                                          bpCode: widget.item.bpCode,
+                                          productCode: widget.item.designCode,
+                                          category: widget.item.category?.name,
+                                          weight: widget.item.weightFrom != null ? '${widget.item.weightFrom}g' : null,
+                                        ),
                                     );
                                   } finally {
                                     if (mounted) setState(() => _isSharing = false);

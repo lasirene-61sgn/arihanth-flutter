@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:arianth/screens/catelogue/model/catalogue_model.dart';
 import 'package:arianth/screens/designs/model/designs_model.dart';
@@ -31,6 +32,40 @@ class CatalogueGridCard extends StatefulWidget {
 
 class _CatalogueGridCardState extends State<CatalogueGridCard> {
   bool _isSharing = false;
+  late PageController _imageController;
+  int _currentPage = 0;
+  Timer? _autoSlideTimer;
+  int _latestImageCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (_latestImageCount > 1) {
+        if (_currentPage < _latestImageCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _imageController.dispose();
+    super.dispose();
+  }
 
   // ── Share Logic ──────────────────────────────────────────────────────────────
   Future<void> _shareViaWhatsApp() async {
@@ -38,12 +73,16 @@ class _CatalogueGridCardState extends State<CatalogueGridCard> {
     setState(() => _isSharing = true);
     final String? role = SharedPreferencesHelper().getString("role");
     final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+    final currentImageUrl = (widget.item.images?.isNotEmpty == true && _currentPage < (widget.item.images?.length ?? 0))
+        ? widget.item.images![_currentPage].imageUrl
+        : null;
+    final isPdf = currentImageUrl?.toLowerCase().endsWith('.pdf') ?? false;
+
     await ShareCardService.share(
       context,
       ShareCardItem(
-        imageUrl: (widget.item.images?.isNotEmpty == true)
-            ? widget.item.images!.first.imageUrl
-            : null,
+        imageUrl: currentImageUrl,
+        isPdf: isPdf,
         title: widget.item.productName,
         productCode: widget.item.designCode,
         category: widget.item.category?.name.toString(),
@@ -91,9 +130,39 @@ class _CatalogueGridCardState extends State<CatalogueGridCard> {
                       padding: const EdgeInsets.all(4),
                       color: AppColor.white,
                       child: Center(
-                        child: _buildMediaContent(isPdf, firstImage),
+                        child: _buildMediaContent(),
                       ),
                     ),
+                    if (_latestImageCount > 1) ...[
+                      if (_currentPage > 0)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              if (_currentPage > 0) {
+                                _imageController.animateToPage(_currentPage - 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      if (_currentPage < _latestImageCount - 1)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios, color: AppColor.primary, size: 14),
+                            onPressed: () {
+                              if (_currentPage < _latestImageCount - 1) {
+                                _imageController.animateToPage(_currentPage + 1,
+                                    duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                              }
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                    ],
                     // WhatsApp Icon (Top Left)
                     Positioned(
                       bottom: 4,
@@ -222,21 +291,38 @@ class _CatalogueGridCardState extends State<CatalogueGridCard> {
   }
 
 
-  Widget _buildMediaContent(bool isPdf, ProductImage? firstImage) {
-    if (firstImage == null) {
+  Widget _buildMediaContent() {
+    final images = widget.item.images ?? [];
+    _latestImageCount = images.length;
+
+    if (_latestImageCount == 0) {
       return const Icon(Icons.image_outlined, color: AppColor.textHint, size: 40);
     }
-    if (isPdf) {
-      return PdfThumbnail(url: firstImage.imageUrl ?? '');
-    }
-    return GestureDetector(
-      onTap: () => FullScreenImageViewer.show(context, firstImage.imageUrl!),
-      child: Image.network(
-        firstImage.imageUrl ?? '',
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.broken_image_outlined, color: AppColor.textHint, size: 40),
-      ),
+
+    return PageView.builder(
+      controller: _imageController,
+      onPageChanged: (index) {
+        setState(() => _currentPage = index);
+      },
+      itemCount: _latestImageCount,
+      itemBuilder: (context, index) {
+        final imageUrl = images[index].imageUrl;
+        final isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
+
+        if (isPdf) {
+          return PdfThumbnail(url: imageUrl ?? '');
+        }
+        
+        return GestureDetector(
+          onTap: () => FullScreenImageViewer.show(context, imageUrl!),
+          child: Image.network(
+            imageUrl ?? '',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.broken_image_outlined, color: AppColor.textHint, size: 40),
+          ),
+        );
+      },
     );
   }
 }

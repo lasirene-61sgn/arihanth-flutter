@@ -61,6 +61,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
   @override
   void dispose() {
+    UniversalFilterDialog.clearCache(FilterModule.product);
     _searchController.dispose();
     super.dispose();
   }
@@ -180,6 +181,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       ),
       body: Column(
         children: [
+          if (selectedFilter != null) _buildActiveFilterRibbon(),
           _buildSelectAllBar(state),
           const SizedBox(height: 8),
           Flexible(
@@ -205,7 +207,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
-            label: ref.watchTr('filter'),
+            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
             icon: Icons.filter_list_alt,
             color: AppColor.primary,
             onPressed: _showFilterDialog,
@@ -220,12 +222,28 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               });
             },
           ),
-          NavActionItem(
-            label: ref.watchTr('Sort'),
-            icon: Icons.sort_by_alpha,
-            color: AppColor.primary,
-            onPressed: _showSortMenu,
-          ),
+          if (selectedFilter != null || selectedSort != null)
+            NavActionItem(
+              label: ref.watchTr('reset'),
+              icon: Icons.refresh,
+              color: Colors.red,
+              onPressed: () {
+                _searchController.clear();
+                ref.read(productListProvider.notifier).fetchProducts();
+                setState(() {
+                  selectedFilter = null;
+                  selectedSort = null;
+                });
+                UniversalFilterDialog.clearCache(FilterModule.product);
+              },
+            )
+          else
+            NavActionItem(
+              label: ref.watchTr('Sort'),
+              icon: Icons.sort_by_alpha,
+              color: AppColor.primary,
+              onPressed: _showSortMenu,
+            ),
           NavActionItem(
             label: ref.watchTr('create'),
             icon: Icons.add_box,
@@ -434,6 +452,51 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         });
       }
     }
+  }
+
+
+  Widget _buildActiveFilterRibbon() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        border: Border(bottom: BorderSide(color: AppColor.divider)),
+      ),
+      child: Row(
+        children: [
+          Text("${ref.watchTr('filtering')}:", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColor.primary)),
+          const SizedBox(width: 8),
+          Chip(
+            label: Text("$selectedFilter: ${_searchController.text}", style:  const TextStyle(fontSize: 10)),
+            backgroundColor: AppColor.primary.withOpacity(0.1),
+            deleteIcon: const Icon(Icons.close, size: 12, color: AppColor.primary),
+            onDeleted: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.product);
+              });
+              ref.read(productListProvider.notifier).fetchProducts();
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            side: BorderSide.none,
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.product);
+              });
+              ref.read(productListProvider.notifier).fetchProducts();
+            },
+            child: Text(ref.watchTr('reset_btn'), style: const TextStyle(fontSize: 11, color: Colors.red)),
+          )
+        ],
+      ),
+    );
   }
 
   void _showFilterDialog() {

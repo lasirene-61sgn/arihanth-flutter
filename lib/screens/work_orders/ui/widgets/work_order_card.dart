@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/work_orders/model/work_orders_model.dart';
 import 'package:arianth/services/widget/form_field_common_button.dart';
@@ -10,8 +11,10 @@ import 'package:arianth/services/widget/full_screen_image_viewer.dart';
 import 'package:arianth/services/widget/pdf_thumbnail.dart';
 import 'package:arianth/services/widget/pdf_full_viewer_screen.dart';
 import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:arianth/services/common_notifiers/pdf_viewer_notifier.dart';
 
-class WorkOrderCard extends StatefulWidget {
+class WorkOrderCard extends ConsumerStatefulWidget {
   final WorkOrder workOrder;
   final String? role;
   final String? activeStatus;
@@ -34,11 +37,66 @@ class WorkOrderCard extends StatefulWidget {
   });
 
   @override
-  State<WorkOrderCard> createState() => _WorkOrderCardState();
+  ConsumerState<WorkOrderCard> createState() => _WorkOrderCardState();
 }
 
-class _WorkOrderCardState extends State<WorkOrderCard> {
+class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
   bool _isSharing = false;
+  bool _isImageSharing = false;
+  late PageController _imageController;
+  int _currentPage = 0;
+  Timer? _autoSlideTimer;
+  int _latestItemCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageController = PageController();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      if (_latestItemCount > 1) {
+        if (_currentPage < _latestItemCount - 1) {
+          _imageController.animateToPage(
+            _currentPage + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  void _nextPage(int imageCount) {
+    if (_currentPage < imageCount - 1) {
+      _imageController.animateToPage(
+        _currentPage + 1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _imageController.animateToPage(
+        _currentPage - 1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,12 +112,6 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
     final List<String> allImages = [];
     if (workOrder.galleryImages != null && workOrder.galleryImages!.isNotEmpty) {
       allImages.addAll(workOrder.galleryImages!);
-    } else if (workOrder.images != null && workOrder.images!.isNotEmpty) {
-      allImages.addAll(workOrder.images!);
-    } else if (workOrder.productImageUrl != null && workOrder.productImageUrl != 'null') {
-      allImages.add(workOrder.productImageUrl!);
-    } else if (workOrder.productImage != null && workOrder.productImage != 'null') {
-      allImages.add(workOrder.productImage!);
     }
     final imageUrl = allImages.isNotEmpty ? allImages.first : null;
     final String craftsmanCode =
@@ -82,6 +134,115 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
       }
     }
 
+    final List<Widget> sliderItems = [];
+    final List<String> sliderItemUrls = [];
+    for (var url in allImages) {
+      final bool isPdf = url.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        final params = PdfViewerParams(
+          url: url,
+          enableRedaction: true,
+          showAllPages: true,
+          isThumbnail: false,
+        );
+        final state = ref.watch(pdfViewerProvider(params));
+
+        if (state.isLoading) {
+          sliderItemUrls.add(url);
+          sliderItems.add(
+            const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColor.primary),
+              ),
+            ),
+          );
+        } else if (state.errorMessage != null) {
+          sliderItemUrls.add(url);
+          sliderItems.add(
+            const Center(
+              child: Icon(Icons.picture_as_pdf, color: Colors.red, size: 40),
+            ),
+          );
+        } else if (state.redactedPages.isNotEmpty) {
+          for (var pageBytes in state.redactedPages) {
+            sliderItemUrls.add(url);
+            sliderItems.add(
+              GestureDetector(
+                onTap: () => Get.to(
+                  () => PdfFullViewerScreen(
+                    url: url,
+                    title: workOrder.workOrderNumber,
+                    enableRedaction: true,
+                    backgroundColor: AppColor.background,
+                    appBarColor: AppColor.background,
+                    textColor: AppColor.textPrimary,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                  child: Image.memory(pageBytes, fit: BoxFit.contain),
+                ),
+              ),
+            );
+          }
+        } else {
+          sliderItemUrls.add(url);
+          sliderItems.add(
+            GestureDetector(
+              onTap: () => Get.to(
+                () => PdfFullViewerScreen(
+                  url: url,
+                  title: workOrder.workOrderNumber,
+                  enableRedaction: true,
+                  backgroundColor: AppColor.background,
+                  appBarColor: AppColor.background,
+                  textColor: AppColor.textPrimary,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                child: PdfThumbnail(
+                  url: url,
+                  fit: BoxFit.contain,
+                  enableRedaction: true,
+                ),
+              ),
+            ),
+          );
+        }
+      } else {
+        sliderItemUrls.add(url);
+        sliderItems.add(
+          GestureDetector(
+            onTap: () => FullScreenImageViewer.show(context, url),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColor.primary),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.image_not_supported,
+                  color: AppColor.silver.withOpacity(0.2),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    _latestItemCount = sliderItems.length;
+
     return Card(
       color: cardColor,
       shape: RoundedRectangleBorder(
@@ -96,18 +257,19 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Left Side: Image PageView
-          Stack(
-            children: [
-              SizedBox(
-                width: 100,
-                height: 180,
-                child: allImages.isNotEmpty
+          SizedBox(
+            width: 100,
+            height: 180,
+            child: Stack(
+              children: [
+                sliderItems.isNotEmpty
                     ? PageView.builder(
-                        itemCount: allImages.length,
+                        controller: _imageController,
+                        onPageChanged: (index) {
+                          setState(() => _currentPage = index);
+                        },
+                        itemCount: sliderItems.length,
                         itemBuilder: (context, index) {
-                          final imageUrl = allImages[index];
-                          final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
-
                           return Container(
                             decoration: const BoxDecoration(
                               color: Colors.transparent,
@@ -115,65 +277,7 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                                 left: Radius.circular(12),
                               ),
                             ),
-                            child: isPdf
-                                ? GestureDetector(
-                                    onTap: () => Get.to(
-                                      () => PdfFullViewerScreen(
-                                        url: imageUrl,
-                                        title: workOrder.workOrderNumber,
-                                        enableRedaction: true,
-                                        backgroundColor: AppColor.background,
-                                        appBarColor: AppColor.background,
-                                        textColor: AppColor.textPrimary,
-                                      ),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: const BorderRadius.horizontal(
-                                        left: Radius.circular(12),
-                                      ),
-                                      child: PdfThumbnail(
-                                        url: imageUrl,
-                                        fit: BoxFit.contain,
-                                        enableRedaction: true,
-                                      ),
-                                    ),
-                                  )
-                                : GestureDetector(
-                                    onTap: () => FullScreenImageViewer.show(
-                                      context,
-                                      imageUrl,
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: const BorderRadius.horizontal(
-                                        left: Radius.circular(12),
-                                      ),
-                                      child: Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.contain,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null)
-                                                return child;
-                                              return const Center(
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<Color>(
-                                                        AppColor.primary,
-                                                      ),
-                                                ),
-                                              );
-                                            },
-                                        errorBuilder:
-                                            (context, error, stackTrace) => Icon(
-                                              Icons.image_not_supported,
-                                              color: AppColor.silver.withOpacity(
-                                                0.2,
-                                              ),
-                                            ),
-                                      ),
-                                    ),
-                                  ),
+                            child: sliderItems[index],
                           );
                         },
                       )
@@ -182,30 +286,106 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                         color: AppColor.textHint,
                         size: 30,
                       ),
-              ),
-              if (allImages.length > 1)
+              if (sliderItems.length > 1) ...[
+                if (_currentPage > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: AppColor.primary, size: 18),
+                      onPressed: _previousPage,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                if (_currentPage < sliderItems.length - 1)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios, color: AppColor.primary, size: 18),
+                      onPressed: () => _nextPage(sliderItems.length),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
                 Positioned(
-                  bottom: 5,
+                  bottom: 8,
                   left: 0,
                   right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          "Swipe",
-                          style: TextStyle(color: Colors.white, fontSize: 8),
-                        ),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ],
+                      child: Text(
+                        '${_currentPage + 1} / ${sliderItems.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (sliderItems.isNotEmpty)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _isImageSharing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primary),
+                          )
+                        : IconButton(
+                            icon: Image.asset('assets/image/whatsapp.png', width: 18, height: 18),
+                            onPressed: _isSharing || _isImageSharing
+                                ? null
+                                : () async {
+                                    setState(() => _isImageSharing = true);
+                                    try {
+                                      final currentUrl = sliderItemUrls[_currentPage];
+                                      final isPdf = currentUrl.toLowerCase().endsWith('.pdf');
+                                      final partner = widget.workOrder;
+                                      final isRestricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(widget.role?.toLowerCase());
+                                      
+                                      await ShareCardService.share(
+                                        context,
+                                        ShareCardItem(
+                                          workOrderNumber: partner.workOrderNumber,
+                                          imageUrl: currentUrl,
+                                          title: partner.productName,
+                                          category: partner.productCategory,
+                                          quantity: partner.quantity,
+                                          weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
+                                          size: partner.size,
+                                          stone: partner.stone,
+                                          enamel: partner.enamel,
+                                          hallmark: partner.hallmark,
+                                          rodium: partner.rodium,
+                                          hook: partner.hook,
+                                          screwName: partner.screwName,
+                                          type: partner.type,
+                                          openClose: partner.openClose,
+                                          isPdf: isPdf,
+                                          narration: partner.narrationCraftsman,
+                                          subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
+                                          bpCode: isRestricted ? null : partner.bpCode,
+                                        )
+                                      );
+                                    } finally {
+                                      if (mounted) setState(() => _isImageSharing = false);
+                                    }
+                                  },
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                          ),
                   ),
                 ),
             ],
+          ),
           ),
 
           // Right Side: Multi-line details
@@ -459,25 +639,30 @@ class _WorkOrderCardState extends State<WorkOrderCard> {
                           (activeStatus != "New" && activeStatus != "All" ||
                               role?.toLowerCase() == 'super_admin')) ...[
                         const SizedBox(width: 10),
-                        SizedBox(
-                          height: 28,
-                          child: FormFeildCommonButton(
-                            text: "Share",
-                            isLoading: _isSharing,
-                            onPressed: _isSharing
-                                ? null
-                                : () async {
-                                    setState(() => _isSharing = true);
-                                    try {
-                                      await onShare();
-                                    } finally {
-                                      if (mounted)
-                                        setState(() => _isSharing = false);
-                                    }
-                                  },
-                          ),
-                        ),
                       ],
+                      const SizedBox(width: 10),
+                      _isSharing
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColor.primary,
+                              ),
+                            )
+                          : IconButton(
+                              icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
+                              onPressed: () async {
+                                setState(() => _isSharing = true);
+                                try {
+                                  await onShare();
+                                } finally {
+                                  if (mounted) setState(() => _isSharing = false);
+                                }
+                              },
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
                     ],
                   ),
                     ],

@@ -34,6 +34,8 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
   String? role;
   bool searchToggle = false;
   final TextEditingController _searchController = TextEditingController();
+  String? selectedFilter;
+  String? selectedSort;
   String _activeStatus = 'New';
 
   final Map<String, String> statusToTab = {
@@ -58,6 +60,53 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
   }
 
   bool get isMobile => MediaQuery.of(context).size.width < 600;
+
+
+  Widget _buildActiveFilterRibbon() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        border: Border(bottom: BorderSide(color: AppColor.divider)),
+      ),
+      child: Row(
+        children: [
+          Text("${ref.watchTr('filtering')}:", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColor.primary)),
+          const SizedBox(width: 8),
+          Chip(
+            label: Text("$selectedFilter: ${_searchController.text}", style:  const TextStyle(fontSize: 10)),
+            backgroundColor: AppColor.primary.withOpacity(0.1),
+            deleteIcon: const Icon(Icons.close, size: 12, color: AppColor.primary),
+            onDeleted: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.stockOrder);
+              });
+              String url = "api/common/live-stock-orders?tab=${statusToTab[_activeStatus] ?? 'new-orders'}";
+              ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders(customUrl: url);
+            },
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            side: BorderSide.none,
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                selectedFilter = null;
+                _searchController.clear();
+                UniversalFilterDialog.clearCache(FilterModule.stockOrder);
+              });
+              String url = "api/common/live-stock-orders?tab=${statusToTab[_activeStatus] ?? 'new-orders'}";
+              ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders(customUrl: url);
+            },
+            child: Text(ref.watchTr('reset_btn'), style: const TextStyle(fontSize: 11, color: Colors.red)),
+          )
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +174,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
               selectedIds.clear();
             }),
           ),
+          if (selectedFilter != null) _buildActiveFilterRibbon(),
           _buildSelectAllBar(state),
           const SizedBox(height: 10),
           Expanded(child: _buildPreTable(state)),
@@ -145,21 +195,38 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
       bottomNavigationBar: ERPBottomNavigationBar(
         actions: [
           NavActionItem(
-            label: ref.watchTr('filter'),
+            label: selectedFilter == null ? ref.watchTr('filter') : ref.watchTr('filtered'),
             icon: Icons.filter_list_alt,
             color: AppColor.primary,
             onPressed: _showFilterDialog,
           ),
-          NavActionItem(
-            label: ref.watchTr('search'),
-            icon: Icons.search,
-            color: AppColor.primary,
-            onPressed: () {
-              setState(() {
-                searchToggle = true;
-              });
-            },
-          ),
+          if (selectedFilter != null || selectedSort != null)
+            NavActionItem(
+              label: ref.watchTr('reset'),
+              icon: Icons.refresh,
+              color: Colors.red,
+              onPressed: () {
+                _searchController.clear();
+                String url = "api/common/live-stock-orders?tab=${statusToTab[_activeStatus] ?? 'new-orders'}";
+                ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders(customUrl: url);
+                setState(() {
+                  selectedFilter = null;
+                  selectedSort = null;
+                });
+                UniversalFilterDialog.clearCache(FilterModule.stockOrder);
+              },
+            )
+          else
+            NavActionItem(
+              label: ref.watchTr('search'),
+              icon: Icons.search,
+              color: AppColor.primary,
+              onPressed: () {
+                setState(() {
+                  searchToggle = true;
+                });
+              },
+            ),
           if (role?.toLowerCase() != 'craftsman')
             NavActionItem(
               label: ref.watchTr('create'),
@@ -412,6 +479,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
       module: FilterModule.stockOrder,
       role: role,
       onApply: (url) {
+                 setState(() { selectedFilter = ref.watchTr("filtered"); });
         ref.read(liveStockOrderNotifierProvider.notifier).fetchLiveStockOrders(customUrl: url);
       },
     );

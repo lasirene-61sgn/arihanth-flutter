@@ -165,7 +165,7 @@ class ShareCardService {
           as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+      final ui.Image img = await boundary.toImage(pixelRatio: 6.0);
       final ByteData? byteData =
           await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
@@ -280,7 +280,7 @@ class ShareCardService {
         if (boundary == null) continue;
 
         try {
-          final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+          final ui.Image img = await boundary.toImage(pixelRatio: 6.0);
           final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
           if (byteData != null) {
             final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
@@ -335,10 +335,9 @@ class ShareCardService {
       final document = await PdfDocument.openData(bytes);
       final page = await document.getPage(1);
       final pageImage = await page.render(
-        width: page.width * 2,
-        height: page.height * 2,
-        format: PdfPageImageFormat.jpeg,
-        quality: 100,
+        width: page.width * 6,
+        height: page.height * 6,
+        format: PdfPageImageFormat.png,
       );
 
       Uint8List? finalBytes = pageImage?.bytes;
@@ -415,6 +414,7 @@ class _ShareCardWidget extends StatelessWidget {
                           item.imageBytes!,
                           width: 400,
                           fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
                         )
                       : _pdfPlaceholder())
                   : Stack(
@@ -429,11 +429,13 @@ class _ShareCardWidget extends StatelessWidget {
                                   item.imageBytes!,
                                   width: 400,
                                   fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
                                 )
                               : Image.network(
                                   item.imageUrl!,
                                   width: 400,
                                   fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
                                   errorBuilder: (_, __, ___) => _placeholder(),
                                 ),
                         ),
