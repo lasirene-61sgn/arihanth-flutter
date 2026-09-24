@@ -96,7 +96,7 @@ class _DesignDetailsScreenState extends ConsumerState<DesignDetailsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(designsProvider);
     final d = state.designDetails;
-    final bool isCraftsman = role?.toLowerCase() == 'craftsman';
+    final bool isCraftsman = role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff';
 
     return Scaffold(
       backgroundColor: AppColor.background,

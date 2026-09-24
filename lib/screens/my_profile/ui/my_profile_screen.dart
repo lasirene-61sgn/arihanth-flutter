@@ -10,7 +10,7 @@ class MyProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final role = SharedPreferencesHelper().getString("role") ?? '';
     
-    if (role == 'craftsman') {
+    if (role == 'craftsman' || role == 'craftsman_staff') {
       return const CraftsmanProfileScreen();
     } else {
       return const BuyerProfileScreen();

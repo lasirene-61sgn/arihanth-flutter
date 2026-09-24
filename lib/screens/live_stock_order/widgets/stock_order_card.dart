@@ -203,7 +203,7 @@ class _StockOrderCardState extends State<StockOrderCard> {
                     const SizedBox(height: 8),
 
                     const SizedBox(height: 4),
-                    if (widget.role?.toLowerCase() != "craftsman" &&
+                    if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff" &&
                         ![
                           'buyer',
                           'key_user',
@@ -225,7 +225,7 @@ class _StockOrderCardState extends State<StockOrderCard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (widget.role?.toLowerCase() != "craftsman")
+                        if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff")
                           if (!( (widget.role?.toLowerCase() == 'super_admin' || widget.role?.toLowerCase() == 'buyer' || widget.role?.toLowerCase() == 'key_user' || widget.role?.toLowerCase() == 'user') && 
                                  (order.status?.toLowerCase() != 'new' && order.status?.toLowerCase() != 'pending') ))
                             SizedBox(
@@ -238,7 +238,7 @@ class _StockOrderCardState extends State<StockOrderCard> {
                                 ),
                               ),
                             ),
-                        if (widget.role?.toLowerCase() != "craftsman")
+                        if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff")
                           const SizedBox(width: 8),
                         SizedBox(
                           height: 28,

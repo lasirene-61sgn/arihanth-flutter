@@ -359,7 +359,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                         ),
                                       ),
                                       const SizedBox(height: 2),
-                                     if(widget.role != "craftsman") ...[
+                                     if(widget.role != "craftsman" && widget.role != "craftsman_staff") ...[
                                      //   Text(
                                      //     'Client: ${widget.purchaseOrder.bpCode ?? '-'}',
                                      //     style: const TextStyle(color: AppColor.textSecondary, fontSize: 12),
@@ -538,7 +538,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           // Text('Total Weight:${widget.purchaseOrder.totalWeight ?? ''}', style: const TextStyle(color: Colors.white54, fontSize: 9)),
-                          if (widget.role?.toLowerCase() != "craftsman")
+                          if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff")
                             SizedBox(
                               height: 28,
                               child: FormFeildCommonButton(
@@ -546,7 +546,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                 onPressed: widget.onEdit,
                               ),
                             ),
-                          if (widget.role?.toLowerCase() != "craftsman")
+                          if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff")
                             const SizedBox(width: 10),
                           if (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin')
                           SizedBox(

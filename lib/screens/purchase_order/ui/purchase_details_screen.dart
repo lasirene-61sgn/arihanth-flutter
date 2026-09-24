@@ -148,7 +148,7 @@ class _PurchaseOrderDetailScreenState
                             ? AppColor.warning
                             : null),
                   ),
-                  if (role != "craftsman")
+                  if (role != "craftsman" && role != "craftsman_staff")
                     _buildInfoRow("Customer BP", order.bpCode),
                   _buildInfoRow("Order Date", _formatDate(order.orderDate)),
                   _buildInfoRow("Total Weight", order.totalWeight),
@@ -269,7 +269,7 @@ class _PurchaseOrderDetailScreenState
                                                           'buyer',
                                                           'key_user',
                                                           'user',
-                                                          'craftsman',
+                                                          'craftsman', 'craftsman_staff'
                                                         ].contains(role?.toLowerCase());
 
                                                         // Format dates without timezone

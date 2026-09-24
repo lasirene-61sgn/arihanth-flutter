@@ -37,7 +37,7 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
   };
 
   List<Map<String, String>> _getTabs() {
-    final isCraftsman = role?.toLowerCase() == 'craftsman';
+    final isCraftsman = role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff';
     List<Map<String, String>> tabs = [];
     
     if (isCraftsman) {

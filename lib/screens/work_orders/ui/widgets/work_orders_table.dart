@@ -51,7 +51,7 @@ class WorkOrdersTable extends StatelessWidget {
     String Function(WorkOrder item) valueExtractor, {
     bool canCopy = false,
   }) {
-    final dateForComparison = role != "Craftsman"
+    final dateForComparison = (role != "Craftsman" && role != "craftsman_staff")
         ? item.craftsmanDueDate
         : item.dueDate;
 
@@ -223,7 +223,7 @@ class WorkOrdersTable extends StatelessWidget {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (role != 'craftsman' && role != 'Craftsman')
+                if (role?.toLowerCase() != 'craftsman' && role?.toLowerCase() != 'craftsman_staff')
                   if (['buyer', 'key_user', 'user'].contains(role?.toLowerCase())
                       ? activeStatus == 'New'
                       : true)
@@ -239,7 +239,7 @@ class WorkOrdersTable extends StatelessWidget {
                   icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
                   onPressed: () {
                     final imageUrl = partner.productImageUrl ?? partner.productImage;
-                    final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+                    final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
                     final bool isPdf = imageUrl?.toLowerCase().endsWith('.pdf') ?? false;
 
                     // Format date with time for sharing

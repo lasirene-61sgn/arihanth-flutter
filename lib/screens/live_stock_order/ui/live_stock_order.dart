@@ -227,7 +227,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
                 });
               },
             ),
-          if (role?.toLowerCase() != 'craftsman')
+          if (role?.toLowerCase() != 'craftsman' && role?.toLowerCase() != 'craftsman_staff')
             NavActionItem(
               label: ref.watchTr('create'),
               icon: Icons.add,
@@ -364,7 +364,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
         await StockOrderBulkCompleteDialog.show(context, ref, selectedIds);
         setState(() => selectedIds.clear());
       }, color: Colors.green));
-    } else if (_activeStatus == 'Allocated' && r == 'craftsman') {
+    } else if (_activeStatus == 'Allocated' && (r == 'craftsman' || r == 'craftsman_staff')) {
       actions.add(_actionBtn('Reject', Icons.cancel_outlined, () async {
         await StockOrderBulkRejectDialog.show(context, ref, selectedIds);
         setState(() => selectedIds.clear());
@@ -374,7 +374,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
         await StockOrderBulkAcceptDialog.show(context, ref, selectedIds);
         setState(() => selectedIds.clear());
       }, color: Colors.green));
-    } else if (_activeStatus == 'In Process' && r == 'craftsman') {
+    } else if (_activeStatus == 'In Process' && (r == 'craftsman' || r == 'craftsman_staff')) {
       actions.add(_actionBtn('Complete', Icons.check_circle_outline, () async {
         await StockOrderBulkCompleteDialog.show(context, ref, selectedIds);
         setState(() => selectedIds.clear());
@@ -439,7 +439,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
                           });
                         },
                         onShare: () async {
-                          final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+                          final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
                           
                           String? sharedOrderDate;
                           if (order.createdAt != null && order.createdAt!.isNotEmpty && order.createdAt != 'null') {
@@ -490,7 +490,7 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
 
     try {
       final orders = ref.read(liveStockOrderNotifierProvider).liveStockOrders;
-      final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+      final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
       List<ShareCardItem> allShareItems = [];
 
       for (var id in selectedIds) {

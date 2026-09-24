@@ -374,6 +374,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (type == 'stock_order') targetIndex = 18;
           else if (type == 'chat') targetIndex = 19;
           else if (type == 'meetings') targetIndex = 20;
+          else if (type == 'global_search') targetIndex = 21;
+          else if (type == 'craftsman_staff') targetIndex = 22;
 
           if (targetIndex != null) {
             ref.read(menuIndexProvider.notifier).state = targetIndex;
@@ -561,11 +563,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         {'type': 'keyusers', 'icon': Icons.supervisor_account_outlined, 'title': ref.watchTr('Keyusers'), 'count': getCount(data?.keyUser)},
       if (hasPermission('user_management'))
         {'type': 'users', 'icon': Icons.group_add_outlined, 'title': ref.watchTr('Users'), 'count': getCount(data?.user)},
+      if (hasPermission('craftsman_staff'))
+        {'type': 'craftsman_staff', 'icon': Icons.people_outline, 'title': ref.watchTr('Craftsman Staff'), 'count': ''},
 
       if (hasPermission('work_order') || hasPermission('workorder'))
         {'type': 'work_orders', 'icon': Icons.work_outline_outlined, 'title': ref.watchTr('work_orders'), 'count': getCount(data?.workOrders)},
 
-      if (isSuperAdmin || role == 'buyer' || role == 'craftsman')
+      if (isSuperAdmin || role == 'buyer' || role == 'craftsman' || (role == 'craftsman_staff' && hasPermission('repairs')))
         {'type': 'repairs', 'icon': Icons.handyman_outlined, 'title': ref.watchTr('repairs'), 'count': getCount(data?.repairs)},
 
       if (hasPermission('purchase_order'))
@@ -588,6 +592,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
       if (hasPermission('meetings'))
         {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': ref.watchTr('meetings'), 'count': ''},
+      if (hasPermission('global_search'))
+        {'type': 'global_search', 'icon': Icons.search_outlined, 'title': 'Global Search', 'count': ''},
     ];
   }
 

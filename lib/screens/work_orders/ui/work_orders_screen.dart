@@ -94,8 +94,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
       final productNotifier = ref.read(productListProvider.notifier);
       final workOrderNotifier = ref.read(workOrderListProvider.notifier);
 
-      String initialTab = (role?.toLowerCase() == 'craftsman') ? 'allocated-orders' : 'new-orders';
-      _activeStatus = (role?.toLowerCase() == 'craftsman') ? 'Allocated' : 'New';
+      String initialTab = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'allocated-orders' : 'new-orders';
+      _activeStatus = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'Allocated' : 'New';
 
       final futures = <Future>[
         productNotifier.fetchCategories(),
@@ -255,7 +255,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
               });
             },
           ),
-          if (role != 'craftsman' && role != 'Craftsman')
+          if (role?.toLowerCase() != 'craftsman' && role?.toLowerCase() != 'craftsman_staff')
           NavActionItem(
             label: ref.watchTr('create'),
             icon: Icons.add,
@@ -734,7 +734,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'In Process' && (role == 'craftsman' || role == 'Craftsman')) {
+    } else if (_activeStatus == 'In Process' && (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff')) {
       actions.add(
         _buildActionBtn(
           label: 'Complete',
@@ -748,7 +748,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'Allocated' && role?.toLowerCase() == 'craftsman') {
+    } else if (_activeStatus == 'Allocated' && (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff')) {
       actions.add(
         _buildActionBtn(
           label: 'Reject',

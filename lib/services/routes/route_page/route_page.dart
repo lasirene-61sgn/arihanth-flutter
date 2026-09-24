@@ -7,9 +7,13 @@ import 'package:arianth/screens/buyer/ui/buyers_screen.dart';
 import 'package:arianth/screens/craftsman/ui/craftman_create_form/craftman_create_form.dart';
 import 'package:arianth/screens/craftsman/ui/craftman_details_screen.dart';
 import 'package:arianth/screens/craftsman/ui/craftsman_screen.dart';
+import 'package:arianth/screens/craftsman_staff/ui/craftsman_staff_screen.dart';
+import 'package:arianth/screens/craftsman_staff/ui/craftsman_staff_form_screen.dart';
+import 'package:arianth/screens/craftsman_staff/ui/widget/craftsman_staff_details_screen.dart';
 import 'package:arianth/screens/catelogue/ui/catalogue_detail_screen.dart';
 import 'package:arianth/screens/designs/ui/design_details_screen.dart';
 import 'package:arianth/screens/designs/ui/designs_screen.dart';
+import 'package:arianth/screens/global_search/ui/global_search_screen.dart';
 import 'package:arianth/screens/key_user/ui/add_keyuser_screen.dart';
 import 'package:arianth/screens/key_user/ui/key_users_screen.dart';
 import 'package:arianth/screens/kyc_pending/ui/kyc_pending_screen.dart';
@@ -87,6 +91,7 @@ class AppPages {
     // --- Sidebar / Main Modules ---
     // Note: These usually render inside MainLayout, but defined here for direct navigation
     GetPage(name: AppRoutes.dashboard, page: () => const DashboardScreen()),
+    GetPage(name: AppRoutes.globalSearch, page: () => const GlobalSearchScreen()),
     GetPage(name: AppRoutes.workOrders, page: () => const WorkOrdersScreen()),
     GetPage(name: AppRoutes.workOrdersAdd, page: () => WorkOrderForm(id: Get.arguments as String?,)),
     GetPage(name: AppRoutes.workOrdersDetails, page: () => WorkOrderDetailsScreen(workOrderId: Get.arguments as String?)),
@@ -98,6 +103,9 @@ class AppPages {
     // --- Business ---
     GetPage(name: AppRoutes.businessPartners, page: () => const BusinessPartnersScreen()),
     GetPage(name: AppRoutes.craftsman, page: () => const CraftsmanScreen()),
+    GetPage(name: AppRoutes.craftsmanStaff, page: () => const CraftsmanStaffScreen()),
+    GetPage(name: AppRoutes.craftsmanStaffAdd, page: () => const CraftsmanStaffFormScreen()),
+    GetPage(name: AppRoutes.craftsmanStaffView, page: () => const CraftsmanStaffDetailsViewScreen(screenName: "Craftsman Staff")),
     GetPage(name: AppRoutes.craftsmanAdd, page: () => const CraftManCreationForm()),
     GetPage(name: AppRoutes.craftsmanView, page: () => const CraftsmanDetailScreen()),
     GetPage(name: AppRoutes.admin, page: () => const AdminScreen()),

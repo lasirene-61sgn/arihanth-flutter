@@ -369,41 +369,6 @@ class _KeyUserFormScreenState extends ConsumerState<KeyUserFormScreen> {
     );
   }
 
-  Widget _datePicker() {
-    return CustomInputField(
-      labelText: "DOB",
-      readOnly: true,
-      controller: _dobController,
-      onTap: _readOnly ? null : () async {
-        final d = await showDatePicker(
-          context: context,
-          initialDate: _selectedDate ?? DateTime.now(),
-          firstDate: DateTime(1900),
-          lastDate: DateTime.now(),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: AppColor.primary,
-                  onPrimary: AppColor.textWhite,
-                  surface: AppColor.background,
-                  onSurface: AppColor.textPrimary,
-                ),
-                dialogBackgroundColor: AppColor.background,
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (d != null) {
-          setState(() {
-            _selectedDate = d;
-            _dobController.text = DateFormat('yyyy-MM-dd').format(d);
-          });
-        }
-      },
-    );
-  }
 
   Widget _buildImageSection(String label, {required bool isAadhar}) {
     final hasImg = isAadhar ? (_aadharFile != null || _aadharUrl != null) : (_photoFile != null || _photoUrl != null);

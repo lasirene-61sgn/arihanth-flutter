@@ -49,7 +49,7 @@ class _StockOrderStatusCardsState extends ConsumerState<StockOrderStatusCards>
       _visibleStatuses = ['New', 'Allocated', 'In Process', 'For Approval', 'Completed', 'Rejected', 'All'];
     } else {
       _visibleStatuses = _baseStatuses.where((status) {
-        if (r == 'craftsman') {
+        if (r == 'craftsman' || r == 'craftsman_staff') {
           // Craftsman sees Allocated (as New), In Process, For Approval, Completed, Rejected, All
           return status != 'New'; 
         }
@@ -126,7 +126,7 @@ class _StockOrderStatusCardsState extends ConsumerState<StockOrderStatusCards>
           tabs: _visibleStatuses.map((status) {
             int count = _getCountForStatus(status, state);
             String displayName = status;
-            if (role?.toLowerCase() == 'craftsman' && status == 'Allocated') {
+            if ((role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') && status == 'Allocated') {
               displayName = 'New';
             }
             return Tab(

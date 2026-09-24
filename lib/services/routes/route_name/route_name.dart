@@ -12,6 +12,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String mainLayout = '/mainLayout';
   static const String dashboard = '/';
+  static const String globalSearch = "/globalSearchScreen";
 
   // Sidebar / Main Modules
   static const String workOrders = '/work-orders';
@@ -29,6 +30,9 @@ class AppRoutes {
   // Business
   static const String businessPartners = '/business-partners';
   static const String craftsman = '/craftsman';
+  static const String craftsmanStaff = '/craftsman-staff';
+  static const String craftsmanStaffAdd = '/craftsman-staff/add';
+  static const String craftsmanStaffView = '/craftsman-staff/view';
   static const String craftsmanAdd = '/craftsman/add';
   static const String craftsmanView = '/craftsman/view';
   static const String admin = '/admin';

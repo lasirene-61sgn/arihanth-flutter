@@ -86,6 +86,7 @@ class Design {
   final String? productCode;
   final String? relabelCode;
   final String? productName;
+  final String? designManualName;
   final int? productCategoryId;
   final int? productSubcategoryId;
   final String? type;
@@ -121,6 +122,7 @@ class Design {
     this.productCode,
     this.relabelCode,
     this.productName,
+    this.designManualName,
     this.productCategoryId,
     this.productSubcategoryId,
     this.type,
@@ -158,7 +160,7 @@ class Design {
   String? get subCategory => subcategoryObj?.name;
 
   /// Product name used as the design display name
-  String? get designName => productName;
+  String? get designName => productName ;
 
   /// First image URL from images list (full URL)
   String? get imageUrl {
@@ -180,6 +182,7 @@ class Design {
       type: json['type']?.toString(),
       orderType: json['order_type']?.toString(),
       designStatus: json['design_status']?.toString(),
+      designManualName: json['design_name']?.toString(),
       designCode: json['design_code']?.toString(),
       bpCode: json['bp_code']?.toString(),
       openClose: json['open_close']?.toString(),

@@ -253,16 +253,16 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
     partnerState.bpCraftsmanList:
     partnerState.bpBuyerList;
 
-    final validPartners = partners.where((bp) =>
-    bp.bpCode != null && bp.bpCode!.isNotEmpty &&
-        bp.businessName != null && bp.businessName!.isNotEmpty
+    final validPartners = partners.where((bp) => 
+      bp.bpCode != null && bp.bpCode!.isNotEmpty &&
+      bp.businessName != null && bp.businessName!.isNotEmpty
     ).toList();
 
     BpBuyerModel? selectedModel;
     if (_selectedBpCode != null && _selectedBpCode!.isNotEmpty) {
       selectedModel = validPartners.cast<BpBuyerModel?>().firstWhere(
-              (bp) => bp?.bpCode == _selectedBpCode,
-          orElse: () => null
+        (bp) => bp?.bpCode == _selectedBpCode, 
+        orElse: () => null
       );
     }
 
@@ -275,6 +275,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
       value: selectedModel,
       isSearchable: true,
       hintText: 'Select BP Code',
+      isLoading: partnerState.isLoadingBp,
       onChanged: (BpBuyerModel? selectedPartner) {
         if (selectedPartner == null) return;
         setState(() {

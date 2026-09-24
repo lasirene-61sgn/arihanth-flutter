@@ -132,10 +132,18 @@ class _SidebarState extends ConsumerState<Sidebar> {
     List<Widget> menu = [];
 
     // --- SECTION: GENERAL ---
+
     menu.add(_sectionTitle("GENERAL"));
+
     menu.add(_navItem(Icons.grid_view, ref.watchTr('dashboard'), 0, selectedIndex));
-    if (role == 'buyer' || role == 'craftsman') {
-      menu.add(_navItem(Icons.person_outline, ref.watchTr('my_profile'), 16, selectedIndex));
+    
+    bool hasGlobalSearch = hasPermission('global_search');
+    if (hasGlobalSearch) {
+      menu.add(_navItem(Icons.search_outlined, 'Global Search', 21, selectedIndex));
+    }
+
+    if (role == 'buyer' || role == 'craftsman' || role == "craftsman_staff") {
+     if(role != "craftsman_staff") menu.add(_navItem(Icons.person_outline, ref.watchTr('my_profile'), 16, selectedIndex));
       if (permissions.contains('favorites')) {
         menu.add(_navItem(Icons.favorite_outline, ref.watchTr('my_favorites'), 17, selectedIndex));
       }
@@ -155,8 +163,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
     bool hasDesign = hasPermission('design');
     bool hasCatalogue = hasPermission('catalogue');
     bool hasStockOrder = hasPermission('stock_order');
+    bool hasRepairs = isSuperAdmin || role == 'buyer' || role == 'craftsman' || role == 'craftsman_staff' && hasPermission('repairs');
 
-    if (hasBusinessPartner || hasWorkOrder || hasPurchaseOrder || hasProduct || hasDesign || hasCatalogue) {
+    if (hasBusinessPartner || hasWorkOrder || hasPurchaseOrder || hasProduct || hasDesign || hasCatalogue || hasRepairs) {
       menu.add(_sectionTitle("BUSINESS OPERATIONS"));
 
       if (hasBusinessPartner) {
@@ -203,7 +212,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
         menu.add(_navItem(Icons.work_outline_outlined, ref.watchTr('work_orders'), 7, selectedIndex));
       }
       // Add Repairs (default visible for all orders roles)
-      if (isSuperAdmin || role == 'buyer' || role == 'craftsman') {
+      if (hasRepairs) {
         menu.add(_navItem(Icons.handyman_outlined, ref.watchTr('repairs'), 15, selectedIndex));
       }
       if (hasPurchaseOrder) {
@@ -230,8 +239,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
     bool hasAdmin = isSuperAdmin;
     bool hasKeyUser = hasPermission('key_user');
     bool hasUser = hasPermission('user_management');
+    bool  craftsmanStaff = hasPermission('craftsman_staff');
 
-    if (hasAdmin || hasKeyUser || hasUser) {
+    if (hasAdmin || hasKeyUser || hasUser || craftsmanStaff) {
       menu.add(_sectionTitle("ADMINISTRATION"));
       if (hasAdmin) {
         menu.add(_navItem(Icons.admin_panel_settings_outlined, ref.watchTr('Admins'), 4, selectedIndex));
@@ -241,6 +251,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
       }
       if (hasUser) {
         menu.add(_navItem(Icons.group_add_outlined, ref.watchTr('Users'), 6, selectedIndex));
+      }
+      if (craftsmanStaff) {
+        menu.add(_navItem(Icons.people_outline, ref.watchTr('Craftsman Staff'), 22, selectedIndex));
       }
 
       menu.add(const SizedBox(height: 20));

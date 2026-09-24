@@ -107,7 +107,7 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(workOrderListProvider);
     final wo = state.workOrderDetail;
-    final bool isCraftsman = role?.toLowerCase() == 'craftsman';
+    final bool isCraftsman = role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff';
 
     return Scaffold(
       backgroundColor: AppColor.background,
@@ -218,7 +218,7 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
               ...[
                 _buildInfoRow("Due Date", _formatDate(wo.dueDate)),
               ] ,
-            if(['super_admin', 'craftsman', ].contains(role?.toLowerCase()))
+            if(['super_admin', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase()))
               ...[
                 _buildInfoRow("Due Date", _formatDate(wo.craftsmanDueDate)),
               ],

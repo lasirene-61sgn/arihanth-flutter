@@ -42,6 +42,8 @@ class DesignListState {
   final String? currentUrl;
   final bool isBulkAcceptLoading;
   final bool isBulkRejectLoading;
+  final bool favoriteNameLoader;
+  final String? bulkFavoriteError;
   final List<DesignHistory> history;
 
   const DesignListState({
@@ -50,7 +52,9 @@ class DesignListState {
     this.rejectingDesignId,
     this.isLoaded = false,
     this.isSaving = false,
+    this.favoriteNameLoader = false,
     this.error,
+    this.bulkFavoriteError,
     this.designs = const [],
     this.allDesigns = const [],
     this.designDetails,
@@ -69,7 +73,9 @@ class DesignListState {
     String? rejectingDesignId,
     bool? isLoaded,
     bool? isSaving,
+    bool? favoriteNameLoader,
     String? error,
+    String? bulkFavoriteError,
     List<Design>? designs,
     List<Design>? allDesigns,
     Design? designDetails,
@@ -87,7 +93,9 @@ class DesignListState {
       rejectingDesignId: rejectingDesignId ?? this.rejectingDesignId,
       isLoaded: isLoaded ?? this.isLoaded,
       isSaving: isSaving ?? this.isSaving,
+      favoriteNameLoader: favoriteNameLoader ?? this.favoriteNameLoader,
       error: error,
+      bulkFavoriteError: bulkFavoriteError,
       designs: designs ?? this.designs,
       allDesigns: allDesigns ?? this.allDesigns,
       designDetails: designDetails ?? this.designDetails,
@@ -321,6 +329,33 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
       state = state.copyWith(isBulkAcceptLoading: false);
     }
   }
+  Future<void> favoriteDesignNameUpdater(String ids,{String? designName, String? designFetchUrl}) async {
+    state = state.copyWith(favoriteNameLoader: true, bulkFavoriteError: null);
+    try {
+      final List<int> idList = ids.split(',').map((e) => int.parse(e.trim())).toList();
+      final response = await ApiClient().post(
+        endpoint: "api/common/designs/bulk-favourite",
+        body: {
+        "ids" :idList,
+        "design_name" : designName ?? ""
+        },
+      );
+      if (response["status"] == 1) {
+        Toaster.showSuccess(response["data"]?["message"] ?? "Favorite added successfully");
+        Get.back();
+        await fetchDesigns(url: designFetchUrl ?? "api/common/designs?tab=Accepted");
+
+        state = state.copyWith(favoriteNameLoader: false, bulkFavoriteError: null);
+      } else {
+        final errorMsg = _extractErrorMessage(response);
+        Toaster.showError(errorMsg);
+        state = state.copyWith(favoriteNameLoader: false, bulkFavoriteError: errorMsg);
+      }
+    } catch (e) {
+      Toaster.showError("Error: $e");
+      state = state.copyWith(favoriteNameLoader: false, bulkFavoriteError: e.toString());
+    }
+  }
 
   Future<void> bulkReject(String ids) async {
     state = state.copyWith(isBulkRejectLoading: true, error: null);
@@ -344,6 +379,8 @@ class DesignListNotifier extends StateNotifier<DesignListState> {
       state = state.copyWith(isBulkRejectLoading: false);
     }
   }
+
+
 
   String _extractErrorMessage(dynamic response) {
     if (response == null) return "Unknown error";

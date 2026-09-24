@@ -91,7 +91,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
       context,
       ShareCardItem(
         imageUrl: widget.item.imageUrl,
-        title: widget.item.productName,
+        title:  widget.item.productName,
         productCode: restricted ? null : widget.item.designCode,
         category: widget.item.category,
         isLocked: (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin'),
@@ -337,7 +337,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
                             ),
                             child: Text(
                               // Always show category name, fallback to '-' if null
-                              widget.item.category ?? '-',
+                              widget.item.designManualName ?? widget.item.category ?? '-',
                               style: const TextStyle(
                                 color: AppColor.black,
                                 fontSize: 11,

@@ -535,10 +535,90 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
                     child: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
               ],
+              const SizedBox(width: 8),
+             if (role?.toLowerCase() != "super_admin" && _getTabValue() == 'accepted') ...[
+               if (state.favoriteNameLoader)
+                 const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+               else
+                 SizedBox(
+                   height: 40,
+                   child: TextButton(
+
+                     onPressed: _showBulkFavouriteDialog,
+                     style: TextButton.styleFrom(
+                       backgroundColor: Colors.blue.withOpacity(0.1),
+                       foregroundColor: Colors.blue,
+                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                       minimumSize: Size.zero,
+                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                     ),
+                     child: const Text('Add Favorite', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                   ),
+                 ),
+             ],
             ],
           ],
         ),
       ),
+    );
+  }
+
+  void _showBulkFavouriteDialog() {
+    final TextEditingController nameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (dialogContext, dialogRef, child) {
+            final isLoading = dialogRef.watch(designsProvider).favoriteNameLoader;
+            return AlertDialog(
+              backgroundColor: AppColor.surface,
+              title: const Text('Add Favorite', style: TextStyle(color: AppColor.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              content: TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Design Name',
+                  labelStyle: const TextStyle(color: AppColor.textSecondary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColor.primary),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel', style: TextStyle(color: AppColor.white)),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    final tabValue = _getTabValue();
+                    final url = "api/common/designs?tab=$tabValue";
+                    await ref.read(designsProvider.notifier).favoriteDesignNameUpdater(
+                      selectedIds.join(','),
+                      designName: nameController.text.trim(),
+                      designFetchUrl: url
+                    );
+                    
+                    if (!mounted) return;
+                    final currentState = ref.read(designsProvider);
+                    if (currentState.bulkFavoriteError == null) {
+                      setState(() {
+                        selectedIds.clear();
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColor.primary),
+                  child: isLoading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Save', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -595,7 +675,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               });
             },
             isFavorite: design.isFavorite ?? false,
-            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman')
+            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff')
                 ? () async {
               if(design.isFavorite == true) {
                 return ;
@@ -635,7 +715,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
               });
             },
             isFavorite: design.isFavorite ?? false,
-            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman')
+            onFavoriteToggle: (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff')
                 ? () async {
               if(design.isFavorite == true) {
                 return ;
@@ -649,7 +729,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
                 : null,
             onEdit: () => Get.toNamed(AppRoutes.designsDetails, arguments: design.id.toString()),
             onShare: () async {
-              final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+              final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
               await ShareCardService.share(
                 context,
                 ShareCardItem(
@@ -687,7 +767,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen>
       final List<ShareCardItem> shareItems = state.designs
           .where((item) => selectedIds.contains(item.id.toString()))
           .map((design) {
-        final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(role?.toLowerCase());
+        final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
 
         return ShareCardItem(
           imageUrl: design.imageUrl,

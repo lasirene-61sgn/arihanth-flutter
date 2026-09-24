@@ -270,7 +270,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
               });
             },
           ),
-          if (role?.toLowerCase() != 'craftsman')
+          if (role?.toLowerCase() != 'craftsman' && role?.toLowerCase() != 'craftsman_staff')
           NavActionItem(
             label: ref.watchTr('new_po'),
             icon: Icons.add,
@@ -393,7 +393,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
   }
 
   Widget _buildBulkActions({required bool isFab}) {
-    final isCraftsman = role?.toLowerCase() == 'craftsman';
+    final isCraftsman = role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff';
     final isAdmin = role == 'Admin' || role == 'super_admin';
     final hasSelection = selectedIds.isNotEmpty;
 

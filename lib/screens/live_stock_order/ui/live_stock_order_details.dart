@@ -116,8 +116,7 @@ class _LiveStockOrderDetailScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(liveStockOrderNotifierProvider);
     final StockOrderDetailModel? order = state.stockOrderDetail;
-    final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman']
-        .contains(role?.toLowerCase());
+    final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(role?.toLowerCase());
 
     return Scaffold(
       backgroundColor: AppColor.background,
@@ -454,12 +453,12 @@ class _LiveStockOrderDetailScreenState
     }
 
     // Craftsman: Complete button (Show when Accepted)
-    if (currentRole == 'craftsman' && (currentStatus == 'accepted' || currentStatus == 'in process' || currentStatus == 'in-process')) {
+    if ((currentRole == 'craftsman' || currentRole == 'craftsman_staff') && (currentStatus == 'accepted' || currentStatus == 'in process' || currentStatus == 'in-process')) {
       buttons.add(_btn("Mark as Complete", AppColor.primary, () => _handleFinish(order), loading: state.isCompleting));
     }
 
     // Craftsman: Accept/Reject buttons (if Allocated)
-    if (currentRole == 'craftsman' && currentStatus == 'allocated') {
+    if ((currentRole == 'craftsman' || currentRole == 'craftsman_staff') && currentStatus == 'allocated') {
       buttons.add(_btn("Accept", Colors.green, () => _handleAccept(order), loading: state.isAccepting));
       buttons.add(const SizedBox(width: 16));
       buttons.add(_btn("Reject", Colors.red, () => _handleReject(order), loading: state.isRejecting));

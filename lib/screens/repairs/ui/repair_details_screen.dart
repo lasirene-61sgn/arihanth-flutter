@@ -291,7 +291,7 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
       } else if (status == 'craftsman_completed' && role == 'super_admin') {
         buttons.add(_btn("Complete", AppColor.primary, () => _handleComplete(notifier), loading: state.isCompleting));
       }
-    } else if (role == 'craftsman') {
+    } else if (role == 'craftsman' || role == 'craftsman_staff') {
       if (status == 'allocated') {
         buttons.add(_btn("Accept", AppColor.primary, () => _handleAccept(notifier), loading: state.isAccepting));
         buttons.add(const SizedBox(width: 16));

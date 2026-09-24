@@ -349,7 +349,7 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                                       final currentUrl = sliderItemUrls[_currentPage];
                                       final isPdf = currentUrl.toLowerCase().endsWith('.pdf');
                                       final partner = widget.workOrder;
-                                      final isRestricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(widget.role?.toLowerCase());
+                                      final isRestricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman', 'craftsman_staff'].contains(widget.role?.toLowerCase());
                                       
                                       await ShareCardService.share(
                                         context,
@@ -462,7 +462,7 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                               ),
                             ),
                             const SizedBox(height: 5),
-                            if (role?.toLowerCase() != "craftsman" &&
+                            if (role?.toLowerCase() != "craftsman" && role?.toLowerCase() != "craftsman_staff" &&
                                 workOrder.referenceNo != null)
                               RichText(
                                 text: TextSpan(
@@ -492,7 +492,7 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  if (role?.toLowerCase() != "craftsman" &&
+                  if (role?.toLowerCase() != "craftsman" && role?.toLowerCase() != "craftsman_staff" &&
                       ![
                         'buyer',
                         'key_user',
@@ -616,7 +616,7 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                           onPressed: onView,
                         ),
                       ),
-                      if (role?.toLowerCase() != "craftsman" &&
+                      if (role?.toLowerCase() != "craftsman" && role?.toLowerCase() != "craftsman_staff" &&
                           ([
                             'buyer',
                             'key_user',
@@ -633,7 +633,7 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                           ),
                         ),
                       ],
-                      if ((role?.toLowerCase() != "craftsman" ||
+                      if (((role?.toLowerCase() != "craftsman" && role?.toLowerCase() != "craftsman_staff") ||
                               (activeStatus != 'Allocated' &&
                                   activeStatus != 'All')) &&
                           (activeStatus != "New" && activeStatus != "All" ||

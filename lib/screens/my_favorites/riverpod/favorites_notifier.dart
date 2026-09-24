@@ -125,7 +125,7 @@ class FavoriteListNotifier extends StateNotifier<FavoriteListState> {
         // Refresh the list
         await fetchFavorites();
       } else {
-        Toaster.showError(response["data"]?["message"] ?? "Failed to update favorite");
+        Toaster.showError(response?["message"]?["message"] ?? "Failed to update favorite");
       }
     } catch (e) {
       Toaster.showError("Error: $e");
