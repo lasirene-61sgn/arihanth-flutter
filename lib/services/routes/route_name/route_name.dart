@@ -13,6 +13,9 @@ class AppRoutes {
   static const String mainLayout = '/mainLayout';
   static const String dashboard = '/';
   static const String globalSearch = "/globalSearchScreen";
+  static const String report = '/report';
+  static const String reportOrders = '/report-orders';
+  static const String reportProducts = '/report-products';
 
   // Sidebar / Main Modules
   static const String workOrders = '/work-orders';

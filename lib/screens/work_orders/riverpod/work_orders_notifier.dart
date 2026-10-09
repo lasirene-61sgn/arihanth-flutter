@@ -25,6 +25,7 @@ class WorkOrderHistory {
 
 class WorkOrderListState {
   final bool isLoading;
+  final bool isPaginating;
   final bool isLoaded;
   final bool assignLoad;
   final String? craftsmanAcceptId;
@@ -55,6 +56,7 @@ class WorkOrderListState {
 
   const WorkOrderListState({
     this.isLoading = false,
+    this.isPaginating = false,
     this.assignLoad = false,
     this.craftsmanAcceptId,
     this.craftsmanRejectId,
@@ -83,6 +85,7 @@ class WorkOrderListState {
 
   WorkOrderListState copyWith({
     bool? isLoading,
+    bool? isPaginating,
     bool? assignLoad,
     String? craftsmanAcceptId,
     String? craftsmanRejectId,
@@ -109,6 +112,7 @@ class WorkOrderListState {
   }) {
     return WorkOrderListState(
       isLoading: isLoading ?? this.isLoading,
+      isPaginating: isPaginating ?? this.isPaginating,
       assignLoad: assignLoad ?? this.assignLoad,
       craftsmanAcceptId: craftsmanAcceptId ?? this.craftsmanAcceptId,
       craftsmanRejectId: craftsmanRejectId ?? this.craftsmanRejectId,
@@ -146,7 +150,8 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
   /// Fetch work orders
   Future<void> fetchWorkOrders({String? urls, bool isNext = false}) async {
     state = state.copyWith(
-      isLoading: true,
+      isLoading: !isNext,
+      isPaginating: isNext,
       error: null,
       urls: urls ?? state.urls,
       history: isNext ? state.history : [],
@@ -164,8 +169,10 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
         if (actualResponse != null && actualResponse["success"] == true) {
           final rawData = actualResponse["data"]; // This is the pagination object (current_page, data, etc.)
           final counts = actualResponse["counts"]; // The counts object
-
+           print("hi $rawData");
+           print("hi $counts");
           final List<dynamic> orderList = rawData["data"] ?? [];
+          print("hi $rawData");
           final workOrders = orderList.map((item) => WorkOrder.fromJson(item)).toList();
 
           // 2. Map counts using the precise keys from your log
@@ -178,12 +185,12 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
           final int overdueOrders     = counts['overdue'] ?? 0;
           final int totalCount        = counts['all'] ?? 0;
 
-          // 3. Map Pagination from the nested rawData object
           final String? nextUrl       = rawData["next_page_url"];
           final String? previousUrl   = rawData["prev_page_url"];
           final int apiTotalCount     = rawData["total"] as int? ?? 0;
           state = state.copyWith(
             isLoading: false,
+            isPaginating: false,
             isLoaded: true,
             newOrders: newOrders,
             allocatedOrders: allocatedOrders,
@@ -212,17 +219,19 @@ class WorkOrderListNotifier extends StateNotifier<WorkOrderListState> {
         } else {
           state = state.copyWith(
               isLoading: false,
+              isPaginating: false,
               error: actualResponse?["message"]?.toString() ?? "API reported failure"
           );
         }
       } else {
         final errorMsg = response?["message"]?.toString() ?? "Server connection failed";
-        state = state.copyWith(isLoading: false, error: errorMsg);
+        state = state.copyWith(isLoading: false, isPaginating: false, error: errorMsg);
       }
     } catch (e, st) {
       debugPrint("Fetch error: $e\n$st");
       state = state.copyWith(
           isLoading: false,
+          isPaginating: false,
           error: "Connection Error: ${e.toString()}"
       );
     }

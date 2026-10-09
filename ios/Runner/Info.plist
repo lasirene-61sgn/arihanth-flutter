@@ -38,6 +38,8 @@
 	<string>This app requires access to Bluetooth for audio in video calls when using a headset.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app requires access to the photo library to select product and repair images.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app requires access to contacts to allow you to easily share and invite friends.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

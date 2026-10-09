@@ -53,6 +53,7 @@ class PurchaseOrderListState {
   final int completedOrders;
   final int inProcessOrders;
   final int rejectedOrders;
+  final int overdueOrders;
   final int totalCount;
   final int count;
   final bool isProcessingItems;
@@ -81,6 +82,7 @@ class PurchaseOrderListState {
     this.forApprovalOrders = 0,
     this.completedOrders = 0,
     this.rejectedOrders = 0,
+    this.overdueOrders = 0,
     this.totalCount = 0,
     this.craftsmanAcceptId,
     this.craftsmanRejectId,
@@ -112,6 +114,7 @@ class PurchaseOrderListState {
     int? forApprovalOrders,
     int? completedOrders,
     int? rejectedOrders,
+    int? overdueOrders,
     int? totalCount,
     bool? isProcessingItems,
     String? craftsmanAcceptId,
@@ -142,6 +145,7 @@ class PurchaseOrderListState {
       forApprovalOrders: forApprovalOrders ?? this.forApprovalOrders,
       completedOrders: completedOrders ?? this.completedOrders,
       rejectedOrders: rejectedOrders ?? this.rejectedOrders,
+      overdueOrders: overdueOrders ?? this.overdueOrders,
       totalCount: totalCount ?? this.totalCount,
       isProcessingItems: isProcessingItems ?? this.isProcessingItems,
       craftsmanAcceptId: craftsmanAcceptId ?? this.craftsmanAcceptId,
@@ -200,6 +204,7 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
         final int forApprovalOrders = counts?['for_approval'] ?? 0;
         final int completedOrders   = counts?['completed'] ?? 0;
         final int rejectedOrders    = counts?['rejected'] ?? 0;
+        final int overdueOrders     = counts?['overdue'] ?? 0;
         final int allOrders         = counts?['all'] ?? 0;
 
         final List<PurchaseOrderHistory> newHistory = isNext
@@ -216,6 +221,7 @@ class PurchaseOrderListNotifier extends StateNotifier<PurchaseOrderListState> {
           forApprovalOrders: forApprovalOrders,
           completedOrders: completedOrders,
           rejectedOrders: rejectedOrders,
+          overdueOrders: overdueOrders,
           totalCount: allOrders,
           count: rawPaginationData["total"] ?? (isNext ? state.purchaseOrders.length + orders.length : orders.length),
           nextUrl: rawPaginationData["next_page_url"],

@@ -57,7 +57,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
       'In Process': 'in_process',
       'For Approval': 'for_approval',
       'Completed': 'completed',
-      'Closed': 'closed'
+      'Overdue': 'overdue',
+      'Closed': 'closed',
     };
     return statusToTab[_activeStatus] ?? 'created';
   }
@@ -148,6 +149,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
               'For Approval': 'for_approval',
               'Completed': 'completed',
               'Rejected': 'rejected',
+              'Overdue': 'overdue',
             };
             final tab = statusToTab[_activeStatus] ?? 'all';
             final url = "api/common/purchase-orders?tab=$tab&search=$value";
@@ -168,6 +170,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
               'For Approval': 'for_approval',
               'Completed': 'completed',
               'Rejected': 'rejected',
+              'Overdue': 'overdue',
             };
             final tab = statusToTab[_activeStatus] ?? 'all';
             final url = "api/common/purchase-orders?tab=$tab";
@@ -700,6 +703,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
             'For Approval': 'for_approval',
             'Completed': 'completed',
             'Rejected': 'rejected',
+            'Overdue': 'overdue',
           };
           final tab = statusToTab[_activeStatus] ?? 'all';
           ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(customUrl: "api/common/purchase-orders?tab=$tab&sort=$sortOrder");
@@ -716,6 +720,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
             'For Approval': 'for_approval',
             'Completed': 'completed',
             'Rejected': 'rejected',
+            'Overdue': 'overdue',
           };
           final tab = statusToTab[_activeStatus] ?? 'all';
           ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(customUrl:"api/common/purchase-orders?tab=$tab");

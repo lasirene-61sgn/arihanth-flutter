@@ -137,6 +137,11 @@ class _SidebarState extends ConsumerState<Sidebar> {
 
     menu.add(_navItem(Icons.grid_view, ref.watchTr('dashboard'), 0, selectedIndex));
     
+    bool hasReport = hasPermission('dashboard_details');
+    if (hasReport) {
+      menu.add(_navItem(Icons.pie_chart_outline, 'Report', 23, selectedIndex));
+    }
+    
     bool hasGlobalSearch = hasPermission('global_search');
     if (hasGlobalSearch) {
       menu.add(_navItem(Icons.search_outlined, 'Global Search', 21, selectedIndex));

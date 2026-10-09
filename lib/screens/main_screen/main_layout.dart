@@ -24,6 +24,7 @@ import 'package:arianth/screens/chat/ui/chat_list_screen.dart';
 import 'package:arianth/screens/meetings/ui/meetings_screen.dart';
 import 'package:arianth/screens/global_search/ui/global_search_screen.dart';
 import 'package:arianth/screens/craftsman_staff/ui/craftsman_staff_screen.dart';
+import 'package:arianth/screens/reports/ui/reports.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -66,6 +67,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     MeetingsScreen(),
     GlobalSearchScreen(),
     CraftsmanStaffScreen(),
+    Reports(),
   ];
 
   @override

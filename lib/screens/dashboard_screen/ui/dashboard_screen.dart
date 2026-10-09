@@ -376,6 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (type == 'meetings') targetIndex = 20;
           else if (type == 'global_search') targetIndex = 21;
           else if (type == 'craftsman_staff') targetIndex = 22;
+          else if (type == 'report') targetIndex = 23;
 
           if (targetIndex != null) {
             ref.read(menuIndexProvider.notifier).state = targetIndex;
@@ -594,6 +595,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': ref.watchTr('meetings'), 'count': ''},
       if (hasPermission('global_search'))
         {'type': 'global_search', 'icon': Icons.search_outlined, 'title': 'Global Search', 'count': ''},
+      if (hasPermission('dashboard_details'))
+        {'type': 'report', 'icon': Icons.pie_chart_outline, 'title': 'Report', 'count': ''},
     ];
   }
 

@@ -374,14 +374,18 @@ class MeetingsNotifier extends StateNotifier<MeetingsState> {
             Toaster.showError("Failed to retrieve Agora credentials");
           }
         } else {
-          final errorMsg = actualResponse?["message"] ?? "Failed to join meeting";
-          debugPrint("Error joining meeting: $errorMsg");
-          Toaster.showError(errorMsg);
+          var errorMsg = actualResponse?["message"];
+          if (errorMsg is Map) errorMsg = errorMsg["message"];
+          final finalMsg = errorMsg?.toString() ?? "Failed to join meeting";
+          debugPrint("Error joining meeting: $finalMsg");
+          Toaster.showError(finalMsg);
         }
       } else {
-        final errorMsg = response?["message"] ?? "Failed to fetch meeting token";
-        debugPrint("API Error: $errorMsg");
-        Toaster.showError(errorMsg);
+        var errorMsg = response?["message"];
+        if (errorMsg is Map) errorMsg = errorMsg["message"];
+        final finalMsg = errorMsg?.toString() ?? "Failed to fetch meeting token";
+        debugPrint("API Error: $finalMsg");
+        Toaster.showError(finalMsg);
       }
     } catch (e, stackTrace) {
       debugPrint("Exception in joinMeeting: $e");

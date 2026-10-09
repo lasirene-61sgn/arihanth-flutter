@@ -499,7 +499,7 @@ class _WorkOrderFormState extends ConsumerState<WorkOrderForm> {
                               label: 'Type',
                               fieldKeyName: 'type',
                               hintText: 'Select Type',
-                              items: const ['Piece', 'Pair'],
+                              items: const ['Piece', 'Pair','Set'],
                               value: _selectedType,
                               onChanged: (v) =>
                                   setState(() => _selectedType = v!),

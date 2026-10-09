@@ -49,6 +49,9 @@ import 'package:arianth/screens/login/ui/login.dart';
 import 'package:arianth/screens/main_screen/main_layout.dart';
 import 'package:arianth/screens/dashboard_screen/ui/dashboard_screen.dart';
 import 'package:arianth/screens/business_partner_list/ui/business_partner_list.dart';
+import 'package:arianth/screens/reports/ui/reports.dart';
+import 'package:arianth/screens/reports/ui/report_orders_screen.dart';
+import 'package:arianth/screens/reports/ui/report_products_screen.dart';
 
 // Repairs
 import 'package:arianth/screens/repairs/ui/repairs_screen.dart';
@@ -92,6 +95,9 @@ class AppPages {
     // Note: These usually render inside MainLayout, but defined here for direct navigation
     GetPage(name: AppRoutes.dashboard, page: () => const DashboardScreen()),
     GetPage(name: AppRoutes.globalSearch, page: () => const GlobalSearchScreen()),
+    GetPage(name: AppRoutes.report, page: () => const Reports()),
+    GetPage(name: AppRoutes.reportOrders, page: () => const ReportOrdersScreen()),
+    GetPage(name: AppRoutes.reportProducts, page: () => const ReportProductsScreen()),
     GetPage(name: AppRoutes.workOrders, page: () => const WorkOrdersScreen()),
     GetPage(name: AppRoutes.workOrdersAdd, page: () => WorkOrderForm(id: Get.arguments as String?,)),
     GetPage(name: AppRoutes.workOrdersDetails, page: () => WorkOrderDetailsScreen(workOrderId: Get.arguments as String?)),

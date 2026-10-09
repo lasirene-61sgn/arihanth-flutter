@@ -165,7 +165,7 @@ class ShareCardService {
           as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      final ui.Image img = await boundary.toImage(pixelRatio: 6.0);
+      final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
       final ByteData? byteData =
           await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
@@ -280,7 +280,7 @@ class ShareCardService {
         if (boundary == null) continue;
 
         try {
-          final ui.Image img = await boundary.toImage(pixelRatio: 6.0);
+          final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
           final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
           if (byteData != null) {
             final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
@@ -335,8 +335,8 @@ class ShareCardService {
       final document = await PdfDocument.openData(bytes);
       final page = await document.getPage(1);
       final pageImage = await page.render(
-        width: page.width * 6,
-        height: page.height * 6,
+        width: page.width * 2,
+        height: page.height * 2,
         format: PdfPageImageFormat.png,
       );
 
@@ -399,7 +399,7 @@ class _ShareCardWidget extends StatelessWidget {
     final detailsString = details.join(' | ');
 
     return SizedBox(
-      width: 400, // Slightly wider for better text flow
+      width: 400,
       child: Container(
         decoration: const BoxDecoration(color: Colors.white),
         child: Column(

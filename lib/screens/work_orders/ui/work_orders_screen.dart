@@ -232,7 +232,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
               onPrevious: notifier.goToPreviousPage,
               isFirstPage: state.history.isEmpty && state.previousUrl == null,
               isLastPage: state.nextUrl == null,
-              isLoading: state.isLoading,
+              isLoading:state.isLoading,
             ),
         ],
       ),
@@ -581,7 +581,7 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           // ?
       ListView.separated(
 
-              itemCount: state.workOrders.length + (state.isLoading ? 1 : 0),
+              itemCount: state.workOrders.length + (state.isPaginating ? 1 : 0),
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               itemBuilder: (context, index) {

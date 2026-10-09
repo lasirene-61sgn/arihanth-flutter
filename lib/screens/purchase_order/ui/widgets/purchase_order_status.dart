@@ -33,6 +33,7 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
     'For Approval': 'api/common/purchase-orders?tab=for_approval',
     'Completed': 'api/common/purchase-orders?tab=completed',
     'Rejected': 'api/common/purchase-orders?tab=rejected',
+    'Overdue': 'api/common/purchase-orders?tab=overdue',
     'All': 'api/common/purchase-orders?tab=all',
   };
 
@@ -47,6 +48,7 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
         {'label': 'For Approval', 'value': 'For Approval'},
         {'label': 'Completed', 'value': 'Completed'},
         {'label': 'Rejected', 'value': 'Rejected'},
+        {'label': 'Overdue', 'value': 'Overdue'},
         {'label': 'All', 'value': 'All'},
       ];
     } else {
@@ -57,8 +59,13 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
         {'label': 'For Approval', 'value': 'For Approval'},
         {'label': 'Completed', 'value': 'Completed'},
         {'label': 'Rejected', 'value': 'Rejected'},
+        {'label': 'Overdue', 'value': 'Overdue'},
         {'label': 'All', 'value': 'All'},
       ];
+    }
+
+    if (role?.toLowerCase() == 'buyer' || role?.toLowerCase() == 'key_user') {
+      tabs.removeWhere((t) => t['label'] == 'Overdue');
     }
 
     // Ensure 'All' is always last (though already added last above)
@@ -187,6 +194,8 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
         return state.completedOrders;
       case 'Rejected':
         return state.rejectedOrders;
+      case 'Overdue':
+        return state.overdueOrders;
       case 'All':
         return state.totalCount;
       default:
