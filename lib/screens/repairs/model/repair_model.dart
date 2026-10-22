@@ -22,6 +22,14 @@ class RepairOrder {
   final String? repair;
   final String? ref;
   final String? notes;
+  // New fields from list API
+  final String? orderNumber;
+  final String? repairOrSample;
+  final String? itemReturnedBy;
+  final String? itemCollectedBy;
+  final String? itemSentBy;
+  final String? completedAt;
+  final String? craftsmanCode;
 
   RepairOrder({
     this.id,
@@ -47,6 +55,13 @@ class RepairOrder {
     this.repair,
     this.ref,
     this.notes,
+    this.orderNumber,
+    this.repairOrSample,
+    this.itemReturnedBy,
+    this.itemCollectedBy,
+    this.itemSentBy,
+    this.completedAt,
+    this.craftsmanCode,
   });
 
   RepairOrder copyWith({
@@ -73,6 +88,13 @@ class RepairOrder {
     String? repair,
     String? ref,
     String? notes,
+    String? orderNumber,
+    String? repairOrSample,
+    String? itemReturnedBy,
+    String? itemCollectedBy,
+    String? itemSentBy,
+    String? completedAt,
+    String? craftsmanCode,
   }) {
     return RepairOrder(
       id: id ?? this.id,
@@ -98,6 +120,13 @@ class RepairOrder {
       repair: repair ?? this.repair,
       ref: ref ?? this.ref,
       notes: notes ?? this.notes,
+      orderNumber: orderNumber ?? this.orderNumber,
+      repairOrSample: repairOrSample ?? this.repairOrSample,
+      itemReturnedBy: itemReturnedBy ?? this.itemReturnedBy,
+      itemCollectedBy: itemCollectedBy ?? this.itemCollectedBy,
+      itemSentBy: itemSentBy ?? this.itemSentBy,
+      completedAt: completedAt ?? this.completedAt,
+      craftsmanCode: craftsmanCode ?? this.craftsmanCode,
     );
   }
 
@@ -105,7 +134,8 @@ class RepairOrder {
     return RepairOrder(
       id: json['id'],
       buyerId: json['buyer_id'],
-      repairDate: json['repair_date'],
+      // Support both 'date' (list API) and 'repair_date' (detail API)
+      repairDate: json['repair_date'] ?? json['date'],
       productName: json['product_name'],
       weight: json['weight']?.toString(),
       repairDetails: json['repair_details'],
@@ -124,10 +154,19 @@ class RepairOrder {
       craftsman: json['craftsman'] != null
           ? RepairCraftsman.fromJson(json['craftsman'])
           : null,
-      orderNo: json['order_no'],
-      repair: json['repair'],
-      ref: json['ref'],
+      // Support both 'order_no' and 'order_number'
+      orderNo: json['order_no'] ?? json['order_number'],
+      // Support both 'repair' and 'repair_or_sample'
+      repair: json['repair'] ?? json['repair_or_sample'],
+      ref: json['ref'] ?? json['reference_number'],
       notes: json['notes'],
+      orderNumber: json['order_number'],
+      repairOrSample: json['repair_or_sample'],
+      itemReturnedBy: json['item_returned_by'],
+      itemCollectedBy: json['item_collected_by'],
+      itemSentBy: json['item_sent_by'],
+      completedAt: json['completed_at'],
+      craftsmanCode: json['craftman_code'] ?? json['craftsman_code'],
     );
   }
 

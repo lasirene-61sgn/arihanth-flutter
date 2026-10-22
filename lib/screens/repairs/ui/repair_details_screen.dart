@@ -172,18 +172,23 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
       floatingActionButton: (repair != null && !state.isLoading)
           ? FloatingActionButton(
               onPressed: () {
-                final bool isSample = repair.repair?.toLowerCase() == 'sample';
+                final String orderNum =
+                    repair.orderNumber ?? repair.orderNo ?? repair.id.toString();
                 ShareCardService.share(
                   context,
                   ShareCardItem(
-                    workOrderNumber: repair.orderNo?.toString() ?? repair.id.toString(),
+                    workOrderNumber: orderNum,
                     imageUrl: repair.imageProofUrl,
                     title: repair.productName,
-                    bpCode: (role?.toLowerCase() == 'craftsman' || ["super_admin", "buyer", "key_user", "user"].contains(role?.toLowerCase())) ? null : repair.buyer?.bpCode,
+                    bpCode: (role?.toLowerCase() == 'craftsman' ||
+                            ["super_admin", "buyer", "key_user", "user"]
+                                .contains(role?.toLowerCase()))
+                        ? null
+                        : repair.buyer?.bpCode,
                     category: repair.productName,
                     weight: repair.weight,
-                    narration: isSample ? repair.sampleDetails : repair.repairDetails,
-                    subtitle: 'Order No: ${repair.orderNo ?? repair.id}',
+                    narration: repair.repairDetails,
+                    subtitle: 'Order No: $orderNum',
                   ),
                 );
               },
@@ -316,7 +321,9 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
 
   void _handleAccept(RepairListNotifier notifier) async {
     bool success = await notifier.acceptRepair(widget.repairId);
-    if (success) notifier.fetchRepairDetail(widget.repairId); // Refresh via notifier
+    if (success) {
+      notifier.fetchRepairDetail(widget.repairId); // Refresh via notifier
+    }
   }
 
   void _handleReject(RepairListNotifier notifier) {
@@ -333,8 +340,10 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
           ElevatedButton(
             onPressed: () async {
               Get.back();
-              bool success = await notifier.rejectRepair(widget.repairId, reasonController.text);
-              if (success) notifier.fetchRepairDetail(widget.repairId);
+              bool success = await notifier.rejectRepair(widget.repairId, reasonController.text.trim());
+              if (success) {
+                notifier.fetchRepairDetail(widget.repairId);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColor.primary, foregroundColor: Colors.white),
             child: const Text("Confirm Reject"),

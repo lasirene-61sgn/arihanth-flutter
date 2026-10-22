@@ -76,6 +76,7 @@ class AppRoutes {
   static const String favorites = '/favorites';
   static const String orderSuccess = '/order-success';
   static const String chat = '/chat';
+  static const String chatContacts = '/chat/contacts';
   static const String chatDetails = '/chat/details';
   static const String meetings = '/meetings';
 }

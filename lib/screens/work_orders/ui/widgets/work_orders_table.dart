@@ -4,6 +4,7 @@ import 'package:arianth/screens/work_orders/riverpod/work_orders_notifier.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/services/widget/form_field_common_button.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
+import 'package:arianth/screens/work_orders/ui/widgets/work_order_share_bottom_sheet.dart';
 import 'package:arianth/services/widget/reusable_table_view.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:flutter/material.dart';
@@ -264,27 +265,29 @@ class WorkOrdersTable extends StatelessWidget {
                       }
                     }
 
-                    ShareCardService.share(
-                      context,
-                      ShareCardItem(
-                        workOrderNumber: partner.workOrderNumber,
-                        imageUrl: imageUrl, // The Service must handle downloading/converting this if isPdf is true
-                        title: partner.productName,
-                        category: partner.productCategory,
-                        quantity: partner.quantity,
-                        weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
-                        size: partner.size,
-                        stone: partner.stone,
-                        enamel: partner.enamel,
-                        hallmark: partner.hallmark,
-                        rodium: partner.rodium,
-                        hook: partner.hook,
-                        type: partner.type,
-                        openClose: partner.openClose,
-                        isPdf: isPdf,
-                        narration: partner.narrationCraftsman,
-                        subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
-                      ),
+                    WorkOrderShareOptionsBottomSheet.show(
+                      context: context,
+                      shareItems: [
+                        ShareCardItem(
+                          workOrderNumber: partner.workOrderNumber,
+                          imageUrl: imageUrl,
+                          title: partner.productName,
+                          category: partner.productCategory,
+                          quantity: partner.quantity,
+                          weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
+                          size: partner.size,
+                          stone: partner.stone,
+                          enamel: partner.enamel,
+                          hallmark: partner.hallmark,
+                          rodium: partner.rodium,
+                          hook: partner.hook,
+                          type: partner.type,
+                          openClose: partner.openClose,
+                          isPdf: isPdf,
+                          narration: partner.narrationCraftsman,
+                          subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
+                        ),
+                      ],
                     );
                   },
                 ),

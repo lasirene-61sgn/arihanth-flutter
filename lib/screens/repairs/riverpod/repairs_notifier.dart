@@ -1,6 +1,7 @@
 import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:get/get.dart';
@@ -24,6 +25,9 @@ class RepairListState {
   final String? nextUrl;
   final String? previousUrl;
   final int? count;
+  final Map<String, int> counts;
+  final String activeTab;
+  final String? role;
 
   RepairListState({
     this.isLoading = false,
@@ -39,6 +43,9 @@ class RepairListState {
     this.nextUrl,
     this.previousUrl,
     this.count,
+    this.counts = const {},
+    this.activeTab = 'all',
+    this.role,
   });
 
   RepairListState copyWith({
@@ -56,6 +63,9 @@ class RepairListState {
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
     dynamic count = _sentinel,
+    Map<String, int>? counts,
+    String? activeTab,
+    String? role,
   }) {
     return RepairListState(
       isLoading: isLoading ?? this.isLoading,
@@ -71,6 +81,9 @@ class RepairListState {
       nextUrl: nextUrl == _sentinel ? this.nextUrl : nextUrl as String?,
       previousUrl: previousUrl == _sentinel ? this.previousUrl : previousUrl as String?,
       count: count == _sentinel ? this.count : count as int?,
+      counts: counts ?? this.counts,
+      activeTab: activeTab ?? this.activeTab,
+      role: role ?? this.role,
     );
   }
 }
@@ -80,37 +93,65 @@ const _sentinel = Object();
 class RepairListNotifier extends StateNotifier<RepairListState> {
   RepairListNotifier() : super(RepairListState());
 
-  Future<void> fetchRepairs({String? customUrl}) async {
+  Future<void> fetchRepairs({String? customUrl, String? tab}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     String endpoint = customUrl ?? 'api/common/repairs';
+    // Append tab filter if provided and no custom URL
+    if (tab != null && customUrl == null) {
+      endpoint = 'api/common/repairs?tab=$tab';
+    }
 
     try {
       final response = await ApiClient().get(endpoint: endpoint);
 
-
       if (response != null && response['status'] == 1 && response['data'] != null) {
         final responseData = response['data'];
-        
+
         if (responseData['success'] == true) {
-          // Parse list data
+          // Parse tab counts from API — preserve existing counts if new response has none
+          Map<String, int> newCounts = Map<String, int>.from(state.counts);
+          if (responseData['counts'] is Map) {
+            final rawCounts = responseData['counts'] as Map;
+            rawCounts.forEach((k, v) {
+              newCounts[k.toString()] = (v as num?)?.toInt() ?? 0;
+            });
+          }
+
+          final String activeTab =
+              responseData['active_tab']?.toString() ?? tab ?? state.activeTab;
+          final String? role = responseData['role']?.toString();
+
+          // Parse paginated list data
           List<RepairOrder> loadedRepairs = [];
           int currentPage = 1;
           String? next;
           String? prev;
           int? count;
 
-          if (responseData['data'] != null) {
-            final dataObj = responseData['data'];
-            currentPage = dataObj['current_page'] ?? 1;
-            next = dataObj['next_page_url'];
-            prev = dataObj['prev_page_url'];
-            count = dataObj['count'] ?? 0;
+          final dataObj = responseData['data'];
+          if (dataObj is Map) {
+            currentPage = (dataObj['current_page'] as num?)?.toInt() ?? 1;
+            next = dataObj['next_page_url'] as String?;
+            prev = dataObj['prev_page_url'] as String?;
+            // Laravel pagination uses 'total'; fallback to 'count'
+            count = (dataObj['total'] as num?)?.toInt() ??
+                    (dataObj['count'] as num?)?.toInt();
 
-            if (dataObj['data'] != null) {
-              final List<dynamic> dataList = dataObj['data'];
-              loadedRepairs = dataList.map((json) => RepairOrder.fromJson(json)).toList();
+            final rawList = dataObj['data'];
+            if (rawList is List) {
+              loadedRepairs = rawList
+                  .map((json) =>
+                      RepairOrder.fromJson(json as Map<String, dynamic>))
+                  .toList();
             }
+          } else if (dataObj is List) {
+            // Direct list (non-paginated)
+            loadedRepairs = dataObj
+                .map((json) =>
+                    RepairOrder.fromJson(json as Map<String, dynamic>))
+                .toList();
+            count = loadedRepairs.length;
           }
 
           state = state.copyWith(
@@ -121,23 +162,54 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
             nextUrl: next,
             previousUrl: prev,
             count: count,
+            counts: newCounts,
+            activeTab: activeTab,
+            role: role,
           );
         } else {
+          // API returned success: false
           state = state.copyWith(
             isLoading: false,
-            error: responseData['message']?.toString() ?? "Failed to load repair orders.",
+            isLoaded: true,
+            repairs: [],
+            error: responseData['message']?.toString() ??
+                'Failed to load repair orders.',
           );
         }
       } else {
+        // Non-200 or missing data
         state = state.copyWith(
           isLoading: false,
-          error: response?['message']?.toString() ?? "Failed to load repair orders.",
+          isLoaded: true,
+          repairs: [],
+          error: response?['data']?['message']?.toString() ??
+              response?['message']?.toString() ??
+              'Failed to load repair orders.',
         );
       }
-    } catch (e) {
-
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      debugPrint('fetchRepairs error: $e\n$st');
+      state = state.copyWith(
+        isLoading: false,
+        isLoaded: true,
+        repairs: [],
+        error: e.toString(),
+      );
     }
+  }
+
+  /// Switch tab — clears stale list immediately so spinner shows during fetch.
+  void changeTab(String tab) {
+    state = state.copyWith(
+      activeTab: tab,
+      isLoaded: false,
+      repairs: [],
+      nextUrl: null,
+      previousUrl: null,
+      count: null,
+      error: null,
+    );
+    fetchRepairs(tab: tab);
   }
 
   void goToNextPage() {
@@ -163,6 +235,7 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
   Future<void> createRepair(
     Map<String, dynamic> payload, {
     PlatformFile? imageFile,
+    String imageFieldName = 'repair_image',
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -171,7 +244,7 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
         method: "POST",
         endpoint: "api/common/repairs",
         fields: payload,
-        files: imageFile != null ? {'image_proof': imageFile} : null,
+        files: imageFile != null ? {imageFieldName: imageFile} : null,
       );
 
       if (response != null && response["status"] == 1) {
@@ -198,14 +271,15 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
     String id,
     Map<String, dynamic> payload, {
     PlatformFile? imageFile,
+    String imageFieldName = 'repair_image',
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       final response = await ApiClient().requestWithFiles(
         endpoint: "api/common/repairs/$id",
-        fields:payload,
-        files: imageFile != null ? {'image_proof': imageFile} : null,
+        fields: payload,
+        files: imageFile != null ? {imageFieldName: imageFile} : null,
       );
 
       if (response != null && response["status"] == 1) {
@@ -253,7 +327,12 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
     return _performAction('api/common/repairs/$id/buyer-reject', {'reject_reason': reason}, actionFlag: 'rejecting');
   }
 
-  Future<bool> _performAction(String endpoint, Map<String, dynamic> body, {String? actionFlag}) async {
+  Future<bool> _performAction(
+    String endpoint,
+    Map<String, dynamic> body, {
+    String? actionFlag,
+    String? successMessage,
+  }) async {
     // Set individual flag
     if (actionFlag == 'accepting') state = state.copyWith(isAccepting: true);
     if (actionFlag == 'rejecting') state = state.copyWith(isRejecting: true);
@@ -265,7 +344,11 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
       final response = await ApiClient().post(endpoint: endpoint, body: body);
 
       if (response != null && response['status'] == 1) {
-        // Reset flags and refresh
+        final msg = response['message']?.toString() ??
+            response['data']?['message']?.toString() ??
+            successMessage ??
+            "Action completed successfully";
+        Toaster.showSuccess(msg);
         _resetActionFlags();
         await fetchRepairs();
         return true;
@@ -273,17 +356,21 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
         String errMsg = "Action failed";
         if (response != null && response['message'] != null) {
           errMsg = response['message'].toString();
-        } else if (response != null && response['data'] != null && response['data']['message'] != null) {
+        } else if (response != null &&
+            response['data'] != null &&
+            response['data']['message'] != null) {
           errMsg = response['data']['message'].toString();
         }
+        Toaster.showError(errMsg);
         _resetActionFlags();
         state = state.copyWith(isLoading: false, error: errMsg);
         return false;
       }
     } catch (e) {
-
+      final errMsg = e.toString();
+      Toaster.showError("Error: $errMsg");
       _resetActionFlags();
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: errMsg);
       return false;
     }
   }

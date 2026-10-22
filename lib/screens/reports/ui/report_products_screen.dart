@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
@@ -9,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/reports/model/report_model.dart';
+import 'package:arianth/services/local_storage/shared_preference.dart';
 
 class ReportProductsScreen extends StatefulWidget {
   const ReportProductsScreen({super.key});
@@ -24,10 +26,21 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
   final Map<int, GlobalKey> _tableKeys = {};
   int _currentIndex = 0;
   late PageController _pageController;
+  List<String> _hiddenFields = [];
+  final Map<int, Set<int>> _selectedProductsByTab = {};
+
+  final List<String> _allProductFields = [
+    'Image',
+    'Design Code',
+    'Name',
+    'Weight From',
+    'Weight To',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _loadCustomPreferences();
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     title = args['title'] ?? 'Products';
     
@@ -49,6 +62,127 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
     _pageController = PageController(initialPage: _currentIndex);
   }
 
+  void _loadCustomPreferences() {
+    final hiddenFieldsStr = SharedPreferencesHelper().getString('reports_products_fields_hidden');
+    if (hiddenFieldsStr != null && hiddenFieldsStr.isNotEmpty) {
+      try {
+        _hiddenFields = List<String>.from(jsonDecode(hiddenFieldsStr));
+      } catch (_) {
+        _hiddenFields = [];
+      }
+    }
+  }
+
+  void _saveCustomPreferences() {
+    SharedPreferencesHelper().setString('reports_products_fields_hidden', jsonEncode(_hiddenFields));
+  }
+
+  void _showColumnSelectionSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColor.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.55,
+                maxChildSize: 0.8,
+                minChildSize: 0.35,
+                builder: (context, scrollController) {
+                  return Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.view_column_outlined, color: AppColor.primary, size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            'Customize Product Fields',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColor.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Select which columns you want to view in this table',
+                        style: TextStyle(fontSize: 13, color: AppColor.textHint),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          itemCount: _allProductFields.length,
+                          itemBuilder: (context, index) {
+                            final field = _allProductFields[index];
+                            final isVisible = !_hiddenFields.contains(field);
+                            final visibleCount = _allProductFields.length - _hiddenFields.length;
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              child: Card(
+                                elevation: 0,
+                                color: AppColor.background,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: AppColor.divider.withValues(alpha: 0.5)),
+                                ),
+                                child: SwitchListTile(
+                                  title: Text(field, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  value: isVisible,
+                                  activeColor: AppColor.primary,
+                                  onChanged: (bool value) {
+                                    if (!value && visibleCount <= 1) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('At least one column must remain visible')),
+                                      );
+                                      return;
+                                    }
+                                    setSheetState(() {
+                                      if (value) {
+                                        _hiddenFields.remove(field);
+                                      } else {
+                                        if (!_hiddenFields.contains(field)) {
+                                          _hiddenFields.add(field);
+                                        }
+                                      }
+                                    });
+                                    _saveCustomPreferences();
+                                    setState(() {});
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -56,14 +190,41 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
   }
 
   Future<void> _shareToWhatsApp() async {
-    final GlobalKey? key = _tableKeys[_currentIndex];
-    final boundary = key?.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot capture table.')));
+    final currentProducts = tabData[tabNames.length > _currentIndex ? tabNames[_currentIndex] : tabNames.first] ?? [];
+    if (currentProducts.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No products to share.')));
       return;
     }
-    
+
+    final selected = _selectedProductsByTab[_currentIndex];
+    final productsToShare = (selected != null && selected.isNotEmpty)
+        ? [for (int i = 0; i < currentProducts.length; i++) if (selected.contains(i)) currentProducts[i]]
+        : currentProducts;
+
+    OverlayEntry? entry;
+    final shareKey = GlobalKey();
+
     try {
+      entry = OverlayEntry(
+        builder: (_) => Positioned(
+          left: -99999,
+          top: -99999,
+          child: Material(
+            color: Colors.transparent,
+            child: _buildTable(productsToShare, forSharing: true, repaintKey: shareKey),
+          ),
+        ),
+      );
+      Overlay.of(context).insert(entry);
+
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      final boundary = shareKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot capture table.')));
+        return;
+      }
+
       final ui.Image img = await boundary.toImage(pixelRatio: 3.0);
       final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) throw Exception("Failed to convert image to bytes");
@@ -82,6 +243,8 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sharing table: $e')));
       }
+    } finally {
+      entry?.remove();
     }
   }
 
@@ -121,10 +284,9 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
     );
   }
 
-  Widget _buildTable(List<Product> products, {bool isRotated = false, GlobalKey? repaintKey}) {
+  Widget _buildTable(List<Product> products, {bool isRotated = false, GlobalKey? repaintKey, bool forSharing = false}) {
     final allHeaders = ['Image', 'Design Code', 'Name', 'Weight From', 'Weight To'];
     final allColumnWidths = [80.0, 150.0, 200.0, 120.0, 120.0];
-    final copyableColumns = {'Design Code', 'Name'};
 
     final isColumnEmpty = List.generate(allHeaders.length, (colIndex) {
       if (products.isEmpty) return false;
@@ -145,14 +307,17 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
     final activeColumnIndices = <int>[];
 
     for (int i = 0; i < allHeaders.length; i++) {
-      if (!isColumnEmpty[i]) {
+      if (!isColumnEmpty[i] && (!_hiddenFields.contains(allHeaders[i]) || headers.isEmpty)) {
         headers.add(allHeaders[i]);
         columnWidths.add(allColumnWidths[i]);
         activeColumnIndices.add(i);
       }
     }
 
-    final totalWidth = columnWidths.fold<double>(0, (a, b) => a + b);
+    final totalWidth = columnWidths.fold<double>(0, (a, b) => a + b) + (!forSharing ? 48.0 : 0.0);
+
+    final selectedIndices = _selectedProductsByTab[_currentIndex] ?? <int>{};
+    final bool allSelected = products.isNotEmpty && selectedIndices.length == products.length;
 
     Widget content = Container(
       margin: const EdgeInsets.all(16),
@@ -171,34 +336,56 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
                 borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
               ),
               child: Row(
-                children: List.generate(headers.length, (index) {
-                  final isLast = index == headers.length - 1;
-                  final cellContent = Container(
-                    width: isLast ? null : columnWidths[index],
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        right: BorderSide(
-                          color: isLast ? Colors.transparent : Colors.grey.shade300,
-                          width: 1,
-                        ),
+                children: [
+                  if (!forSharing)
+                    Container(
+                      width: 48,
+                      alignment: Alignment.center,
+                      child: Checkbox(
+                        value: allSelected,
+                        activeColor: AppColor.primary,
+                        tristate: selectedIndices.isNotEmpty && !allSelected,
+                        onChanged: (bool? val) {
+                          setState(() {
+                            if (allSelected) {
+                              _selectedProductsByTab[_currentIndex] = <int>{};
+                            } else {
+                              _selectedProductsByTab[_currentIndex] = Set<int>.from(List.generate(products.length, (i) => i));
+                            }
+                          });
+                        },
                       ),
                     ),
-                    child: Text(
-                      headers[index],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  );
-                  return isLast ? Expanded(child: cellContent) : cellContent;
-                }),
+                  ...List.generate(headers.length, (index) {
+                    final isLast = index == headers.length - 1;
+                    final cellContent = Container(
+                      width: isLast ? null : columnWidths[index],
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(
+                            color: isLast ? Colors.transparent : Colors.grey.shade300,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        headers[index],
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    );
+                    return isLast ? Expanded(child: cellContent) : cellContent;
+                  }),
+                ],
               ),
             ),
             Divider(height: 1, thickness: 1, color: Colors.grey.shade300),
-            Expanded(
-              child: products.isEmpty ? const Center(child: Text("No products available")) : ListView.builder(
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final p = products[index];
+            if (forSharing)
+              Column(
+                children: products.map((p) {
                   return Container(
                     decoration: BoxDecoration(
                       color: AppColor.surface,
@@ -211,8 +398,6 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
                         final isLast = colIndex == activeColumnIndices.length - 1;
                         final actualIndex = activeColumnIndices[colIndex];
                         Widget innerContent;
-                        String cellValForCopy = '';
-                        
                         if (actualIndex == 0) {
                           innerContent = p.imageUrl != null
                               ? ClipRRect(
@@ -227,21 +412,7 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
                           if (actualIndex == 3) textVal = p.weightFrom.toString();
                           if (actualIndex == 4) textVal = p.weightTo.toString();
                           
-                          cellValForCopy = textVal;
                           innerContent = Text(textVal, style: const TextStyle(color: AppColor.textPrimary));
-                        }
-
-                        final headerName = headers[colIndex];
-                        final isCopyable = copyableColumns.contains(headerName) && cellValForCopy.isNotEmpty && cellValForCopy.toUpperCase() != 'N/A';
-
-                        if (isCopyable) {
-                          innerContent = InkWell(
-                            onTap: () {
-                              Clipboard.setData(ClipboardData(text: cellValForCopy));
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Copied $cellValForCopy to clipboard')));
-                            },
-                            child: innerContent,
-                          );
                         }
 
                         final cellContent = Container(
@@ -262,9 +433,85 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
                       }),
                     ),
                   );
-                },
+                }).toList(),
+              )
+            else
+              Expanded(
+                child: products.isEmpty ? const Center(child: Text("No products available")) : ListView.builder(
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final p = products[index];
+                    final isChecked = selectedIndices.contains(index);
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isChecked ? AppColor.primary.withOpacity(0.04) : AppColor.surface,
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            alignment: Alignment.center,
+                            child: Checkbox(
+                              value: isChecked,
+                              activeColor: AppColor.primary,
+                              onChanged: (bool? val) {
+                                setState(() {
+                                  _selectedProductsByTab.putIfAbsent(_currentIndex, () => <int>{});
+                                  if (val == true) {
+                                    _selectedProductsByTab[_currentIndex]!.add(index);
+                                  } else {
+                                    _selectedProductsByTab[_currentIndex]!.remove(index);
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          ...List.generate(activeColumnIndices.length, (colIndex) {
+                            final isLast = colIndex == activeColumnIndices.length - 1;
+                            final actualIndex = activeColumnIndices[colIndex];
+                            Widget innerContent;
+                            if (actualIndex == 0) {
+                              innerContent = p.imageUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(p.imageUrl!, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image_not_supported)),
+                                    )
+                                  : const Icon(Icons.inventory_2_outlined);
+                            } else {
+                              String textVal = '';
+                              if (actualIndex == 1) textVal = p.designCode;
+                              if (actualIndex == 2) textVal = p.name;
+                              if (actualIndex == 3) textVal = p.weightFrom.toString();
+                              if (actualIndex == 4) textVal = p.weightTo.toString();
+                              
+                              innerContent = Text(textVal, style: const TextStyle(color: AppColor.textPrimary));
+                            }
+
+                            final cellContent = Container(
+                              width: isLast ? null : columnWidths[colIndex],
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              alignment: Alignment.centerLeft,
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(
+                                    color: isLast ? Colors.transparent : Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              child: innerContent,
+                            );
+                            return isLast ? Expanded(child: cellContent) : cellContent;
+                          }),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -355,6 +602,12 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
   List<Widget> _buildActions() {
     bool hasAnyProducts = tabData.values.any((list) => list.isNotEmpty);
     return [
+          if (hasAnyProducts)
+            IconButton(
+              icon: const Icon(Icons.view_column_outlined),
+              tooltip: 'Customize Columns',
+              onPressed: _showColumnSelectionSheet,
+            ),
           if (hasAnyProducts)
             IconButton(
               icon: Container(

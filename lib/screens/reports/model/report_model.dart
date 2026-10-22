@@ -15,27 +15,36 @@ class ReportModel {
 
   factory ReportModel.fromJson(Map<String, dynamic> json) {
     return ReportModel(
-      topPicksCraftsman: (json['top_picks_craftsman'] as List<dynamic>?)
+      topPicksCraftsman: parseList(json['top_picks_craftsman'])
               ?.map((e) => TopPicksCraftsman.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      topPicksClient: (json['top_picks_client'] as List<dynamic>?)
+      topPicksClient: parseList(json['top_picks_client'])
               ?.map((e) => TopPicksClient.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      overallDesigns: (json['overall_designs'] as List<dynamic>?)
+      overallDesigns: parseList(json['overall_designs'])
               ?.map((e) => OverallDesigns.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      craftsmanFavorites: (json['craftsman_favorites'] as List<dynamic>?)
+      craftsmanFavorites: parseList(json['craftsman_favorites'])
               ?.map((e) => Favorite.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      buyerFavorites: (json['buyer_favorites'] as List<dynamic>?)
+      buyerFavorites: parseList(json['buyer_favorites'])
               ?.map((e) => Favorite.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
+  }
+
+  static List<dynamic>? parseList(dynamic data) {
+    if (data == null) return null;
+    if (data is List) return data;
+    if (data is Map && data['data'] is List) {
+      return data['data'] as List<dynamic>;
+    }
+    return null;
   }
 }
 
@@ -168,7 +177,7 @@ class OrderGroup {
     return OrderGroup(
       count: json['count'] as int? ?? 0,
       weight: json['weight'] as num? ?? 0,
-      orders: (json['orders'] as List<dynamic>?)
+      orders: ReportModel.parseList(json['orders'])
               ?.map((e) => Order.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -229,7 +238,7 @@ class OverallDesigns {
     return OverallDesigns(
       category: json['category']?.toString() ?? '',
       count: json['count'] as int? ?? 0,
-      products: (json['products'] as List<dynamic>?)
+      products: ReportModel.parseList(json['products'])
               ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -279,7 +288,7 @@ class FavoriteCategory {
   factory FavoriteCategory.fromJson(Map<String, dynamic> json) {
     return FavoriteCategory(
       count: json['count'] as int? ?? 0,
-      products: (json['products'] as List<dynamic>?)
+      products: ReportModel.parseList(json['products'])
               ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],

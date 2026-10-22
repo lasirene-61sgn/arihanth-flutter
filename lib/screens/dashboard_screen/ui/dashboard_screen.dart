@@ -590,7 +590,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         {'type': 'kyc_pending', 'icon': Icons.verified_user_outlined, 'title': ref.watchTr('kyc_pending'), 'count': getCount(data?.businessPartnerKyc)},
       if (hasPermission('stock_order'))
         {'type': 'stock_order', 'icon': Icons.list_alt_outlined, 'title': ref.watchTr('live_stock_order'), 'count': ''},
-      // {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
+      if (hasPermission('chat'))
+        {'type': 'chat', 'icon': Icons.chat_outlined, 'title': 'Chat', 'count': ''},
       if (hasPermission('meetings'))
         {'type': 'meetings', 'icon': Icons.video_call_outlined, 'title': ref.watchTr('meetings'), 'count': ''},
       if (hasPermission('global_search'))
@@ -797,7 +798,11 @@ class _NewUpdatesOverlayWidgetState extends State<NewUpdatesOverlayWidget> {
                                                         placeholder: (context, url) => const Center(
                                                           child: CircularProgressIndicator(),
                                                         ),
-                                                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                                                        errorWidget: (context, url, error) => Image.asset(
+                                                          "assets/image/splash_screen_logo_without_bg.png",
+                                                          height: 90,
+                                                          fit: BoxFit.contain,
+                                                        ),
                                                         fit: BoxFit.contain,
                                                       ),
                                               ),
@@ -807,16 +812,21 @@ class _NewUpdatesOverlayWidgetState extends State<NewUpdatesOverlayWidget> {
                                         ] else ...[
                                           Center(
                                             child: Container(
-                                              width: 80,
-                                              height: 80,
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFFF6F0EA),
+                                              width: 90,
+                                              height: 90,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF8FAFC),
                                                 shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: const Color(0xFFE2E8F0),
+                                                  width: 1,
+                                                ),
                                               ),
-                                              child: const Center(
-                                                child: Text(
-                                                  '👋',
-                                                  style: TextStyle(fontSize: 36),
+                                              child: Center(
+                                                child: Image.asset(
+                                                  "assets/image/splash_screen_logo_without_bg.png",
+                                                  fit: BoxFit.contain,
                                                 ),
                                               ),
                                             ),
@@ -878,6 +888,24 @@ class _NewUpdatesOverlayWidgetState extends State<NewUpdatesOverlayWidget> {
                         ],
                       ),
                     ),
+                    // Top Left Watermark
+                    Positioned(
+                      top: 10,
+                      left: 12,
+                      child: Opacity(
+                        opacity: 0.85,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.asset(
+                            "assets/image/Aarihanth.png",
+                            width: 28,
+                            height: 28,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Top Right Close Button
                     Positioned(
                       top: 8,
                       right: 8,

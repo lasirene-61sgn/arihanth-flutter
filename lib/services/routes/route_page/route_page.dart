@@ -38,6 +38,7 @@ import 'package:arianth/screens/profile/ui/profile_screen.dart';
 import 'package:arianth/screens/common/order_success_screen.dart';
 import 'package:arianth/screens/my_favorites/ui/my_favorites_screen.dart';
 import 'package:arianth/screens/chat/ui/chat_list_screen.dart';
+import 'package:arianth/screens/chat/ui/chat_contacts_screen.dart';
 import 'package:arianth/screens/chat/ui/chat_detail_screen.dart';
 import 'package:arianth/screens/registration/ui/registration_screen.dart';
 import 'package:get/get.dart';
@@ -194,13 +195,17 @@ class AppPages {
     ),
     GetPage(name: AppRoutes.favorites, page: () => const MyFavoritesScreen()),
     GetPage(name: AppRoutes.chat, page: () => const ChatListScreen()),
+    GetPage(name: AppRoutes.chatContacts, page: () => const ChatContactsScreen()),
     GetPage(
       name: AppRoutes.chatDetails,
       page: () {
         final args = Get.arguments as Map<String, dynamic>;
+        final rawId = args['conversationId'];
+        final int convId = rawId is int ? rawId : (int.tryParse(rawId?.toString() ?? '') ?? 0);
         return ChatDetailScreen(
-          conversationId: args['conversationId'],
-          chatName: args['chatName'],
+          conversationId: convId,
+          chatName: args['chatName']?.toString() ?? 'Chat',
+          partnerCode: args['partnerCode']?.toString(),
         );
       },
     ),

@@ -15,6 +15,30 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:arianth/services/routes/route_name/route_name.dart';
+import 'package:arianth/screens/chat/riverpod/chat_detail_notifier.dart';
+import 'package:arianth/screens/chat/riverpod/chat_notifier.dart';
+import 'dart:convert';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse details) async {
+  if (details.actionId == 'reply_action' && details.input != null && details.input!.trim().isNotEmpty) {
+    if (details.payload != null && details.payload!.isNotEmpty) {
+      try {
+        final dynamic decoded = jsonDecode(details.payload!);
+        if (decoded is Map<String, dynamic>) {
+          final rawConvId = decoded['conversation_id'] ?? decoded['id'];
+          final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
+          if (convId != null) {
+            await NotificationService.sendReplyMessage(convId, details.input!.trim());
+          }
+        }
+      } catch (e) {
+        debugPrint("Error in notificationTapBackground reply: $e");
+      }
+    }
+  }
+}
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -73,12 +97,51 @@ class NotificationService {
 
     await _notificationsPlugin.initialize(
       settings: initializationSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification click
+      onDidReceiveNotificationResponse: (details) async {
         if (kDebugMode) {
-          print("Notification clicked: ${details.payload}");
+          print("Notification response: id=${details.id}, actionId=${details.actionId}, input=${details.input}, payload=${details.payload}");
+        }
+
+        // If the user used the direct inline Reply action
+        if (details.actionId == 'reply_action' && details.input != null && details.input!.trim().isNotEmpty) {
+          if (details.payload != null && details.payload!.isNotEmpty) {
+            try {
+              final dynamic decoded = jsonDecode(details.payload!);
+              if (decoded is Map<String, dynamic>) {
+                final rawConvId = decoded['conversation_id'] ?? decoded['id'];
+                final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
+                if (convId != null) {
+                  await sendReplyMessage(convId, details.input!.trim());
+                  return;
+                }
+              }
+            } catch (e) {
+              if (kDebugMode) print("Error handling inline reply: $e");
+            }
+          }
+        }
+
+        if (details.payload != null && details.payload!.isNotEmpty) {
+          try {
+            final dynamic decoded = jsonDecode(details.payload!);
+            if (decoded is Map<String, dynamic>) {
+              final isMeeting = decoded['action'] == 'join_meeting' ||
+                  decoded['meeting_id'] != null ||
+                  decoded['room_id'] != null ||
+                  decoded['call_type'] != null;
+
+              if (isMeeting) {
+                _navigateToMeeting(decoded);
+              } else {
+                navigateToChat(decoded);
+              }
+            }
+          } catch (_) {
+            Get.toNamed(AppRoutes.chat);
+          }
         }
       },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
     if (Platform.isIOS) {
@@ -166,12 +229,29 @@ class NotificationService {
         print("Data: ${message.data}");
       }
       
+      final isMeeting = message.data['action'] == 'join_meeting' ||
+          message.data['meeting_id'] != null ||
+          message.data['room_id'] != null ||
+          message.data['call_type'] != null;
+
       // Check for Meeting Action
-      if (message.data['action'] == 'join_meeting') {
+      if (isMeeting) {
         showCallKitIncoming(message.data);
-        // _handleMeetingNotification(message.data); // Removed for now to avoid double UI, CallKit is better
       } else {
-        _showLocalNotification(message);
+        // Chat message or other notification
+        final rawConvId = message.data['conversation_id'] ?? message.data['id'];
+        final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
+
+        // 1. If currently inside this conversation, silently refresh the messages immediately
+        if (convId != null && convId == ChatDetailNotifier.activeConversationId) {
+          ChatDetailNotifier.onActiveMessageReceived?.call();
+        } else {
+          // 2. Otherwise show system local notification popup
+          _showLocalNotification(message);
+        }
+
+        // 3. Refresh recent chats list in background so the snippet and timestamp are updated
+        ChatNotifier.onMessageReceivedCallback?.call();
       }
     });
     
@@ -181,22 +261,41 @@ class NotificationService {
         print("Notification message opened from background: ${message.notification?.title}");
       }
       
-      if (message.data['action'] == 'join_meeting') {
+      final isMeeting = message.data['action'] == 'join_meeting' ||
+          message.data['meeting_id'] != null ||
+          message.data['room_id'] != null ||
+          message.data['call_type'] != null;
+
+      if (isMeeting) {
         _navigateToMeeting(message.data);
+      } else {
+        navigateToChat(message.data);
       }
     });
   }
 
   static void _handleMeetingNotification(Map<String, dynamic> data) {
+    final callerName = data['caller_name']?.toString() ??
+        data['host_name']?.toString() ??
+        data['title']?.toString() ??
+        'Incoming Video Call';
+
     Get.dialog(
       AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.video_call, color: Colors.greenAccent),
+            const Icon(Icons.video_call, color: Colors.greenAccent, size: 28),
             const SizedBox(width: 12),
-            const Text('Meeting Reminder', style: TextStyle(color: Colors.white, fontSize: 18)),
+            Expanded(
+              child: Text(
+                callerName,
+                style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -204,34 +303,39 @@ class NotificationService {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'A meeting is about to start. Would you like to join now?',
-              style: TextStyle(color: Colors.white70),
+              'Incoming meeting call. Would you like to attend now?',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
-            if (data['channel_name'] != null) ...[
-              const SizedBox(height: 12),
+            if (data['channel_name'] != null || data['room_id'] != null) ...[
+              const SizedBox(height: 10),
               Text(
-                'Channel: ${data['channel_name']}',
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                'Meeting ID: ${data['meeting_id'] ?? data['room_id'] ?? data['channel_name']}',
+                style: const TextStyle(color: Colors.white38, fontSize: 12),
               ),
             ]
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('DISMISS', style: TextStyle(color: Colors.white38)),
-          ),
-          ElevatedButton(
             onPressed: () {
+              endAllCalls();
+              Get.back();
+            },
+            child: const Text('DECLINE', style: TextStyle(color: Colors.redAccent)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              endAllCalls();
               Get.back();
               _navigateToMeeting(data);
             },
+            icon: const Icon(Icons.call, color: Colors.black, size: 18),
+            label: const Text('ATTEND', style: TextStyle(fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.greenAccent,
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('CALL ATTEND', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -337,96 +441,117 @@ class NotificationService {
   static final Map<String, DateTime> _processedMeetings = {};
 
   static Future<void> showCallKitIncoming(Map<String, dynamic> data) async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
-    final meetingId = data['meeting_id']?.toString() ?? data['room_id']?.toString() ?? data['channel_name']?.toString() ?? '';
-    if (meetingId.isNotEmpty) {
-      final now = DateTime.now();
-      final lastProcessed = _processedMeetings[meetingId];
-      if (lastProcessed != null && now.difference(lastProcessed).inSeconds < 10) {
-        if (kDebugMode) {
-          print("Duplicate meeting notification ignored for meeting_id: $meetingId");
-        }
-        return;
-      }
-      _processedMeetings[meetingId] = now;
-      _processedMeetings.removeWhere((key, value) => now.difference(value).inSeconds > 60);
-    }
-
-    final uuid = const Uuid().v4();
-    
-    // Get logo path from assets
-    String logoPath = "";
     try {
-      final byteData = await rootBundle.load('assets/image/app_lancher_logo_img.jpeg');
-      final file = File('${(await getApplicationDocumentsDirectory()).path}/app_logo.jpeg');
-      await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-      logoPath = file.path;
-    } catch (e) {
-      if (kDebugMode) print("Error loading logo asset: $e");
-    }
-
-    final String callerName = data['caller_name']?.toString() ??
-        data['host_name']?.toString() ??
-        data['hostName']?.toString() ??
-        data['sender_name']?.toString() ??
-        data['title']?.toString() ??
-        'Meeting Invitation';
-
-    final String channelName = data['channel_name']?.toString() ?? 'Join Meeting';
-
-    // Persist caller name and meeting ID in SharedPreferences
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('caller_name_$channelName', callerName);
-      final rawMeetingId = data['meeting_id'] ?? data['id'] ?? data['room_id'];
-      if (rawMeetingId != null) {
-        final mId = int.tryParse(rawMeetingId.toString());
-        if (mId != null) {
-          await prefs.setInt('meeting_id_$channelName', mId);
+      if (!Platform.isAndroid && !Platform.isIOS) return;
+      final meetingId = data['meeting_id']?.toString() ?? data['room_id']?.toString() ?? data['channel_name']?.toString() ?? '';
+      if (meetingId.isNotEmpty) {
+        final now = DateTime.now();
+        final lastProcessed = _processedMeetings[meetingId];
+        if (lastProcessed != null && now.difference(lastProcessed).inSeconds < 10) {
+          if (kDebugMode) {
+            print("Duplicate meeting notification ignored for meeting_id: $meetingId");
+          }
+          return;
         }
+        _processedMeetings[meetingId] = now;
+        _processedMeetings.removeWhere((key, value) => now.difference(value).inSeconds > 60);
       }
-    } catch (e) {
-      if (kDebugMode) print("Error saving details to prefs: $e");
+
+      final uuid = const Uuid().v4();
+      
+      // Get logo path from assets safely
+      String logoPath = "";
+      try {
+        final byteData = await rootBundle.load('assets/image/app_lancher_logo_img.jpeg');
+        final file = File('${(await getApplicationDocumentsDirectory()).path}/app_logo.jpeg');
+        await file.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+        logoPath = file.path;
+      } catch (e) {
+        if (kDebugMode) print("Error loading logo asset: $e");
+      }
+
+      final String callerName = data['caller_name']?.toString() ??
+          data['host_name']?.toString() ??
+          data['hostName']?.toString() ??
+          data['sender_name']?.toString() ??
+          data['title']?.toString() ??
+          'Meeting Invitation';
+
+      final String channelName = data['channel_name']?.toString() ?? 'Join Meeting';
+
+      // Check if it is a video call from incoming payload
+      final bool isVideoCall = data['isVideo'] == true ||
+          data['isVideo'] == 'true' ||
+          data['is_video'] == true ||
+          data['is_video'] == 'true' ||
+          data['call_type'] == 'video' ||
+          data['type'] == 1 ||
+          data['type'] == '1';
+
+      // Persist caller name and meeting ID in SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('caller_name_$channelName', callerName);
+        final rawMeetingId = data['meeting_id'] ?? data['id'] ?? data['room_id'];
+        if (rawMeetingId != null) {
+          final mId = int.tryParse(rawMeetingId.toString());
+          if (mId != null) {
+            await prefs.setInt('meeting_id_$channelName', mId);
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print("Error saving details to prefs: $e");
+      }
+
+      final callKitParams = CallKitParams(
+        id: uuid,
+        nameCaller: callerName,
+        appName: 'Arihanth',
+        avatar: logoPath.isNotEmpty ? 'file://$logoPath' : '',
+        handle: channelName,
+        type: isVideoCall ? 1 : 0, // 0: Audio, 1: Video
+        duration: 30000,
+        textAccept: 'Attend',
+        textDecline: 'Decline',
+        missedCallNotification: const NotificationParams(
+          showNotification: true,
+          isShowCallback: true,
+          subtitle: 'Missed meeting invitation',
+          callbackText: 'Call back',
+        ),
+        extra: data,
+        android: AndroidParams(
+          isCustomNotification: true,
+          isShowLogo: true,
+          ringtonePath: 'system_ringtone_default',
+          backgroundColor: '#A57C52',
+          backgroundUrl: '',
+          actionColor: '#4CAF50',
+        ),
+        ios: const IOSParams(
+          iconName: 'AppIcon',
+          handleType: 'generic',
+          supportsVideo: true,
+          maximumCallGroups: 2,
+          maximumCallsPerCallGroup: 1,
+          audioSessionMode: 'videoChat',
+          audioSessionActive: false,
+          ringtonePath: 'system_ringtone_default',
+        ),
+      );
+
+      if (kDebugMode) {
+        print("Calling FlutterCallkitIncoming.showCallkitIncoming for $callerName (video: $isVideoCall)");
+      }
+      await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
+      if (kDebugMode) {
+        print("FlutterCallkitIncoming.showCallkitIncoming completed successfully");
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        print("Error displaying CallKit incoming call: $e\n$st");
+      }
     }
-
-    final callKitParams = CallKitParams(
-      id: uuid,
-      nameCaller: callerName,
-      appName: 'Arihanth',
-      avatar: logoPath.isNotEmpty ? 'file://$logoPath' : '',
-      handle: channelName,
-      type: 0, // 0: Audio, 1: Video
-      duration: 30000,
-      textAccept: 'Attend',
-      textDecline: 'Decline',
-      missedCallNotification: const NotificationParams(
-        showNotification: true,
-        isShowCallback: true,
-        subtitle: 'Missed meeting invitation',
-        callbackText: 'Call back',
-      ),
-      extra: data,
-      android: AndroidParams(
-        isCustomNotification: true,
-        isShowLogo: true,
-        ringtonePath: 'system_ringtone_default',
-        backgroundColor: '#A57C52',
-        backgroundUrl: '',
-        actionColor: '#4CAF50',
-      ),
-      ios: const IOSParams(
-        iconName: 'AppIcon',
-        handleType: 'generic',
-        supportsVideo: true,
-        maximumCallGroups: 2,
-        maximumCallsPerCallGroup: 1,
-        audioSessionMode: 'default',
-        audioSessionActive: true,
-        ringtonePath: 'system_ringtone_default',
-      ),
-    );
-
-    await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
   }
 
   static void listenerCallKit() {
@@ -479,17 +604,111 @@ class NotificationService {
     }
   }
 
+  static void navigateToChat(Map<String, dynamic> data) {
+    try {
+      final rawConvId = data['conversation_id'] ?? data['id'];
+      final convId = rawConvId is int
+          ? rawConvId
+          : int.tryParse(rawConvId?.toString() ?? '');
+
+      final partnerName = data['sender_name']?.toString() ??
+          data['partner_name']?.toString() ??
+          data['caller_name']?.toString() ??
+          data['name']?.toString() ??
+          data['title']?.toString() ??
+          'Chat';
+
+      if (convId != null && convId > 0) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.toNamed(
+            AppRoutes.chatDetails,
+            arguments: {
+              'conversationId': convId,
+              'chatName': partnerName,
+            },
+          );
+        });
+      } else {
+        // Fallback to chat list
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.toNamed(AppRoutes.chat);
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error navigating to chat: $e");
+      }
+    }
+  }
+
+  static Future<void> sendReplyMessage(int conversationId, String messageText) async {
+    try {
+      final payload = {
+        "body": messageText,
+        "message": messageText,
+        "content": messageText,
+      };
+
+      // 1. First attempt the dedicated reply endpoint: /chat/conversations/{id}/reply
+      dynamic response = await ApiClient().post(
+        endpoint: "api/common/chat/conversations/$conversationId/reply",
+        body: payload,
+      );
+
+      // If reply endpoint is not found (404) or failed, fallback to messages endpoint
+      if (response == null || (response is Map && (response["status"] == 0 || response["success"] == false))) {
+        if (kDebugMode) {
+          print("Attempting fallback to standard conversation message endpoint...");
+        }
+        response = await ApiClient().post(
+          endpoint: "api/common/chat/conversations/$conversationId/messages",
+          body: {
+            "body": messageText,
+          },
+        );
+      }
+
+      if (kDebugMode) {
+        print("Reply sent via notification response: $response");
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error sending reply message from notification: $e");
+      }
+    }
+  }
+
   static Future<void> _showLocalNotification(RemoteMessage message) async {
     if (Platform.isIOS) return;
 
     final notification = message.notification;
-    final android = message.notification?.android;
+    final String? title = notification?.title ??
+        message.data['sender_name']?.toString() ??
+        message.data['title']?.toString() ??
+        message.data['sender_code']?.toString();
 
-    if (notification != null && !kIsWeb) {
+    final String? body = notification?.body ??
+        message.data['message']?.toString() ??
+        message.data['body']?.toString() ??
+        message.data['content']?.toString() ??
+        message.data['text']?.toString();
+
+    if ((title != null || body != null) && !kIsWeb) {
+      String payloadString;
+      try {
+        payloadString = jsonEncode(message.data);
+      } catch (_) {
+        payloadString = message.data.toString();
+      }
+
+      final notificationId = message.messageId.hashCode != 0
+          ? message.messageId.hashCode
+          : (notification?.hashCode ?? DateTime.now().millisecondsSinceEpoch.remainder(100000));
+
       await _notificationsPlugin.show(
-        id: notification.hashCode,
-        title: notification.title,
-        body: notification.body,
+        id: notificationId,
+        title: title ?? 'New Message',
+        body: body ?? '',
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
@@ -497,10 +716,22 @@ class NotificationService {
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
+            actions: <AndroidNotificationAction>[
+              AndroidNotificationAction(
+                'reply_action',
+                'Reply',
+                inputs: <AndroidNotificationActionInput>[
+                  AndroidNotificationActionInput(
+                    label: 'Type a message...',
+                  ),
+                ],
+                showsUserInterface: false,
+              ),
+            ],
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        payload: message.data.toString(),
+        payload: payloadString,
       );
     }
   }

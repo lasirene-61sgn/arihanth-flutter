@@ -49,7 +49,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
                 bottom: false,
                 child: InkWell(
                   onTap: () {
-                    Get.back(); // close drawer
+                    if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+                      Navigator.of(context).pop();
+                    }
                     Get.toNamed(AppRoutes.profile);
                   },
                   child: _buildProfileHeader(displayName, email),
@@ -152,7 +154,10 @@ class _SidebarState extends ConsumerState<Sidebar> {
       if (permissions.contains('favorites')) {
         menu.add(_navItem(Icons.favorite_outline, ref.watchTr('my_favorites'), 17, selectedIndex));
       }
-      // menu.add(_navItem(Icons.chat_outlined, "Chat", 19, selectedIndex));
+    }
+
+    if (hasPermission('chat')) {
+      menu.add(_navItem(Icons.chat_outlined, "Chat", 19, selectedIndex));
     }
     
     if (hasPermission('meetings')) {
@@ -320,7 +325,9 @@ class _SidebarState extends ConsumerState<Sidebar> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         onTap: () {
           ref.read(menuIndexProvider.notifier).state = index;
-          Get.back();
+          if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+            Navigator.of(context).pop();
+          }
         },
         leading: Icon(
           icon,

@@ -141,7 +141,7 @@ class CraftsmanStaffListNotifier extends StateNotifier<CraftsmanStaffListState> 
       }
 
 
-
+   print("$response $map");
       // 2. Handle standard success format (status: 1)
       if (response["status"] == 1) {
         await fetchCraftsmanStaff(); // Refresh the list

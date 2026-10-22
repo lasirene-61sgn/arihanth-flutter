@@ -46,14 +46,20 @@ class LoginNotifier extends StateNotifier<LoginState> {
   Future<void> login(String username, String password, BuildContext context) async {
     state = state.copyWith(isLoading: true, error: null);
    final String token = SharedPreferencesHelper().getString("DToken") ?? '';
+   final String voipToken = SharedPreferencesHelper().getString("VoIPToken") ?? '';
     try {
+      final Map<String, dynamic> body = {
+        "email": username,
+        "password": password,
+        "fcm_token": token,
+      };
+      if (voipToken.isNotEmpty) {
+        body["voip_token"] = voipToken;
+      }
+
       final response = await ApiClient().headerLessPost(
         endpoint: "api/login",
-        body: {
-          "email": username,
-          "password": password,
-          "fcm_token":token,
-        },
+        body: body,
       );
 
       print("Login Response: $response");

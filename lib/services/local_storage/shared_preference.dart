@@ -36,7 +36,13 @@ class SharedPreferencesHelper {
   }
 
   int? getInt(String key) {
-    return _prefs?.getInt(key);
+    final value = _prefs?.get(key);
+    if (value is int) {
+      return value;
+    } else if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Future<void> remove(String key) async {

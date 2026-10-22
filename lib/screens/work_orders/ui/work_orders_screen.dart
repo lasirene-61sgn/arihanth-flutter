@@ -13,6 +13,7 @@ import 'package:arianth/screens/work_orders/ui/widgets/craftsman_bulk_complete_d
 import 'package:arianth/screens/work_orders/ui/widgets/status_card.dart';
 import 'package:arianth/screens/work_orders/ui/widgets/work_order_card.dart';
 import 'package:arianth/screens/work_orders/ui/widgets/work_orders_table.dart';
+import 'package:arianth/screens/work_orders/ui/widgets/work_order_share_bottom_sheet.dart';
 import 'package:arianth/services/widget/pagination_controls.dart';
 import 'package:arianth/services/widget/universal_filter_dialog.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
@@ -461,7 +462,10 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
         return;
       }
 
-      await ShareCardService.shareMultiple(context, shareItems);
+      await WorkOrderShareOptionsBottomSheet.show(
+        context: context,
+        shareItems: shareItems,
+      );
     } catch (e) {
       debugPrint('Bulk share error: $e');
       Toaster.showError("Failed to share selected items");
@@ -667,7 +671,10 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
                         );
                       }).toList();
 
-                      await ShareCardService.shareMultiple(context, shareItems);
+                      await WorkOrderShareOptionsBottomSheet.show(
+                        context: context,
+                        shareItems: shareItems,
+                      );
                     },
                   ),
                 );

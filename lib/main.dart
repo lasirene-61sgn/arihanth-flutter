@@ -10,6 +10,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:arianth/services/localization/app_localization.dart';
@@ -24,14 +25,25 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  if (kDebugMode) {
-    print("Handling background message: ${message.messageId}");
-    print("Data: ${message.data}");
-  }
+  print("==================================================");
+  print("🔥 [BACKGROUND FCM] Message received: ${message.messageId}");
+  print("🔥 [BACKGROUND FCM] Notification title: ${message.notification?.title}");
+  print("🔥 [BACKGROUND FCM] Data payload: ${message.data}");
 
-  if (message.data['action'] == 'join_meeting') {
+  final isMeeting = message.data['action'] == 'join_meeting' ||
+      message.data['meeting_id'] != null ||
+      message.data['room_id'] != null ||
+      message.data['call_type'] != null;
+
+  print("🔥 [BACKGROUND FCM] Is Meeting Push? -> $isMeeting");
+  if (isMeeting) {
+    print("📞 [BACKGROUND FCM] Triggering showCallKitIncoming for meeting...");
     await NotificationService.showCallKitIncoming(message.data);
+    print("📞 [BACKGROUND FCM] CallKit incoming call triggered successfully!");
+  } else {
+    print("ℹ️ [BACKGROUND FCM] Not a meeting push, showing normal notification...");
   }
+  print("==================================================");
 }
 
 Future<void> main() async {
@@ -54,6 +66,19 @@ Future<void> main() async {
       print(apnsToken);
       print("------------------------------");
     }
+
+    // Extra VoIP token for meeting calls in background/closed state
+    try {
+      String? voipToken = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
+      if (voipToken != null && voipToken.isNotEmpty) {
+        print("--------- VOIP TOKEN (PushKit for Meetings) ---------");
+        print(voipToken);
+        print("-----------------------------------------------------");
+        SharedPreferencesHelper().setString("VoIPToken", voipToken);
+      }
+    } catch (e) {
+      print("Error getting VoIP token: $e");
+    }
   }
 
   String? deviceToken = await NotificationService.getToken();
@@ -69,8 +94,17 @@ Future<void> main() async {
 
   RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
-    print("App launched from terminated state via notification");
-    // You can handle redirection logic here or inside NotificationService
+    print("App launched from terminated state via notification: ${initialMessage.data}");
+    final isMeeting = initialMessage.data['action'] == 'join_meeting' ||
+        initialMessage.data['meeting_id'] != null ||
+        initialMessage.data['room_id'] != null ||
+        initialMessage.data['call_type'] != null;
+
+    if (!isMeeting) {
+      Future.delayed(const Duration(seconds: 1), () {
+        NotificationService.navigateToChat(initialMessage.data);
+      });
+    }
   }
 
   final String? token = SharedPreferencesHelper().getString("token");

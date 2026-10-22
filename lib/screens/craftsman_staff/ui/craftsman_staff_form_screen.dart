@@ -109,6 +109,7 @@ class _CraftsmanStaffFormScreenState extends ConsumerState<CraftsmanStaffFormScr
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedCraftsmanId == null) {
+      print(_selectedCraftsmanCode);
       Toaster.showError(ref.read(localeProvider.notifier).translate("Please select Craftsman"));
       return;
     }

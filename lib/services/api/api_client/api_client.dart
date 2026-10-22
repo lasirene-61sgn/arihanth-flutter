@@ -152,6 +152,22 @@ class ApiClient {
     }
   }
 
+  // ------------------ POST MULTIPART ------------------
+  Future<dynamic> postMultipart({
+    String? endpoint,
+    required FormData formData,
+  }) async {
+    try {
+      final response = await _dio.post(
+        endpoint ?? '',
+        data: formData,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return _handleDioError(e);
+    }
+  }
+
   // ------------------ PUT (JSON) ------------------
   Future<dynamic> put({
     String? endpoint,

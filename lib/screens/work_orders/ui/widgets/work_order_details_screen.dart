@@ -1,6 +1,7 @@
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
+import 'package:arianth/screens/work_orders/ui/widgets/work_order_share_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -333,7 +334,10 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
               );
             }).toList();
 
-            await ShareCardService.shareMultiple(context, shareItems);
+            await WorkOrderShareOptionsBottomSheet.show(
+              context: context,
+              shareItems: shareItems,
+            );
           } finally {
             if (mounted) setState(() => _isSharing = false);
           }

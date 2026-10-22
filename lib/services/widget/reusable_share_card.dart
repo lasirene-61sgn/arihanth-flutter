@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:internet_file/internet_file.dart';
 import 'package:arianth/services/pdf/pdf_redaction_service.dart';
+import 'package:arianth/services/widget/universal_share_bottom_sheet.dart';
 
 class ShareCardItem {
   final String? imageUrl;
@@ -120,7 +121,40 @@ extension ShareCardItemExtension on ShareCardItem {
 class ShareCardService {
   ShareCardService._();
 
+  /// Default share entry point for all screens.
+  /// Shows the bottom sheet with:
+  ///   - Share via WhatsApp
+  ///   - Share to App Chat
   static Future<void> share(
+    BuildContext context,
+    ShareCardItem item, {
+    String title = 'Share Item',
+  }) async {
+    await UniversalShareOptionsBottomSheet.show(
+      context: context,
+      shareItems: [item],
+      title: title,
+    );
+  }
+
+  /// Default bulk share entry point for all screens.
+  /// Shows the bottom sheet with:
+  ///   - Share via WhatsApp
+  ///   - Share to App Chat
+  static Future<void> shareMultiple(
+    BuildContext context,
+    List<ShareCardItem> items, {
+    String title = 'Share Items',
+  }) async {
+    await UniversalShareOptionsBottomSheet.show(
+      context: context,
+      shareItems: items,
+      title: title,
+    );
+  }
+
+  /// Direct WhatsApp / system share sheet for a single item (used when user selects WhatsApp).
+  static Future<void> shareDirect(
     BuildContext context,
     ShareCardItem item,
   ) async {
@@ -157,7 +191,6 @@ class ShareCardService {
       Overlay.of(context).insert(entry);
 
       // 3. Render the widget to an image
-      // Increased delay to allow PDFs to load and redact
       await Future.delayed(const Duration(milliseconds: 2000));
 
       // 4. Capture PNG (2× pixel ratio → 600×1000 output)
@@ -176,29 +209,10 @@ class ShareCardService {
           '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.png';
       await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
 
-      // 6. Build share text
-      final parts = <String>[];
-      if (item.title?.isNotEmpty == true) parts.add('📦 *${item.title}*');
-      if (item.bpCode?.isNotEmpty == true) parts.add('BP Code: ${item.bpCode}');
-      if (item.productCode?.isNotEmpty == true) parts.add('PO#: ${item.productCode}');
-      if (item.category?.isNotEmpty == true) parts.add('Category: ${item.category}');
-      if (item.refNo?.isNotEmpty == true) parts.add('Ref No: ${item.refNo}');
-      if (item.quantity?.isNotEmpty == true) parts.add('Qty: ${item.quantity}');
-      if (item.type?.isNotEmpty == true) parts.add('Type: ${item.type}');
-      if (item.weight?.isNotEmpty == true) parts.add('Weight: ${item.weight}');
-      if (item.size?.isNotEmpty == true) parts.add('Size: ${item.size}');
-      if (item.dueDate?.isNotEmpty == true) parts.add('Due: ${item.dueDate}');
-      if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
-      if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
-      if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
-      if (item.screwName?.isNotEmpty == true) parts.add('Screw: ${item.screwName}');
-      if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
-
-      // 7. Open system share sheet (user can pick WhatsApp, email, etc.)
+      // 6. Open system share sheet
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(filePath, mimeType: 'image/png')],
-          // text: parts.join('\n'),
           subject: item.title ?? 'Share',
         ),
       );
@@ -209,7 +223,8 @@ class ShareCardService {
     }
   }
 
-  static Future<void> shareMultiple(
+  /// Direct WhatsApp / system share sheet for multiple items.
+  static Future<void> shareMultipleDirect(
     BuildContext context,
     List<ShareCardItem> items,
   ) async {
@@ -356,6 +371,94 @@ class ShareCardService {
     } catch (e) {
       debugPrint('Error rendering PDF to image: $e');
       return null;
+    }
+  }
+
+  static Future<List<XFile>> captureCardFiles(
+    BuildContext context,
+    List<ShareCardItem> items,
+  ) async {
+    if (items.isEmpty) return [];
+    OverlayEntry? entry;
+    try {
+      // 0. Pre-render PDFs
+      List<ShareCardItem> updatedItems = [];
+      for (var item in items) {
+        if (item.isPdf && item.imageUrl != null && item.imageBytes == null) {
+          final pdfBytes = await _renderPdfToImage(item.imageUrl!, item.enableRedaction);
+          if (pdfBytes != null) {
+            updatedItems.add(item.copyWith(imageBytes: pdfBytes));
+          } else {
+            updatedItems.add(item);
+          }
+        } else {
+          updatedItems.add(item);
+        }
+      }
+      items = updatedItems;
+
+      // 1. Pre-cache image
+      for (var item in items) {
+        if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf && item.imageBytes == null) {
+          try {
+             await precacheImage(NetworkImage(item.imageUrl!), context);
+          } catch (e) {
+             debugPrint('Failed to precache image: ${item.imageUrl}');
+          }
+        }
+      }
+
+      // 2. Insert off-screen share card widget
+      final List<GlobalKey> keys = List.generate(items.length, (i) => GlobalKey());
+      entry = OverlayEntry(
+        builder: (_) => Positioned(
+          left: -9999,
+          top: -9999,
+          child: Material(
+            color: Colors.transparent,
+            child: SingleChildScrollView(
+              child: Column(
+                children: List.generate(items.length, (i) {
+                  return RepaintBoundary(
+                    key: keys[i],
+                    child: _ShareCardWidget(item: items[i]),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      );
+      Overlay.of(context).insert(entry);
+
+      // 3. Render the widget to an image
+      await Future.delayed(const Duration(milliseconds: 2000));
+
+      final tempDir = await getTemporaryDirectory();
+      List<XFile> xFiles = [];
+
+      for (int i = 0; i < items.length; i++) {
+        final boundary = keys[i].currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary == null) continue;
+
+        try {
+          final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+          final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+            await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
+            xFiles.add(XFile(filePath, mimeType: 'image/png'));
+          }
+        } catch (e) {
+          debugPrint('Error capturing card file $i: $e');
+        }
+      }
+      return xFiles;
+    } catch (e) {
+      debugPrint('ShareCardService captureCardFiles error: $e');
+      return [];
+    } finally {
+      entry?.remove();
     }
   }
 }
