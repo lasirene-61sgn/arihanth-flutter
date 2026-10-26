@@ -122,4 +122,5 @@ final Map<String, String> en = {
   'live_stock_order': 'Live Stock Order',
   'meetings': 'Meetings',
   'stock_order': 'Live Stock Order',
+  'chat': 'Chat',
 };

@@ -100,8 +100,18 @@ class _CraftManCreationFormState extends ConsumerState<CraftManCreationForm> wit
   };
 
   // permission Tap
-  final List<String> _allPermissions =[
-    "product","design", "catalogue","work_order", "finance","purchase_order", "stock_order", "meetings", "favorites"];
+  final List<String> _allPermissions = [
+    "product",
+    "design",
+    "catalogue",
+    "work_order",
+    "finance",
+    "purchase_order",
+    "stock_order",
+    "meetings",
+    "favorites",
+    "chat"
+  ];
   List<String> _selectedPermissions = [];
 
   // --- TAB 6: WORKER CONTROLLERS ---
@@ -245,6 +255,8 @@ class _CraftManCreationFormState extends ConsumerState<CraftManCreationForm> wit
   Future<void> _loadBuyerData(int id) async {
     // Fetch details from notifier
     await ref.read(craftsmanListProvider.notifier).fetchCraftsmanDetail(id);
+
+    if (!mounted) return;
 
     // Get the loaded buyer from state
     final craftsman = ref.read(craftsmanListProvider).selectedCraftsman;

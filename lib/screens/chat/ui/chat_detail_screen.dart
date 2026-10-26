@@ -24,6 +24,12 @@ import 'package:pusher_channels_flutter/pusher_channels_flutter.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
+import 'package:get/get.dart';
+import 'package:arianth/services/routes/route_name/route_name.dart';
+import 'package:arianth/screens/main_screen/main_layout.dart';
+import 'package:arianth/screens/main_screen/menu_notifier.dart';
+import 'package:arianth/screens/work_orders/riverpod/work_orders_notifier.dart';
+import 'package:arianth/screens/purchase_order/riverpod/purchase_orders_notifier.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   final int conversationId;
@@ -654,7 +660,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   Future<void> _pickFromCamera() async {
     try {
       final picker = ImagePicker();
-      final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      // Send 100% raw uncompressed camera resolution for maximum jewelry clarity
+      final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 100);
       if (photo != null) {
         _sendPickedFile(photo.path, photo.name);
       }
@@ -666,7 +673,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   Future<void> _pickFromGallery() async {
     try {
       final picker = ImagePicker();
-      final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      // Send 100% raw uncompressed gallery image for maximum jewelry clarity
+      final photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
       if (photo != null) {
         _sendPickedFile(photo.path, photo.name);
       }
@@ -1054,12 +1062,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     const SizedBox(height: 6),
                   ],
 
-                  // Location Card or Message text / caption
+                  // Location Card, Order Action Card, or Message text / caption
                   if (message.content != null &&
                       message.content!.isNotEmpty &&
                       (!hasAttachment || message.content != _getFileName(message.attachmentUrl!))) ...[
                     if (_isLocationMessage(message.content!))
                       _buildLocationBubbleCard(message.content!, isMe: isMe)
+                    else if (_extractOrderInfo(message.content!) != null)
+                      _buildOrderActionBubbleCard(message.content!, isMe: isMe)
                     else if (_extractUrlsFromText(message.content!).isNotEmpty && !hasAttachment)
                       _buildTextWithLinks(message.content!, isMe: isMe)
                     else
@@ -1175,36 +1185,255 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   void _openFullScreenImage(String url) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.92),
-      builder: (ctx) => Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.download_rounded, color: Colors.white),
-              onPressed: () => _openFileUrl(url),
-            ),
-          ],
+      barrierColor: Colors.black.withOpacity(0.95),
+      builder: (ctx) => _FullScreenImageViewer(
+        url: url,
+        onDownload: () => _openFileUrl(url),
+      ),
+    );
+  }
+
+  Map<String, String>? _extractOrderInfo(String text) {
+    // Check for Work Order pattern
+    final woMatch = RegExp(r'(?:Work Order|WO#?):?\s*([A-Za-z0-9_-]+)', caseSensitive: false).firstMatch(text);
+    if (woMatch != null) {
+      final code = woMatch.group(1)!.trim();
+      if (code.isNotEmpty) {
+        return {'type': 'WO', 'number': code};
+      }
+    }
+
+    // Check for Stock Order pattern
+    final stockMatch = RegExp(r'(?:Live Stock Order|Stock Order|Stock#?):?\s*([A-Za-z0-9_-]+)', caseSensitive: false).firstMatch(text);
+    if (stockMatch != null) {
+      final code = stockMatch.group(1)!.trim();
+      if (code.isNotEmpty) {
+        return {'type': 'STOCK', 'number': code};
+      }
+    }
+
+    // Check for Purchase Order pattern
+    final poMatch = RegExp(r'(?:Purchase Order|PO#?):?\s*([A-Za-z0-9_-]+)', caseSensitive: false).firstMatch(text);
+    if (poMatch != null) {
+      final code = poMatch.group(1)!.trim();
+      if (code.isNotEmpty) {
+        return {'type': 'PO', 'number': code};
+      }
+    }
+
+    return null;
+  }
+
+  Widget _buildOrderActionBubbleCard(String text, {required bool isMe}) {
+    final orderInfo = _extractOrderInfo(text);
+    final orderType = orderInfo?['type'] ?? '';
+    final isWO = orderType == 'WO';
+    final isStock = orderType == 'STOCK';
+    final orderNumber = orderInfo?['number'] ?? '';
+
+    final String titleText = isWO
+        ? 'Work Order'
+        : (isStock ? 'Stock Order' : 'Purchase Order');
+    final IconData iconData = isWO
+        ? Icons.assignment_rounded
+        : (isStock ? Icons.inventory_2_rounded : Icons.shopping_bag_rounded);
+    final Color badgeColor = isWO
+        ? AppColor.primary
+        : (isStock ? Colors.teal.shade700 : Colors.amber.shade700);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isMe ? Colors.white.withOpacity(0.16) : Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMe ? Colors.white24 : Colors.amber.shade300,
+          width: 1,
         ),
-        body: Center(
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: url.startsWith('http')
-                ? CachedNetworkImage(
-                    imageUrl: url,
-                    fit: BoxFit.contain,
-                  )
-                : Image.file(
-                    File(url),
-                    fit: BoxFit.contain,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  iconData,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isMe ? Colors.white : Colors.black87,
                   ),
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              color: isMe ? Colors.white : Colors.black87,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isMe ? Colors.white : AppColor.primary,
+                foregroundColor: isMe ? AppColor.primary : Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+              label: Text(
+                'View $orderNumber',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              onPressed: () async {
+                if (isWO) {
+                  String targetStatus = 'New';
+                  String tabParam = 'new-orders';
+                  try {
+                    final res = await ApiClient().get(
+                      endpoint: 'api/common/work-orders?tab=all-orders&search=${Uri.encodeComponent(orderNumber)}',
+                    );
+                    if (res != null && res['status'] == 1 && res['data'] != null) {
+                      final rawData = res['data']['data'];
+                      final List<dynamic> list = rawData is Map ? (rawData['data'] ?? []) : [];
+                      if (list.isNotEmpty) {
+                        final found = list.firstWhere(
+                          (o) => o['work_order_number']?.toString().toLowerCase() == orderNumber.toLowerCase(),
+                          orElse: () => list.first,
+                        );
+                        final rawStatus = found['status']?.toString();
+                        if (rawStatus != null && rawStatus.isNotEmpty) {
+                          final statusLower = rawStatus.toLowerCase();
+                          if (statusLower == 'allocated') {
+                            targetStatus = 'Allocated';
+                            tabParam = 'allocated-orders';
+                          } else if (statusLower == 'in process' || statusLower == 'in_process') {
+                            targetStatus = 'In Process';
+                            tabParam = 'in-process-orders';
+                          } else if (statusLower == 'for approval' || statusLower == 'for_approval') {
+                            targetStatus = 'For Approval';
+                            tabParam = 'for-approval-orders';
+                          } else if (statusLower == 'completed') {
+                            targetStatus = 'Completed';
+                            tabParam = 'completed-orders';
+                          } else if (statusLower == 'rejected') {
+                            targetStatus = 'Rejected';
+                            tabParam = 'rejected-orders';
+                          } else if (statusLower == 'overdue') {
+                            targetStatus = 'Overdue';
+                            tabParam = 'overdue-orders';
+                          } else {
+                            targetStatus = 'New';
+                            tabParam = 'new-orders';
+                          }
+                        }
+                      }
+                    }
+                  } catch (_) {}
+
+                  ref.read(workOrderTargetProvider.notifier).state = OrderTargetState(
+                    orderNumber: orderNumber,
+                    status: targetStatus,
+                    timestamp: DateTime.now().millisecondsSinceEpoch,
+                  );
+
+                  ref.read(workOrderListProvider.notifier).fetchWorkOrders(
+                    urls: 'api/common/work-orders?tab=$tabParam&search=${Uri.encodeComponent(orderNumber)}',
+                  );
+
+                  ref.read(menuIndexProvider.notifier).state = 7;
+                  Get.until((route) => route.settings.name == AppRoutes.home || Get.currentRoute == AppRoutes.home || route.isFirst);
+                } else if (isStock) {
+                  ref.read(menuIndexProvider.notifier).state = 18;
+                  Get.until((route) => route.settings.name == AppRoutes.home || Get.currentRoute == AppRoutes.home || route.isFirst);
+                } else {
+                  String targetStatus = 'New';
+                  String tabParam = 'created';
+                  try {
+                    final res = await ApiClient().get(
+                      endpoint: 'api/common/purchase-orders?tab=all&search=${Uri.encodeComponent(orderNumber)}',
+                    );
+                    if (res != null && res['status'] == 1 && res['data'] != null) {
+                      final rawData = res['data']['data'];
+                      final List<dynamic> list = rawData is Map ? (rawData['data'] ?? []) : [];
+                      if (list.isNotEmpty) {
+                        final found = list.firstWhere(
+                          (o) => (o['purchase_order_code'] ?? o['order_number'] ?? o['orderNumber'])
+                              ?.toString()
+                              .toLowerCase() == orderNumber.toLowerCase(),
+                          orElse: () => list.first,
+                        );
+                        final rawStatus = found['status']?.toString();
+                        if (rawStatus != null && rawStatus.isNotEmpty) {
+                          final statusLower = rawStatus.toLowerCase();
+                          if (statusLower == 'allocated') {
+                            targetStatus = 'Allocated';
+                            tabParam = 'allocated';
+                          } else if (statusLower == 'in process' || statusLower == 'in_process') {
+                            targetStatus = 'In Process';
+                            tabParam = 'in_process';
+                          } else if (statusLower == 'for approval' || statusLower == 'for_approval') {
+                            targetStatus = 'For Approval';
+                            tabParam = 'for_approval';
+                          } else if (statusLower == 'completed') {
+                            targetStatus = 'Completed';
+                            tabParam = 'completed';
+                          } else if (statusLower == 'rejected') {
+                            targetStatus = 'Rejected';
+                            tabParam = 'rejected';
+                          } else if (statusLower == 'overdue') {
+                            targetStatus = 'Overdue';
+                            tabParam = 'overdue';
+                          } else {
+                            targetStatus = 'New';
+                            tabParam = 'created';
+                          }
+                        }
+                      }
+                    }
+                  } catch (_) {}
+
+                  ref.read(purchaseOrderTargetProvider.notifier).state = OrderTargetState(
+                    orderNumber: orderNumber,
+                    status: targetStatus,
+                    timestamp: DateTime.now().millisecondsSinceEpoch,
+                  );
+
+                  ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(
+                    customUrl: 'api/common/purchase-orders?tab=$tabParam&search=${Uri.encodeComponent(orderNumber)}',
+                  );
+
+                  ref.read(menuIndexProvider.notifier).state = 8;
+                  Get.until((route) => route.settings.name == AppRoutes.home || Get.currentRoute == AppRoutes.home || route.isFirst);
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2670,3 +2899,224 @@ class _FullScreenPdfViewerDialogState extends State<_FullScreenPdfViewerDialog> 
     );
   }
 }
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final String url;
+  final VoidCallback onDownload;
+
+  const _FullScreenImageViewer({
+    required this.url,
+    required this.onDownload,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  final TransformationController _transformationController =
+      TransformationController();
+  TapDownDetails? _doubleTapDetails;
+  double _currentScale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController.addListener(_onTransformationChanged);
+  }
+
+  @override
+  void dispose() {
+    _transformationController.removeListener(_onTransformationChanged);
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _onTransformationChanged() {
+    final scale = _transformationController.value.getMaxScaleOnAxis();
+    if ((scale - _currentScale).abs() > 0.05) {
+      if (mounted) {
+        setState(() {
+          _currentScale = scale;
+        });
+      }
+    }
+  }
+
+  void _zoomIn() {
+    final matrix = _transformationController.value.clone();
+    final newScale = (_currentScale * 1.3).clamp(0.5, 3.5);
+    final factor = newScale / _currentScale;
+    matrix.scale(factor, factor, 1.0);
+    _transformationController.value = matrix;
+    setState(() {
+      _currentScale = newScale;
+    });
+  }
+
+  void _zoomOut() {
+    final matrix = _transformationController.value.clone();
+    final newScale = (_currentScale / 1.3).clamp(0.5, 3.5);
+    final factor = newScale / _currentScale;
+    matrix.scale(factor, factor, 1.0);
+    _transformationController.value = matrix;
+    setState(() {
+      _currentScale = newScale;
+    });
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+    setState(() {
+      _currentScale = 1.0;
+    });
+  }
+
+  void _handleDoubleTap() {
+    if (_transformationController.value != Matrix4.identity()) {
+      _resetZoom();
+    } else {
+      final position = _doubleTapDetails?.localPosition ?? Offset.zero;
+      final x = -position.dx * 1.2;
+      final y = -position.dy * 1.2;
+      final zoomed = Matrix4.identity()
+        ..translate(x, y, 0.0)
+        ..scale(2.2, 2.2, 1.0);
+      _transformationController.value = zoomed;
+      setState(() {
+        _currentScale = 2.2;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNetwork = widget.url.startsWith('http');
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.4),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          '${(_currentScale * 100).toInt()}%',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            tooltip: 'Reset zoom',
+            onPressed: _resetZoom,
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_rounded, color: Colors.white),
+            tooltip: 'Download / Share',
+            onPressed: widget.onDownload,
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          GestureDetector(
+            onDoubleTapDown: (details) => _doubleTapDetails = details,
+            onDoubleTap: _handleDoubleTap,
+            child: Center(
+              child: InteractiveViewer(
+                transformationController: _transformationController,
+                panEnabled: true,
+                boundaryMargin: const EdgeInsets.all(80),
+                minScale: 0.5,
+                maxScale: 3.5,
+                child: isNetwork
+                    ? CachedNetworkImage(
+                        imageUrl: widget.url,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                        errorWidget: (context, url, error) => const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.broken_image,
+                                  color: Colors.white60, size: 48),
+                              SizedBox(height: 8),
+                              Text(
+                                'Failed to load image',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Image.file(
+                        File(widget.url),
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                      ),
+              ),
+            ),
+          ),
+          // Zoom In / Zoom Out Floating Controls
+          Positioned(
+            right: 20,
+            bottom: 30,
+            child: SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.zoom_in, color: Colors.white, size: 26),
+                      tooltip: 'Zoom in',
+                      onPressed: _zoomIn,
+                    ),
+                    Container(
+                      width: 24,
+                      height: 1,
+                      color: Colors.white24,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.zoom_out, color: Colors.white, size: 26),
+                      tooltip: 'Zoom out',
+                      onPressed: _zoomOut,
+                    ),
+                    Container(
+                      width: 24,
+                      height: 1,
+                      color: Colors.white24,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.fit_screen_rounded,
+                          color: Colors.white, size: 22),
+                      tooltip: 'Reset',
+                      onPressed: _resetZoom,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

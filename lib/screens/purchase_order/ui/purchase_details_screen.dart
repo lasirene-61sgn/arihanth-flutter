@@ -283,7 +283,7 @@ class _PurchaseOrderDetailScreenState
                                                         await ShareCardService.share(
                                                           context,
                                                           ShareCardItem(
-                                                            imageUrl: item.image,
+                                                            imageUrl: item.image ?? item.imageUrl,
                                                             title:
                                                                 item.productCategory ??
                                                                 "Purchase Order",

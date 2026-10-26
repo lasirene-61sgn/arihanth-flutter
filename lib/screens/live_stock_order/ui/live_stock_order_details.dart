@@ -794,7 +794,7 @@ class _LiveStockOrderDetailScreenState
           imageUrl: order.imageUrl,
           title: order.designCode ?? 'Stock Order',
           bpCode: restricted ? null : order.buyer?.bpCode,
-          productCode: order.orderNumber,
+          stockOrderNumber: order.orderNumber,
           category: null,
           size: order.hasSize ? order.size : null,
           narration: order.notes,

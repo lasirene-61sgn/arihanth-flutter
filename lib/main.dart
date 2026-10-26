@@ -25,23 +25,28 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  print("==================================================");
+  print("=================== FCM BACKGROUND PAYLOAD ===================");
   print("🔥 [BACKGROUND FCM] Message received: ${message.messageId}");
-  print("🔥 [BACKGROUND FCM] Notification title: ${message.notification?.title}");
-  print("🔥 [BACKGROUND FCM] Data payload: ${message.data}");
+  print("🔥 [BACKGROUND FCM] Title: ${message.notification?.title}");
+  print("🔥 [BACKGROUND FCM] Body: ${message.notification?.body}");
+  print("🔥 [BACKGROUND FCM] Data Keys: ${message.data.keys.toList()}");
+  message.data.forEach((key, value) {
+    print("🔥 [BACKGROUND FCM]   - $key : $value");
+  });
+  print("==============================================================");
 
   final isMeeting = message.data['action'] == 'join_meeting' ||
       message.data['meeting_id'] != null ||
       message.data['room_id'] != null ||
       message.data['call_type'] != null;
 
-  print("🔥 [BACKGROUND FCM] Is Meeting Push? -> $isMeeting");
   if (isMeeting) {
     print("📞 [BACKGROUND FCM] Triggering showCallKitIncoming for meeting...");
     await NotificationService.showCallKitIncoming(message.data);
     print("📞 [BACKGROUND FCM] CallKit incoming call triggered successfully!");
   } else {
-    print("ℹ️ [BACKGROUND FCM] Not a meeting push, showing normal notification...");
+    print("ℹ️ [BACKGROUND FCM] Not a meeting push, showing local notification with direct reply action...");
+    await NotificationService.showLocalNotification(message);
   }
   print("==================================================");
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/chat/model/chat_model.dart';
 import 'package:arianth/screens/chat/riverpod/chat_detail_notifier.dart';
@@ -5,9 +7,14 @@ import 'package:arianth/screens/chat/riverpod/chat_notifier.dart';
 import 'package:arianth/screens/chat/riverpod/contacts_notifier.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
+import 'package:arianth/screens/dashboard_screen/riverpod/dashboard_notifier.dart';
+import 'package:arianth/screens/login/riverpod/login_notifier.dart';
+import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'package:arianth/services/widget/riverpod/share_card_notifier.dart';
 
 class UniversalShareOptionsBottomSheet extends ConsumerStatefulWidget {
   final List<ShareCardItem> shareItems;
@@ -46,15 +53,51 @@ class UniversalShareOptionsBottomSheet extends ConsumerStatefulWidget {
 
 class _UniversalShareOptionsBottomSheetState
     extends ConsumerState<UniversalShareOptionsBottomSheet> {
-  bool _isProcessing = false;
-  String _statusText = '';
+  bool _isSending = false;
+  String _sendActionText = '';
 
-  Future<void> _shareToWhatsApp() async {
-    Navigator.of(context).pop();
-    await ShareCardService.shareMultipleDirect(context, widget.shareItems);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(shareCardProvider.notifier).prepareShareCards(context, widget.shareItems);
+      }
+    });
   }
 
-  Future<void> _openChatPicker() async {
+  Future<void> _shareToWhatsApp(List<XFile> files) async {
+    if (files.isEmpty) {
+      Toaster.showError("No generated cards found");
+      return;
+    }
+
+    setState(() {
+      _isSending = true;
+      _sendActionText = 'Opening share window...';
+    });
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: files,
+          subject: widget.shareItems.first.title ?? widget.title,
+        ),
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      debugPrint("WhatsApp share error: $e");
+      Toaster.showError("Failed to share cards");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openChatPicker(List<XFile> files) async {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -65,16 +108,16 @@ class _UniversalShareOptionsBottomSheetState
       builder: (sheetContext) => _UniversalChatRecipientPicker(
         onRecipientSelected: (chat) async {
           Navigator.of(sheetContext).pop();
-          await _sendToConversation(chat);
+          await _sendToConversation(chat, files);
         },
       ),
     );
   }
 
-  Future<void> _sendToConversation(ChatModel chat) async {
+  Future<void> _sendToConversation(ChatModel chat, List<XFile> files) async {
     setState(() {
-      _isProcessing = true;
-      _statusText = 'Generating card preview...';
+      _isSending = true;
+      _sendActionText = 'Connecting with ${chat.name ?? 'user'}...';
     });
 
     try {
@@ -82,7 +125,6 @@ class _UniversalShareOptionsBottomSheetState
       if (convId == null && chat.isGroup && chat.id != null) {
         convId = chat.id;
       } else if (convId == null && chat.id != null) {
-        setState(() => _statusText = 'Connecting with ${chat.name ?? 'user'}...');
         convId = await ref.read(chatDetailProvider.notifier).startConversation(
           chat.id!,
           recipientType: chat.type,
@@ -95,27 +137,16 @@ class _UniversalShareOptionsBottomSheetState
         return;
       }
 
-      setState(() => _statusText = 'Rendering card image...');
-      if (!mounted) return;
-      final List<XFile> cardFiles =
-          await ShareCardService.captureCardFiles(context, widget.shareItems);
-
-      if (!mounted) return;
-      if (cardFiles.isEmpty) {
-        Toaster.showError("Failed to generate share image");
-        Navigator.of(context).pop();
-        return;
-      }
-
-      setState(() => _statusText = 'Sending to chat...');
+      setState(() {
+        _sendActionText = 'Sending to chat...';
+      });
       final chatNotifier = ref.read(chatDetailProvider.notifier);
       await chatNotifier.fetchMessages(convId, isSilent: true);
 
-      for (int i = 0; i < cardFiles.length; i++) {
-        final file = cardFiles[i];
+      for (int i = 0; i < files.length; i++) {
+        final file = files[i];
         final item = widget.shareItems.length > i ? widget.shareItems[i] : widget.shareItems.first;
         
-        // Build clear descriptive caption
         final parts = <String>[];
         if (item.workOrderNumber?.isNotEmpty == true) parts.add("WO#: ${item.workOrderNumber}");
         if (item.productCode?.isNotEmpty == true) parts.add("PO#: ${item.productCode}");
@@ -140,7 +171,7 @@ class _UniversalShareOptionsBottomSheetState
     } finally {
       if (mounted) {
         setState(() {
-          _isProcessing = false;
+          _isSending = false;
         });
       }
     }
@@ -148,6 +179,25 @@ class _UniversalShareOptionsBottomSheetState
 
   @override
   Widget build(BuildContext context) {
+    final loginState = ref.watch(loginProvider);
+    final dashboardState = ref.watch(dashboardProvider);
+    final role = (loginState.user?.role ?? SharedPreferencesHelper().getString("role") ?? '').toLowerCase();
+    final prefsPermissionsRaw = SharedPreferencesHelper().getString("permissions");
+    List<String> cachedPermissions = [];
+    if (prefsPermissionsRaw != null && prefsPermissionsRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(prefsPermissionsRaw);
+        if (decoded is List) {
+          cachedPermissions = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+    final permissions = dashboardState.dashboardData?.permissions ?? cachedPermissions;
+    final bool isSuperAdmin = role == 'super_admin';
+    final bool canShareToChat = isSuperAdmin || permissions.contains('chat');
+
+    final shareCardState = ref.watch(shareCardProvider);
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -203,7 +253,9 @@ class _UniversalShareOptionsBottomSheetState
               ],
             ),
             const SizedBox(height: 20),
-            if (_isProcessing) ...[
+
+            // 1. Sending State (after tapping WhatsApp or Chat)
+            if (_isSending) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(
@@ -211,13 +263,236 @@ class _UniversalShareOptionsBottomSheetState
                     const CircularProgressIndicator(color: AppColor.primary, strokeWidth: 3),
                     const SizedBox(height: 16),
                     Text(
-                      _statusText,
+                      _sendActionText,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
                     ),
                   ],
                 ),
               ),
-            ] else ...[
+            ]
+            // 2. Loading / Compressing State (directly when opened)
+            else if (shareCardState.isLoading) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Horizontal image slider of all items being prepared
+                    SizedBox(
+                      height: 70,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.shareItems.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, idx) {
+                          final item = widget.shareItems[idx];
+                          final isItemDone = idx < shareCardState.completedCount;
+                          return Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  width: 70,
+                                  height: 70,
+                                  color: Colors.grey.shade200,
+                                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                                      ? Image.network(
+                                          item.imageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => const Icon(
+                                            Icons.image_outlined,
+                                            color: Colors.grey,
+                                          ),
+                                        )
+                                      : const Icon(Icons.description_outlined, color: Colors.grey),
+                                ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: isItemDone ? Colors.green : Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isItemDone ? Icons.check : Icons.hourglass_bottom,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 2,
+                                left: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "#${idx + 1}",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Badges: Finished, Pending, Total, Time
+                    Row(
+                      children: [
+                        // Finished badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.shade300, width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle, size: 12, color: Colors.green),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Finished: ${shareCardState.completedCount}",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Pending badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.orange.shade300, width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.pending_actions, size: 12, color: Colors.orange),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Pending: ${shareCardState.pendingCount}",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+
+                        // Elapsed Time
+                        Text(
+                          "Time: ${shareCardState.elapsedSeconds}s",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Progress bar & live status
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: shareCardState.progress > 0 ? shareCardState.progress : null,
+                        minHeight: 6,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            shareCardState.statusMessage,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade800,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          "${(shareCardState.progress * 100).toInt()}%",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ]
+            // 3. Error State
+            else if (shareCardState.isError) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 40),
+                    const SizedBox(height: 12),
+                    Text(
+                      shareCardState.errorMessage ?? "Failed to prepare cards",
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        ref.read(shareCardProvider.notifier).prepareShareCards(context, widget.shareItems);
+                      },
+                      child: const Text("Retry", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ),
+            ]
+            // 4. Loaded State - Show Share via WhatsApp & In-App Chat
+            else ...[
               _UniversalShareOptionTile(
                 iconWidget: Container(
                   width: 40,
@@ -234,23 +509,25 @@ class _UniversalShareOptionsBottomSheetState
                 ),
                 title: "Share via WhatsApp",
                 subtitle: "Send high-res cards directly to WhatsApp or apps",
-                onTap: _shareToWhatsApp,
+                onTap: () => _shareToWhatsApp(shareCardState.preparedFiles),
               ),
-              const SizedBox(height: 12),
-              _UniversalShareOptionTile(
-                iconWidget: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: AppColor.primary,
-                    shape: BoxShape.circle,
+              if (canShareToChat) ...[
+                const SizedBox(height: 12),
+                _UniversalShareOptionTile(
+                  iconWidget: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColor.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 20),
                   ),
-                  child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 20),
+                  title: "Share to App Chat",
+                  subtitle: "Send card directly into in-app chat conversation",
+                  onTap: () => _openChatPicker(shareCardState.preparedFiles),
                 ),
-                title: "Share to App Chat",
-                subtitle: "Send card directly into in-app chat conversation",
-                onTap: _openChatPicker,
-              ),
+              ],
             ],
           ],
         ),

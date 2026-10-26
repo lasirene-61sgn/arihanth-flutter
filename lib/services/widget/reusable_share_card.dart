@@ -10,7 +10,34 @@ import 'package:share_plus/share_plus.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:internet_file/internet_file.dart';
 import 'package:arianth/services/pdf/pdf_redaction_service.dart';
+import 'dart:async';
 import 'package:arianth/services/widget/universal_share_bottom_sheet.dart';
+
+Future<Size?> _resolveImageSize(ImageProvider provider) {
+  final completer = Completer<Size?>();
+  final stream = provider.resolve(ImageConfiguration.empty);
+  late ImageStreamListener listener;
+  listener = ImageStreamListener(
+    (ImageInfo info, bool _) {
+      completer.complete(
+        Size(info.image.width.toDouble(), info.image.height.toDouble()),
+      );
+      stream.removeListener(listener);
+    },
+    onError: (dynamic exception, StackTrace? stackTrace) {
+      completer.complete(null);
+      stream.removeListener(listener);
+    },
+  );
+  stream.addListener(listener);
+  return completer.future.timeout(
+    const Duration(seconds: 4),
+    onTimeout: () {
+      stream.removeListener(listener);
+      return null;
+    },
+  );
+}
 
 class ShareCardItem {
   final String? imageUrl;
@@ -36,12 +63,15 @@ class ShareCardItem {
   final String? hook;
   final String? openClose;
   final String? workOrderNumber;
+  final String? stockOrderNumber;
   final String? screwName;
   final bool isPdf;
   final bool isLocked;
   final bool showWatermark;
   final bool enableRedaction;
   final Uint8List? imageBytes;
+  final double? imageWidth;
+  final double? imageHeight;
 
   const ShareCardItem({
     this.imageUrl,
@@ -67,17 +97,24 @@ class ShareCardItem {
     this.hook,
     this.openClose,
     this.workOrderNumber,
+    this.stockOrderNumber,
     this.screwName,
     this.isPdf = false,
     this.isLocked = false,
     this.showWatermark = false,
     this.enableRedaction = true,
     this.imageBytes,
+    this.imageWidth,
+    this.imageHeight,
   });
 }
 
 extension ShareCardItemExtension on ShareCardItem {
-  ShareCardItem copyWith({Uint8List? imageBytes}) {
+  ShareCardItem copyWith({
+    Uint8List? imageBytes,
+    double? imageWidth,
+    double? imageHeight,
+  }) {
     return ShareCardItem(
       imageUrl: imageUrl,
       title: title,
@@ -102,12 +139,15 @@ extension ShareCardItemExtension on ShareCardItem {
       hook: hook,
       openClose: openClose,
       workOrderNumber: workOrderNumber,
+      stockOrderNumber: stockOrderNumber,
       screwName: screwName,
       isPdf: isPdf,
       isLocked: isLocked,
       showWatermark: showWatermark,
       enableRedaction: enableRedaction,
       imageBytes: imageBytes ?? this.imageBytes,
+      imageWidth: imageWidth ?? this.imageWidth,
+      imageHeight: imageHeight ?? this.imageHeight,
     );
   }
 }
@@ -168,9 +208,19 @@ class ShareCardService {
         }
       }
 
-      // 1. Pre-cache image (skip if PDF or if we have imageBytes)
-      if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf && item.imageBytes == null) {
-        await precacheImage(NetworkImage(item.imageUrl!), context);
+      // 1. Pre-cache and resolve real native image dimensions
+      if (item.imageBytes != null) {
+        final size = await _resolveImageSize(MemoryImage(item.imageBytes!));
+        if (size != null && size.width > 0 && size.height > 0) {
+          item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+        }
+      } else if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf) {
+        final netProvider = NetworkImage(item.imageUrl!);
+        await precacheImage(netProvider, context);
+        final size = await _resolveImageSize(netProvider);
+        if (size != null && size.width > 0 && size.height > 0) {
+          item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+        }
       }
 
       // 2. Insert off-screen share card widget
@@ -193,12 +243,12 @@ class ShareCardService {
       // 3. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
 
-      // 4. Capture PNG (2× pixel ratio → 600×1000 output)
+      // 4. Capture PNG at 1:1 native pixel quality
       final boundary = shareKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+      final ui.Image img = await boundary.toImage(pixelRatio: 1.0);
       final ByteData? byteData =
           await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
@@ -231,34 +281,38 @@ class ShareCardService {
     if (items.isEmpty) return;
     OverlayEntry? entry;
     try {
-      // 0. Pre-render PDFs
+      // 0. Pre-render PDFs & resolve native image sizes
       List<ShareCardItem> updatedItems = [];
       for (var item in items) {
         if (item.isPdf && item.imageUrl != null && item.imageBytes == null) {
           final pdfBytes = await _renderPdfToImage(item.imageUrl!, item.enableRedaction);
           if (pdfBytes != null) {
-            updatedItems.add(item.copyWith(imageBytes: pdfBytes));
-          } else {
-            updatedItems.add(item);
+            item = item.copyWith(imageBytes: pdfBytes);
           }
-        } else {
-          updatedItems.add(item);
         }
+
+        if (item.imageBytes != null) {
+          final size = await _resolveImageSize(MemoryImage(item.imageBytes!));
+          if (size != null && size.width > 0 && size.height > 0) {
+            item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+          }
+        } else if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf) {
+          try {
+            final netProvider = NetworkImage(item.imageUrl!);
+            await precacheImage(netProvider, context);
+            final size = await _resolveImageSize(netProvider);
+            if (size != null && size.width > 0 && size.height > 0) {
+              item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+            }
+          } catch (e) {
+            debugPrint('Failed to resolve image size: ${item.imageUrl}');
+          }
+        }
+        updatedItems.add(item);
       }
       items = updatedItems;
 
-      // 1. Pre-cache image
-      for (var item in items) {
-        if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf && item.imageBytes == null) {
-          try {
-             await precacheImage(NetworkImage(item.imageUrl!), context);
-          } catch (e) {
-             debugPrint('Failed to precache image: ${item.imageUrl}');
-          }
-        }
-      }
-
-      // 2. Insert off-screen share card widget
+      // 1. Insert off-screen share card widget
       final List<GlobalKey> keys = List.generate(items.length, (i) => GlobalKey());
       entry = OverlayEntry(
         builder: (_) => Positioned(
@@ -281,21 +335,18 @@ class ShareCardService {
       );
       Overlay.of(context).insert(entry);
 
-      // 3. Render the widget to an image
-      // Increased delay to allow PDFs to load and redact
+      // 2. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
 
       final tempDir = await getTemporaryDirectory();
       List<XFile> xFiles = [];
-      List<String> combinedText = [];
 
       for (int i = 0; i < items.length; i++) {
-        final item = items[i];
         final boundary = keys[i].currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null) continue;
 
         try {
-          final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+          final ui.Image img = await boundary.toImage(pixelRatio: 1.0);
           final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
           if (byteData != null) {
             final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
@@ -305,34 +356,13 @@ class ShareCardService {
         } catch (e) {
           debugPrint('Error capturing image $i: $e');
         }
-
-        final parts = <String>[];
-        if (item.title?.isNotEmpty == true) parts.add('📦 *${item.title}*');
-        if (item.bpCode?.isNotEmpty == true) parts.add('BP Code: ${item.bpCode}');
-        if (item.productCode?.isNotEmpty == true) parts.add('PO#: ${item.productCode}');
-        if (item.category?.isNotEmpty == true) parts.add('Category: ${item.category}');
-        if (item.workOrderNumber?.isNotEmpty == true) parts.add('WO#: ${item.workOrderNumber}');
-        if (item.refNo?.isNotEmpty == true) parts.add('Ref No: ${item.refNo}');
-        if (item.quantity?.isNotEmpty == true) parts.add('Qty: ${item.quantity}');
-        if (item.type?.isNotEmpty == true) parts.add('Type: ${item.type}');
-        if (item.weight?.isNotEmpty == true) parts.add('Weight: ${item.weight}');
-        if (item.size?.isNotEmpty == true) parts.add('Size: ${item.size}');
-        if (item.dueDate?.isNotEmpty == true) parts.add('Due: ${item.dueDate}');
-        if (item.orderDate?.isNotEmpty == true) parts.add('Order Date/Time: ${item.orderDate}');
-        if (item.narration?.isNotEmpty == true) parts.add('Item Note: ${item.narration}');
-        if (item.orderNote?.isNotEmpty == true) parts.add('Order Note: ${item.orderNote}');
-        if (item.screwName?.isNotEmpty == true) parts.add('Screw: ${item.screwName}');
-        if (item.subtitle?.isNotEmpty == true) parts.add(item.subtitle!);
-        
-        combinedText.add(parts.join('\n'));
       }
 
-      // 7. Open system share sheet
+      // 3. Open system share sheet
       if (xFiles.isNotEmpty) {
         await SharePlus.instance.share(
           ShareParams(
             files: xFiles,
-            // text: combinedText.join('\n\n---\n\n'),
             subject: items.first.title ?? 'Share',
           ),
         );
@@ -376,39 +406,44 @@ class ShareCardService {
 
   static Future<List<XFile>> captureCardFiles(
     BuildContext context,
-    List<ShareCardItem> items,
-  ) async {
+    List<ShareCardItem> items, {
+    void Function(int completed, int total)? onProgress,
+  }) async {
     if (items.isEmpty) return [];
     OverlayEntry? entry;
     try {
-      // 0. Pre-render PDFs
+      // 0. Pre-render PDFs and detect real original image dimensions
       List<ShareCardItem> updatedItems = [];
       for (var item in items) {
         if (item.isPdf && item.imageUrl != null && item.imageBytes == null) {
           final pdfBytes = await _renderPdfToImage(item.imageUrl!, item.enableRedaction);
           if (pdfBytes != null) {
-            updatedItems.add(item.copyWith(imageBytes: pdfBytes));
-          } else {
-            updatedItems.add(item);
+            item = item.copyWith(imageBytes: pdfBytes);
           }
-        } else {
-          updatedItems.add(item);
         }
+
+        if (item.imageBytes != null) {
+          final size = await _resolveImageSize(MemoryImage(item.imageBytes!));
+          if (size != null && size.width > 0 && size.height > 0) {
+            item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+          }
+        } else if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf) {
+          try {
+            final netProvider = NetworkImage(item.imageUrl!);
+            await precacheImage(netProvider, context);
+            final size = await _resolveImageSize(netProvider);
+            if (size != null && size.width > 0 && size.height > 0) {
+              item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
+            }
+          } catch (e) {
+            debugPrint('Failed to resolve image size: ${item.imageUrl}');
+          }
+        }
+        updatedItems.add(item);
       }
       items = updatedItems;
 
-      // 1. Pre-cache image
-      for (var item in items) {
-        if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf && item.imageBytes == null) {
-          try {
-             await precacheImage(NetworkImage(item.imageUrl!), context);
-          } catch (e) {
-             debugPrint('Failed to precache image: ${item.imageUrl}');
-          }
-        }
-      }
-
-      // 2. Insert off-screen share card widget
+      // 1. Insert off-screen share card widget
       final List<GlobalKey> keys = List.generate(items.length, (i) => GlobalKey());
       entry = OverlayEntry(
         builder: (_) => Positioned(
@@ -431,7 +466,7 @@ class ShareCardService {
       );
       Overlay.of(context).insert(entry);
 
-      // 3. Render the widget to an image
+      // 2. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
 
       final tempDir = await getTemporaryDirectory();
@@ -442,7 +477,7 @@ class ShareCardService {
         if (boundary == null) continue;
 
         try {
-          final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
+          final ui.Image img = await boundary.toImage(pixelRatio: 1.0);
           final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
           if (byteData != null) {
             final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
@@ -452,6 +487,7 @@ class ShareCardService {
         } catch (e) {
           debugPrint('Error capturing card file $i: $e');
         }
+        onProgress?.call(i + 1, items.length);
       }
       return xFiles;
     } catch (e) {
@@ -464,7 +500,9 @@ class ShareCardService {
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────
-/// The actual 300×500 white share card widget (rendered off-screen only).
+/// Dynamic Share Card Widget: Renders at 1:1 real image dimensions,
+/// preserving 100% original image quality without downsizing, with extra
+/// space added solely for the text details below.
 /// ─────────────────────────────────────────────────────────────────────────────
 class _ShareCardWidget extends StatelessWidget {
   final ShareCardItem item;
@@ -474,9 +512,25 @@ class _ShareCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
 
+    // Use actual image dimensions if available, falling back to a crisp default (800)
+    final double cardWidth = (item.imageWidth != null && item.imageWidth! > 0)
+        ? item.imageWidth!
+        : 800.0;
+    final double? naturalHeight = (item.imageHeight != null && item.imageHeight! > 0)
+        ? item.imageHeight!
+        : null;
+
+    // Scale font size and padding proportionately so text looks crisp and balanced at any resolution
+    final double scaleRatio = (cardWidth / 400.0).clamp(1.0, 3.5);
+    final double fontSize = (15.0 * scaleRatio).clamp(14.0, 38.0);
+    final double horizontalPadding = (16.0 * scaleRatio).clamp(16.0, 48.0);
+    final double verticalPadding = (18.0 * scaleRatio).clamp(18.0, 50.0);
+    final double logoSize = (80.0 * scaleRatio).clamp(70.0, 160.0);
+
     // Build the pipe-separated details string
     final details = <String>[];
     if (item.workOrderNumber != null && item.workOrderNumber!.isNotEmpty) details.add('Work Order No: ${item.workOrderNumber}');
+    if (item.stockOrderNumber != null && item.stockOrderNumber!.isNotEmpty) details.add('Stock Order No: ${item.stockOrderNumber}');
     if (item.productCode != null && item.productCode!.isNotEmpty) details.add('PO#: ${item.productCode}');
     if (item.refNo != null && item.refNo!.isNotEmpty) details.add('Ref No: ${item.refNo}');
     if (item.category != null && item.category!.isNotEmpty) details.add('Category Name: ${item.category}');
@@ -502,20 +556,21 @@ class _ShareCardWidget extends StatelessWidget {
     final detailsString = details.join(' | ');
 
     return SizedBox(
-      width: 400,
+      width: cardWidth,
       child: Container(
         decoration: const BoxDecoration(color: Colors.white),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image Section ──────────────────────────────────────────────
+            // ── Image Section (Real 1:1 size) ─────────────────────────────
             if (item.imageBytes != null || hasImage)
               item.isPdf
                   ? (item.imageBytes != null
                       ? Image.memory(
                           item.imageBytes!,
-                          width: 400,
+                          width: cardWidth,
+                          height: naturalHeight,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
                         )
@@ -530,13 +585,15 @@ class _ShareCardWidget extends StatelessWidget {
                           child: item.imageBytes != null
                               ? Image.memory(
                                   item.imageBytes!,
-                                  width: 400,
+                                  width: cardWidth,
+                                  height: naturalHeight,
                                   fit: BoxFit.contain,
                                   filterQuality: FilterQuality.high,
                                 )
                               : Image.network(
                                   item.imageUrl!,
-                                  width: 400,
+                                  width: cardWidth,
+                                  height: naturalHeight,
                                   fit: BoxFit.contain,
                                   filterQuality: FilterQuality.high,
                                   errorBuilder: (_, __, ___) => _placeholder(),
@@ -545,28 +602,31 @@ class _ShareCardWidget extends StatelessWidget {
                         if (item.showWatermark)
                           Image.asset(
                             'assets/image/tara_logo_color.jpeg',
-                            width: 80,
-                            height: 80,
+                            width: logoSize,
+                            height: logoSize,
                             fit: BoxFit.contain,
                           ),
                       ],
                     ),
             if (item.imageBytes == null && !hasImage) _placeholder(),
 
-            // ── Details Section ─────────────────────────────────────────────
+            // ── Extra Details Section Below Image ─────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
               child: Text(
                 detailsString,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.black,
-                  fontSize: 16,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w400,
                   height: 1.4,
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10 * scaleRatio),
           ],
         ),
       ),

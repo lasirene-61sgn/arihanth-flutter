@@ -22,7 +22,8 @@ import 'package:arianth/services/widget/form_field_common_button.dart';
 import 'package:arianth/services/widget/resuable_responsive_desktop_header.dart';
 import 'package:arianth/services/widget/reusable_table_view.dart';
 import 'package:arianth/services/widget/pagination_controls.dart';
-import 'package:arianth/services/widget/share_template.dart';
+import 'package:arianth/screens/main_screen/main_layout.dart';
+import 'package:arianth/screens/main_screen/menu_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:arianth/services/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +48,7 @@ class PurchaseOrderScreen extends ConsumerStatefulWidget {
 }
 
 class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
+  int _lastHandledTargetTimestamp = 0;
 
   String _getTabValue() {
     final Map<String, String> statusToTab = {
@@ -76,11 +78,46 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
+
+    final initialTarget = ref.read(purchaseOrderTargetProvider);
+    if (initialTarget != null) {
+      _lastHandledTargetTimestamp = initialTarget.timestamp;
+      if (initialTarget.orderNumber != null && initialTarget.orderNumber!.isNotEmpty) {
+        _searchController.text = initialTarget.orderNumber!;
+        searchToggle = true;
+      }
+      if (initialTarget.status != null && initialTarget.status!.isNotEmpty) {
+        _activeStatus = initialTarget.status;
+      }
+    }
+
+    final String? passedSearch = Get.arguments is Map ? Get.arguments['search']?.toString() : (Get.arguments is String ? Get.arguments : null);
+    if (passedSearch != null && passedSearch.isNotEmpty) {
+      _searchController.text = passedSearch;
+      searchToggle = true;
+    }
+
     Future.microtask(() async {
       final productState = ref.read(productListProvider.notifier);
       final purchaseState = ref.read(purchaseOrderListProvider.notifier);
       final future = <Future>[];
-        future.add(purchaseState.fetchPurchaseOrders(customUrl:role == "craftsman"?"api/common/purchase-orders?tab=allocated&sort=desc": "api/common/purchase-orders?tab=created&sort=desc"));
+
+      // If already triggered by targetProvider with search & status, don't overwrite with default created tab
+      if (initialTarget == null) {
+        final String defaultUrl = role == "craftsman"
+            ? "api/common/purchase-orders?tab=allocated&sort=desc"
+            : "api/common/purchase-orders?tab=created&sort=desc";
+        final String fetchUrl = (passedSearch != null && passedSearch.isNotEmpty)
+            ? "api/common/purchase-orders?tab=all&search=${Uri.encodeComponent(passedSearch)}"
+            : defaultUrl;
+
+        if (passedSearch != null && passedSearch.isNotEmpty) {
+          _activeStatus = 'All';
+        }
+
+        future.add(purchaseState.fetchPurchaseOrders(customUrl: fetchUrl));
+      }
+
       future.add(productState.fetchCraftBPCodes());
       future.add(productState.fetchBPCodes());
       future.add(productState.fetchCategories());
@@ -99,6 +136,25 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<OrderTargetState?>(purchaseOrderTargetProvider, (previous, next) {
+      if (next != null && next.timestamp != _lastHandledTargetTimestamp) {
+        _lastHandledTargetTimestamp = next.timestamp;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            if (next.orderNumber != null && next.orderNumber!.isNotEmpty) {
+              _searchController.text = next.orderNumber!;
+              searchToggle = true;
+            }
+            if (next.status != null && next.status!.isNotEmpty) {
+              _activeStatus = next.status;
+            }
+            selectedIds.clear();
+          });
+        });
+      }
+    });
+
     final state = ref.watch(purchaseOrderListProvider);
     final notifier = ref.read(purchaseOrderListProvider.notifier);
     final pdfState = ref.watch(pdfDownloadProvider);
@@ -120,11 +176,21 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
           child: Divider(
               height: 1.0, color: Colors.white24),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: Navigator.of(ctx).canPop()
+                ? const Icon(Icons.arrow_back, color: Colors.white)
+                : const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              } else if (mainScaffoldKey.currentState != null) {
+                mainScaffoldKey.currentState!.openDrawer();
+              } else {
+                Scaffold.maybeOf(ctx)?.openDrawer();
+              }
+            },
+          ),
         ),
 
         // 🔵 Toggle between Screen Title and Enterprise Search Bar
@@ -220,6 +286,8 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: PurchaseOrderStatusCards(
+              key: ValueKey(_activeStatus),
+              initialStatus: _activeStatus,
               onStatusChanged: (status) =>
                   setState(() {
                     _activeStatus = status;

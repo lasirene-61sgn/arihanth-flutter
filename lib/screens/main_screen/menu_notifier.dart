@@ -33,3 +33,14 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
 final sidebarProvider = StateNotifierProvider<SidebarNotifier, SidebarState>((ref) {
   return SidebarNotifier();
 });
+
+class OrderTargetState {
+  final String? orderNumber;
+  final String? status;
+  final int timestamp;
+
+  OrderTargetState({this.orderNumber, this.status, required this.timestamp});
+}
+
+final workOrderTargetProvider = StateProvider<OrderTargetState?>((ref) => null);
+final purchaseOrderTargetProvider = StateProvider<OrderTargetState?>((ref) => null);

@@ -30,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 final menuIndexProvider = StateProvider<int>((ref) => 0);
+final mainScaffoldKey = GlobalKey<ScaffoldState>();
 
 class MainLayout extends ConsumerStatefulWidget {
   const MainLayout({super.key});
@@ -40,7 +41,6 @@ class MainLayout extends ConsumerStatefulWidget {
 
 class _MainLayoutState extends ConsumerState<MainLayout> {
   final double mobileBreakpoint = 768;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
 
   final List<Widget> _screens = const [
@@ -81,15 +81,15 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
 
-        if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-          _scaffoldKey.currentState?.closeDrawer();
+        if (mainScaffoldKey.currentState?.isDrawerOpen ?? false) {
+          mainScaffoldKey.currentState?.closeDrawer();
           return;
         }
 
         ref.read(menuIndexProvider.notifier).state = 0;
       },
       child: Scaffold(
-        key: _scaffoldKey,
+        key: mainScaffoldKey,
       drawer: isMobile ? const Drawer(child: Sidebar()) : null,
       body: Row(
         children: [

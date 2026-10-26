@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PurchaseOrderStatusCards extends ConsumerStatefulWidget {
   final ValueChanged<String> onStatusChanged;
+  final String? initialStatus;
 
   const PurchaseOrderStatusCards({
     super.key,
     required this.onStatusChanged,
+    this.initialStatus,
   });
 
   @override
@@ -83,7 +85,22 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
     _tabs = _getTabs();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+
+    int initialIndex = 0;
+    if (widget.initialStatus != null) {
+      final target = widget.initialStatus!.toLowerCase().replaceAll('_', ' ').trim();
+      final found = _tabs.indexWhere((t) =>
+          (t['value']?.toLowerCase().replaceAll('_', ' ').trim() == target) ||
+          (t['label']?.toLowerCase().replaceAll('_', ' ').trim() == target));
+      if (found != -1) initialIndex = found;
+    }
+    _lastTabIndex = initialIndex;
+
+    _tabController = TabController(
+      length: _tabs.length,
+      initialIndex: initialIndex,
+      vsync: this,
+    );
 
     // Listen to tab changes
     _tabController.addListener(() {
@@ -92,18 +109,40 @@ class _PurchaseOrderStatusCardsState extends ConsumerState<PurchaseOrderStatusCa
           _lastTabIndex = _tabController.index;
         });
         _handleTabSelection(_tabs[_tabController.index]['value']!);
+      } else {
+        // Tab index might change during animation, rebuild tab styling
+        setState(() {});
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleTabSelection(_tabs[0]['value']!);
-    });
+    if (widget.initialStatus == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleTabSelection(_tabs[0]['value']!);
+      });
+    }
   }
 
   void _handleTabSelection(String status) {
     final url = normalUrls[status] ?? normalUrls['New']!;
     ref.read(purchaseOrderListProvider.notifier).fetchPurchaseOrders(customUrl: url);
     widget.onStatusChanged(status);
+  }
+
+  @override
+  void didUpdateWidget(covariant PurchaseOrderStatusCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialStatus != null && widget.initialStatus != oldWidget.initialStatus) {
+      final target = widget.initialStatus!.toLowerCase().replaceAll('_', ' ').trim();
+      final found = _tabs.indexWhere((t) =>
+          (t['value']?.toLowerCase().replaceAll('_', ' ').trim() == target) ||
+          (t['label']?.toLowerCase().replaceAll('_', ' ').trim() == target));
+      if (found != -1 && _tabController.index != found) {
+        setState(() {
+          _lastTabIndex = found;
+        });
+        _tabController.animateTo(found);
+      }
+    }
   }
 
   @override

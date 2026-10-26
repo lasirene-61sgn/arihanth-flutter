@@ -6,7 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WorkOrderStatusCards extends ConsumerStatefulWidget {
   final ValueChanged<String> onStatusChanged;
-  const WorkOrderStatusCards({super.key, required this.onStatusChanged});
+  final String? initialStatus;
+  const WorkOrderStatusCards({
+    super.key,
+    required this.onStatusChanged,
+    this.initialStatus,
+  });
 
   @override
   ConsumerState<WorkOrderStatusCards> createState() => _WorkOrderStatusCardsState();
@@ -67,26 +72,55 @@ class _WorkOrderStatusCardsState extends ConsumerState<WorkOrderStatusCards>
       _visibleStatuses.add('All');
     }
 
-    _tabController = TabController(length: _visibleStatuses.length, vsync: this);
+    int initialIndex = 0;
+    if (widget.initialStatus != null) {
+      final target = widget.initialStatus!.toLowerCase().replaceAll('_', ' ').trim();
+      final found = _visibleStatuses.indexWhere((s) => s.toLowerCase().replaceAll('_', ' ').trim() == target);
+      if (found != -1) {
+        initialIndex = found;
+      }
+    }
+
+    _tabController = TabController(
+      length: _visibleStatuses.length,
+      initialIndex: initialIndex,
+      vsync: this,
+    );
 
     _tabController.addListener(() {
+      setState(() {});
       if (!_tabController.indexIsChanging) {
         _handleStatusChange(_visibleStatuses[_tabController.index]);
       }
     });
 
-    // Initial fetch
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_visibleStatuses.isNotEmpty) {
-        _handleStatusChange(_visibleStatuses.first);
-      }
-    });
+    // Initial fetch if no explicit initialStatus was provided
+    if (widget.initialStatus == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_visibleStatuses.isNotEmpty) {
+          _handleStatusChange(_visibleStatuses.first);
+        }
+      });
+    }
   }
 
   void _handleStatusChange(String status) {
     final url = adminUrls[status] ?? adminUrls['All']!;
     ref.read(workOrderListProvider.notifier).fetchWorkOrders(urls: url);
     widget.onStatusChanged(status);
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkOrderStatusCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialStatus != null && widget.initialStatus != oldWidget.initialStatus) {
+      final target = widget.initialStatus!.toLowerCase().replaceAll('_', ' ').trim();
+      final newIndex = _visibleStatuses.indexWhere((s) => s.toLowerCase().replaceAll('_', ' ').trim() == target);
+      if (newIndex != -1 && _tabController.index != newIndex) {
+        setState(() {});
+        _tabController.animateTo(newIndex);
+      }
+    }
   }
 
   @override

@@ -98,7 +98,19 @@ class _BPCreationFormState extends ConsumerState<BPCreationForm> with SingleTick
   };
 
   // permission Tap
-  final List<String> _allPermissions =["product","design", "catalogue","work_order", "user_management" , "key_user", "finance", "stock_order", "meetings", "favorites"];
+  final List<String> _allPermissions = [
+    "product",
+    "design",
+    "catalogue",
+    "work_order",
+    "user_management",
+    "key_user",
+    "finance",
+    "stock_order",
+    "meetings",
+    "favorites",
+    "chat"
+  ];
   List<String> _selectedPermissions = [];
   KycDocument _tempBankDoc = KycDocument();
   KycDocument _tempPanDoc = KycDocument();
@@ -203,6 +215,8 @@ class _BPCreationFormState extends ConsumerState<BPCreationForm> with SingleTick
   Future<void> _loadBuyerData(int id) async {
     // Fetch details from notifier
     await ref.read(buyerListProvider.notifier).fetchBuyerDetail(id);
+
+    if (!mounted) return;
 
     // Get the loaded buyer from state
     final buyer = ref.read(buyerListProvider).selectedBuyer;

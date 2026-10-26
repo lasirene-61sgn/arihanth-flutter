@@ -22,6 +22,8 @@ import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/services/widget/custom_button.dart';
 import 'package:arianth/services/widget/reusable_table_view.dart';
 import 'package:arianth/services/localization/app_localization.dart';
+import 'package:arianth/screens/main_screen/main_layout.dart';
+import 'package:arianth/screens/main_screen/menu_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
@@ -44,6 +46,7 @@ class WorkOrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
+  int _lastHandledTargetTimestamp = 0;
   bool selectAll = false;
   Set<String> selectedIds = {};
   String? selectedFilter;
@@ -91,22 +94,49 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
 
     selectedIds.clear();
     actionRow = ScrollController();
+
+    final initialTarget = ref.read(workOrderTargetProvider);
+    if (initialTarget != null) {
+      _lastHandledTargetTimestamp = initialTarget.timestamp;
+      if (initialTarget.orderNumber != null && initialTarget.orderNumber!.isNotEmpty) {
+        _searchController.text = initialTarget.orderNumber!;
+        searchToggle = true;
+      }
+      if (initialTarget.status != null && initialTarget.status!.isNotEmpty) {
+        _activeStatus = initialTarget.status;
+      }
+    }
+
+    final String? passedSearch = Get.arguments is Map ? Get.arguments['search']?.toString() : (Get.arguments is String ? Get.arguments : null);
+    if (passedSearch != null && passedSearch.isNotEmpty) {
+      _searchController.text = passedSearch;
+      searchToggle = true;
+    }
+
     Future.microtask(() async {
       final productNotifier = ref.read(productListProvider.notifier);
       final workOrderNotifier = ref.read(workOrderListProvider.notifier);
-
-      String initialTab = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'allocated-orders' : 'new-orders';
-      _activeStatus = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'Allocated' : 'New';
 
       final futures = <Future>[
         productNotifier.fetchCategories(),
         productNotifier.fetchBPCodes(),
         productNotifier.fetchCraftBPCodes(),
-        workOrderNotifier.fetchWorkOrders(
-          urls: "api/common/work-orders?tab=$initialTab",
-        ),
-
       ];
+
+      if (initialTarget == null) {
+        String initialTab = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'allocated-orders' : 'new-orders';
+        _activeStatus = (role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') ? 'Allocated' : 'New';
+
+        final String fetchUrl = (passedSearch != null && passedSearch.isNotEmpty)
+            ? "api/common/work-orders?tab=all-orders&search=${Uri.encodeComponent(passedSearch)}"
+            : "api/common/work-orders?tab=$initialTab";
+
+        if (passedSearch != null && passedSearch.isNotEmpty) {
+          _activeStatus = 'All';
+        }
+
+        futures.add(workOrderNotifier.fetchWorkOrders(urls: fetchUrl));
+      }
 
       await Future.wait(futures);
     });
@@ -117,6 +147,25 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
   final TextEditingController _searchController = TextEditingController();
   @override
   Widget build(BuildContext context) {
+    ref.listen<OrderTargetState?>(workOrderTargetProvider, (previous, next) {
+      if (next != null && next.timestamp != _lastHandledTargetTimestamp) {
+        _lastHandledTargetTimestamp = next.timestamp;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            if (next.orderNumber != null && next.orderNumber!.isNotEmpty) {
+              _searchController.text = next.orderNumber!;
+              searchToggle = true;
+            }
+            if (next.status != null && next.status!.isNotEmpty) {
+              _activeStatus = next.status;
+            }
+            selectedIds.clear();
+          });
+        });
+      }
+    });
+
     final state = ref.watch(workOrderListProvider);
     final notifier = ref.read(workOrderListProvider.notifier);
     final pdfState = ref.watch(pdfDownloadProvider);
@@ -133,9 +182,21 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           preferredSize: const Size.fromHeight(1.0),
           child: Divider(height: 1.0, color: Colors.white24),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: Navigator.of(ctx).canPop()
+                ? const Icon(Icons.arrow_back, color: Colors.white)
+                : const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              if (Navigator.of(ctx).canPop()) {
+                Navigator.of(ctx).pop();
+              } else if (mainScaffoldKey.currentState != null) {
+                mainScaffoldKey.currentState!.openDrawer();
+              } else {
+                Scaffold.maybeOf(ctx)?.openDrawer();
+              }
+            },
+          ),
         ),
 
         // 🔵 Toggle between Screen Title and Enterprise Search Bar
@@ -210,6 +271,8 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: WorkOrderStatusCards(
+              key: ValueKey(_activeStatus),
+              initialStatus: _activeStatus,
               onStatusChanged: (status) => setState(() {
                 _activeStatus = status;
                 selectedIds.clear();

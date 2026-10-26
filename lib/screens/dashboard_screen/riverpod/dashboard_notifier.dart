@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:arianth/screens/dashboard_screen/model/dashboard_model.dart';
 import 'package:arianth/screens/dashboard_screen/model/new_update_model.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
+import 'package:arianth/services/local_storage/shared_preference.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 // 1. Updated DashboardState to hold DashboardModel
@@ -68,6 +71,13 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
         DashboardModel.fromJson(response["data"]);
 
         print("++++ Parsed Dashboard: $dashboard");
+
+        try {
+          await SharedPreferencesHelper().init();
+          await SharedPreferencesHelper().setString("permissions", jsonEncode(dashboard.permissions));
+        } catch (e) {
+          debugPrint("Failed to cache permissions: $e");
+        }
 
         state = state.copyWith(
           isLoading: false,

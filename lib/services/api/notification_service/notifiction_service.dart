@@ -22,6 +22,25 @@ import 'dart:convert';
 
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse details) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  print("================ BACKGROUND NOTIFICATION RESPONSE ================");
+  print("🔔 Background notification response id: ${details.id}");
+  print("🔔 Action ID: ${details.actionId}");
+  print("🔔 User Input: ${details.input}");
+  print("🔔 Raw Payload: ${details.payload}");
+  if (details.payload != null && details.payload!.isNotEmpty) {
+    try {
+      final dynamic decoded = jsonDecode(details.payload!);
+      if (decoded is Map) {
+        print("🔔 Payload Keys: ${decoded.keys.toList()}");
+        decoded.forEach((k, v) {
+          print("🔔   - $k : $v");
+        });
+      }
+    } catch (_) {}
+  }
+  print("==================================================================");
+
   if (details.actionId == 'reply_action' && details.input != null && details.input!.trim().isNotEmpty) {
     if (details.payload != null && details.payload!.isNotEmpty) {
       try {
@@ -29,8 +48,16 @@ void notificationTapBackground(NotificationResponse details) async {
         if (decoded is Map<String, dynamic>) {
           final rawConvId = decoded['conversation_id'] ?? decoded['id'];
           final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
+          final replyUrl = decoded['reply_url']?.toString();
           if (convId != null) {
-            await NotificationService.sendReplyMessage(convId, details.input!.trim());
+            await NotificationService.sendReplyMessage(
+              convId,
+              details.input!.trim(),
+              replyUrl: replyUrl,
+            );
+            if (details.id != null) {
+              await FlutterLocalNotificationsPlugin().cancel(id: details.id!);
+            }
           }
         }
       } catch (e) {
@@ -99,7 +126,23 @@ class NotificationService {
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (details) async {
         if (kDebugMode) {
-          print("Notification response: id=${details.id}, actionId=${details.actionId}, input=${details.input}, payload=${details.payload}");
+          print("================ NOTIFICATION RESPONSE ================");
+          print("🔔 Notification response id: ${details.id}");
+          print("🔔 Action ID: ${details.actionId}");
+          print("🔔 User Input: ${details.input}");
+          print("🔔 Raw Payload: ${details.payload}");
+          if (details.payload != null && details.payload!.isNotEmpty) {
+            try {
+              final dynamic decoded = jsonDecode(details.payload!);
+              if (decoded is Map) {
+                print("🔔 Payload Keys: ${decoded.keys.toList()}");
+                decoded.forEach((k, v) {
+                  print("🔔   - $k : $v");
+                });
+              }
+            } catch (_) {}
+          }
+          print("=======================================================");
         }
 
         // If the user used the direct inline Reply action
@@ -110,8 +153,16 @@ class NotificationService {
               if (decoded is Map<String, dynamic>) {
                 final rawConvId = decoded['conversation_id'] ?? decoded['id'];
                 final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
+                final replyUrl = decoded['reply_url']?.toString();
                 if (convId != null) {
-                  await sendReplyMessage(convId, details.input!.trim());
+                  await sendReplyMessage(
+                    convId,
+                    details.input!.trim(),
+                    replyUrl: replyUrl,
+                  );
+                  if (details.id != null) {
+                    await _notificationsPlugin.cancel(id: details.id!);
+                  }
                   return;
                 }
               }
@@ -225,8 +276,15 @@ class NotificationService {
     // Foreground notification handling
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (kDebugMode) {
-        print("Received foreground message: ${message.notification?.title}");
-        print("Data: ${message.data}");
+        print("=================== FCM FOREGROUND PAYLOAD ===================");
+        print("📩 [FOREGROUND FCM] Message ID: ${message.messageId}");
+        print("📩 [FOREGROUND FCM] Title: ${message.notification?.title}");
+        print("📩 [FOREGROUND FCM] Body: ${message.notification?.body}");
+        print("📩 [FOREGROUND FCM] Data Keys: ${message.data.keys.toList()}");
+        message.data.forEach((key, value) {
+          print("📩 [FOREGROUND FCM]   - $key : $value");
+        });
+        print("=============================================================");
       }
       
       final isMeeting = message.data['action'] == 'join_meeting' ||
@@ -243,11 +301,14 @@ class NotificationService {
         final convId = rawConvId is int ? rawConvId : int.tryParse(rawConvId?.toString() ?? '');
 
         // 1. If currently inside this conversation, silently refresh the messages immediately
+        print("🔍 [NOTIFICATION CHECK] convId: $convId, activeConversationId: ${ChatDetailNotifier.activeConversationId}");
         if (convId != null && convId == ChatDetailNotifier.activeConversationId) {
+          print("ℹ️ [NOTIFICATION CHECK] Currently inside this conversation, refreshing silently without local notification.");
           ChatDetailNotifier.onActiveMessageReceived?.call();
         } else {
           // 2. Otherwise show system local notification popup
-          _showLocalNotification(message);
+          print("📲 [NOTIFICATION CHECK] Triggering showLocalNotification for convId: $convId");
+          showLocalNotification(message);
         }
 
         // 3. Refresh recent chats list in background so the snippet and timestamp are updated
@@ -611,12 +672,15 @@ class NotificationService {
           ? rawConvId
           : int.tryParse(rawConvId?.toString() ?? '');
 
+      final partnerCode = data['sender_code']?.toString() ?? data['partner_code']?.toString();
       final partnerName = data['sender_name']?.toString() ??
+          data['title']?.toString() ??
           data['partner_name']?.toString() ??
           data['caller_name']?.toString() ??
           data['name']?.toString() ??
-          data['title']?.toString() ??
           'Chat';
+
+      print("👉 [NAVIGATE TO CHAT] convId: $convId, partnerName: $partnerName, partnerCode: $partnerCode");
 
       if (convId != null && convId > 0) {
         Future.delayed(const Duration(milliseconds: 300), () {
@@ -625,6 +689,7 @@ class NotificationService {
             arguments: {
               'conversationId': convId,
               'chatName': partnerName,
+              'partnerCode': partnerCode,
             },
           );
         });
@@ -641,44 +706,41 @@ class NotificationService {
     }
   }
 
-  static Future<void> sendReplyMessage(int conversationId, String messageText) async {
+  static Future<void> sendReplyMessage(int conversationId, String messageText, {String? replyUrl}) async {
     try {
       final payload = {
         "body": messageText,
-        "message": messageText,
-        "content": messageText,
       };
 
-      // 1. First attempt the dedicated reply endpoint: /chat/conversations/{id}/reply
-      dynamic response = await ApiClient().post(
-        endpoint: "api/common/chat/conversations/$conversationId/reply",
+      String endpoint = "api/common/chat/conversations/$conversationId/messages";
+      if (replyUrl != null && replyUrl.isNotEmpty) {
+        endpoint = ApiClient.toRelativeUrl(replyUrl);
+      }
+
+      print("🚀 [NOTIFICATION REPLY API] Posting to: $endpoint with body: $payload");
+      final response = await ApiClient().post(
+        endpoint: endpoint,
         body: payload,
       );
 
-      // If reply endpoint is not found (404) or failed, fallback to messages endpoint
-      if (response == null || (response is Map && (response["status"] == 0 || response["success"] == false))) {
-        if (kDebugMode) {
-          print("Attempting fallback to standard conversation message endpoint...");
-        }
-        response = await ApiClient().post(
-          endpoint: "api/common/chat/conversations/$conversationId/messages",
-          body: {
-            "body": messageText,
-          },
-        );
+      print("================== NOTIFICATION REPLY API RESPONSE ==================$response");
+      print("🚀 [NOTIFICATION REPLY] Conversation ID: $conversationId");
+      print("🚀 [NOTIFICATION REPLY] Message Text: $messageText");
+      print("🚀 [NOTIFICATION REPLY] Reply URL: ${replyUrl ?? 'default conversation endpoint'}");
+      print("🚀 [NOTIFICATION REPLY] Server Response: $response");
+      if (response is Map) {
+        print("🚀 [NOTIFICATION REPLY] Response Keys: ${response.keys.toList()}");
+        response.forEach((k, v) {
+          print("🚀 [NOTIFICATION REPLY]   - $k : $v");
+        });
       }
-
-      if (kDebugMode) {
-        print("Reply sent via notification response: $response");
-      }
+      print("=====================================================================");
     } catch (e) {
-      if (kDebugMode) {
-        print("Error sending reply message from notification: $e");
-      }
+      print("❌ [NOTIFICATION REPLY ERROR] Failed to send reply: $e");
     }
   }
 
-  static Future<void> _showLocalNotification(RemoteMessage message) async {
+  static Future<void> showLocalNotification(RemoteMessage message) async {
     if (Platform.isIOS) return;
 
     final notification = message.notification;
@@ -705,34 +767,49 @@ class NotificationService {
           ? message.messageId.hashCode
           : (notification?.hashCode ?? DateTime.now().millisecondsSinceEpoch.remainder(100000));
 
+      final bool allowInput = message.data['allow_input'] == 'true' ||
+          message.data['allow_input'] == true ||
+          message.data['action_type'] == 'inline_reply' ||
+          message.data['action'] == 'reply' ||
+          message.data['category'] == 'CHAT_MESSAGE_REPLY';
+
+      final String inputPlaceholder = message.data['input_placeholder']?.toString() ?? 'Type a reply...';
+
+      List<AndroidNotificationAction>? actions;
+      if (allowInput) {
+        actions = <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            'reply_action',
+            'Reply',
+            inputs: <AndroidNotificationActionInput>[
+              AndroidNotificationActionInput(
+                label: inputPlaceholder,
+              ),
+            ],
+            showsUserInterface: false,
+          ),
+        ];
+      }
+
+      print("🔔 [LOCAL NOTIFICATION] Showing notification ID: $notificationId with ${actions?.length ?? 0} actions (allowInput: $allowInput)");
       await _notificationsPlugin.show(
         id: notificationId,
         title: title ?? 'New Message',
         body: body ?? '',
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
-            actions: <AndroidNotificationAction>[
-              AndroidNotificationAction(
-                'reply_action',
-                'Reply',
-                inputs: <AndroidNotificationActionInput>[
-                  AndroidNotificationActionInput(
-                    label: 'Type a message...',
-                  ),
-                ],
-                showsUserInterface: false,
-              ),
-            ],
+            actions: actions,
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
         payload: payloadString,
       );
+      print("🔔 [LOCAL NOTIFICATION] Notification displayed successfully!");
     }
   }
 
