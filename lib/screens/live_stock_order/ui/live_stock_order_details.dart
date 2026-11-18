@@ -136,7 +136,9 @@ class _LiveStockOrderDetailScreenState
           onPressed: () => Get.back(),
         ),
         actions: [
-          if (order != null)
+          if (order != null &&
+              !((role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') &&
+                  order.status?.toLowerCase() == 'allocated'))
             _isSharing
                 ? const Padding(
                     padding: EdgeInsets.all(14),

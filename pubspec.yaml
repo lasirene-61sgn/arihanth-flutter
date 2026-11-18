@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 1.0.14+28
+version: 1.0.15+30
 
 environment:
   sdk: ^3.9.2
@@ -55,6 +55,8 @@ dependencies:
   geolocator: ^14.0.2
   pusher_channels_flutter: ^2.4.0
   record: ^6.2.1
+  flutter_social_button: ^1.1.6+1
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:

@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/reports/model/report_model.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
+import 'package:arianth/screens/reports/ui/report_share_options_bottom_sheet.dart';
 
 class ReportProductsScreen extends StatefulWidget {
   const ReportProductsScreen({super.key});
@@ -231,14 +232,17 @@ class _ReportProductsScreenState extends State<ReportProductsScreen> {
 
       final tempDir = await getTemporaryDirectory();
       final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.png';
-      await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
+      final file = File(filePath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(filePath, mimeType: 'image/png')],
+      if (mounted) {
+        await ReportShareOptionsBottomSheet.show(
+          context: context,
+          file: file,
+          title: title,
           subject: title,
-        ),
-      );
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sharing table: $e')));

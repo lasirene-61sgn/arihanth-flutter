@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:arianth/screens/catelogue/model/catalogue_model.dart';
 import 'package:arianth/services/widget/pdf_thumbnail.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
@@ -20,17 +21,25 @@ class CatalogueGridCard extends StatefulWidget {
   State<CatalogueGridCard> createState() => _CatalogueGridCardState();
 }
 
-class _CatalogueGridCardState extends State<CatalogueGridCard> {
+class _CatalogueGridCardState extends State<CatalogueGridCard>
+    with SingleTickerProviderStateMixin {
   late PageController _imageController;
   int _currentPage = 0;
   Timer? _autoSlideTimer;
   String? role;
+  late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role");
     _imageController = PageController();
+
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       final images = widget.item.images ?? [];
       final imageCount = images.isNotEmpty ? images.length : (widget.item.productImage != null ? 1 : 0);
@@ -54,6 +63,7 @@ class _CatalogueGridCardState extends State<CatalogueGridCard> {
 
   @override
   void dispose() {
+    _rotationController.dispose();
     _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
@@ -234,20 +244,95 @@ class _CatalogueGridCardState extends State<CatalogueGridCard> {
 
         return GestureDetector(
           onTap: () => FullScreenImageViewer.show(context, imageUrl!),
-          child: Image.network(
-            imageUrl!,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColor.accent.withOpacity(0.5)),
-                ),
+          child: AnimatedBuilder(
+            animation: _rotationController,
+            builder: (context, child) {
+              final double progress = _rotationController.value * 2 * math.pi;
+              final double yaw = math.sin(progress) * 0.38;
+              final double pitch = math.cos(progress * 2) * 0.04;
+              final double lightShift = math.sin(progress);
+
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Transform(
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0018)
+                        ..rotateY(yaw)
+                        ..rotateX(pitch),
+                      alignment: Alignment.center,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          child!,
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: LinearGradient(
+                                    begin: Alignment(-1.0 + lightShift * 0.6, -1.0),
+                                    end: Alignment(1.0 + lightShift * 0.6, 1.0),
+                                    colors: [
+                                      Colors.white.withValues(alpha: (0.16 + lightShift.abs() * 0.12).clamp(0.0, 0.3)),
+                                      Colors.transparent,
+                                      Colors.black.withValues(alpha: (0.05 + (-lightShift).clamp(0.0, 1.0) * 0.08)),
+                                    ],
+                                    stops: const [0.0, 0.45, 1.0],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Transform.translate(
+                    offset: Offset(yaw * 16, -2),
+                    child: Container(
+                      width: 58 + (1 - yaw.abs()) * 20,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.all(Radius.elliptical(50, 6)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 7,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
-            errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.broken_image_outlined, color: AppColor.textSecondary, size: 30),
+            child: Image.network(
+              imageUrl!,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                final total = loadingProgress.expectedTotalBytes;
+                final loaded = loadingProgress.cumulativeBytesLoaded;
+                final double? progress = total != null && total > 0 ? loaded / total : null;
+
+                return Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image_outlined, color: AppColor.textSecondary, size: 30),
+            ),
           ),
         );
       },

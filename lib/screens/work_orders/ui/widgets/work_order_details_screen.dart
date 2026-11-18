@@ -215,6 +215,19 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
             // Work Order Number is always visible
             _buildInfoRow("Order Number", wo.workOrderNumber, isHeader: true),
             _buildInfoRow("Order Date", _formatDate(wo.createdAt)),
+            if (wo.priority != null && wo.priority!.isNotEmpty && wo.priority != "null")
+              _buildInfoRow(
+                "Priority",
+                wo.priority,
+                valueColor: () {
+                  final p = wo.priority?.toLowerCase();
+                  if (p == 'urgent') return Colors.deepOrange;
+                  if (p == 'high') return Colors.red;
+                  if (p == 'medium') return Colors.amber.shade800;
+                  if (p == 'low') return Colors.green;
+                  return null;
+                }(),
+              ),
             if(['buyer', 'key_user', 'user'].contains(role?.toLowerCase()))
               ...[
                 _buildInfoRow("Due Date", _formatDate(wo.dueDate)),
@@ -288,7 +301,13 @@ class _WorkOrderDetailsScreenState extends ConsumerState<WorkOrderDetailsScreen>
           ],
         ),
       ),
-      floatingActionButton: (wo != null && !state.isLoading)
+      floatingActionButton: (wo != null &&
+              !state.isLoading &&
+              !(isCraftsman &&
+                  ((wo.status?.toLowerCase() == 'allocated' || wo.status?.toLowerCase() == 'new') ||
+                      (wo.craftsmanStatus == null ||
+                          wo.craftsmanStatus?.toLowerCase() == 'pending' ||
+                          wo.craftsmanStatus?.toLowerCase() == 'allocated'))))
           ? FloatingActionButton(
         onPressed: _isSharing ? null : () async {
           setState(() => _isSharing = true);

@@ -24,6 +24,7 @@ import 'package:pusher_channels_flutter/pusher_channels_flutter.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter_social_button/flutter_social_button.dart';
 import 'package:get/get.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/screens/main_screen/main_layout.dart';
@@ -72,9 +73,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   // Scroll to bottom (latest message) button state
   bool _showScrollToBottom = false;
 
+  // Super Admin WhatsApp multi-select & forwarding state
+  bool _isSuperAdmin = false;
+  bool _isSelectMode = false;
+  final Set<int> _selectedMessageIndices = {};
+  bool _isForwarding = false;
+
   @override
   void initState() {
     super.initState();
+    final role = SharedPreferencesHelper().getString("role")?.toLowerCase();
+    _isSuperAdmin = role == "super_admin";
     ChatDetailNotifier.activeConversationId = widget.conversationId;
     ChatDetailNotifier.onActiveMessageReceived = () {
       if (mounted) {
@@ -794,31 +803,97 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: RichText(
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          text: TextSpan(
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            children: [
-              TextSpan(text: widget.chatName),
-              if (effectiveCode.isNotEmpty)
-                TextSpan(
-                  text: ' ($effectiveCode)',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.normal,
-                    color: Colors.white70,
-                  ),
+        leading: _isSelectMode
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _isSelectMode = false;
+                    _selectedMessageIndices.clear();
+                  });
+                },
+              )
+            : null,
+        title: _isSelectMode
+            ? Text(
+                '${_selectedMessageIndices.length} selected',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-            ],
-          ),
-        ),
+              )
+            : RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  children: [
+                    TextSpan(text: widget.chatName),
+                    if (_isSuperAdmin && effectiveCode.isNotEmpty)
+                      TextSpan(
+                        text: ' ($effectiveCode)',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.white70,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
         backgroundColor: AppColor.appBarBackground,
-        actions: const [],
+        actions: [
+          if (_isSuperAdmin) ...[
+            if (_isSelectMode) ...[
+              IconButton(
+                tooltip: _selectedMessageIndices.length == chatDetailState.messages.length
+                    ? 'Deselect All'
+                    : 'Select All',
+                icon: Icon(
+                  _selectedMessageIndices.length == chatDetailState.messages.length
+                      ? Icons.select_all
+                      : Icons.checklist,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (_selectedMessageIndices.length == chatDetailState.messages.length) {
+                      _selectedMessageIndices.clear();
+                    } else {
+                      _selectedMessageIndices.clear();
+                      for (int i = 0; i < chatDetailState.messages.length; i++) {
+                        _selectedMessageIndices.add(i);
+                      }
+                    }
+                  });
+                },
+              ),
+              IconButton(
+                tooltip: 'Forward via WhatsApp',
+                icon: const Icon(FontAwesomeIcons.whatsapp, size: 24, color: Colors.white),
+                onPressed: _selectedMessageIndices.isEmpty || _isForwarding
+                    ? null
+                    : () => _forwardSelectedToWhatsApp(chatDetailState.messages),
+              ),
+            ] else ...[
+              IconButton(
+                tooltip: 'Select messages to forward',
+                icon: const Icon(FontAwesomeIcons.whatsapp, size: 24, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _isSelectMode = true;
+                    _selectedMessageIndices.clear();
+                  });
+                },
+              ),
+            ],
+          ],
+        ],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -849,7 +924,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                                     final message = chatDetailState.messages[index];
                                     final bool showDateHeader = _shouldShowDateHeader(chatDetailState.messages, index);
 
-                                    final bubbleWidget = _buildMessageBubble(message);
+                                    final bubbleWidget = _buildMessageBubble(message, index);
 
                                     if (!showDateHeader) {
                                       return bubbleWidget;
@@ -904,7 +979,90 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                               ],
                             ),
             ),
-            _buildMessageInput(),
+            if (_isSelectMode)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "${_selectedMessageIndices.length} Selected",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColor.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _selectedMessageIndices.isEmpty
+                                  ? "Tap messages to select"
+                                  : "Ready to forward to WhatsApp",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isSelectMode = false;
+                            _selectedMessageIndices.clear();
+                          });
+                        },
+                        child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: _selectedMessageIndices.isEmpty || _isForwarding
+                            ? null
+                            : () => _forwardSelectedToWhatsApp(chatDetailState.messages),
+                        icon: _isForwarding
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(FontAwesomeIcons.whatsapp, size: 20, color: Colors.white),
+                        label: Text(
+                          _isForwarding ? "Sharing..." : "Forward",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              _buildMessageInput(),
           ],
         ),
       ),
@@ -980,145 +1138,277 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     );
   }
 
-  Widget _buildMessageBubble(MessageModel message) {
+  Widget _buildMessageBubble(MessageModel message, int index) {
     final bool isMe = message.isMe;
     final hasAttachment = message.attachmentUrl != null && message.attachmentUrl!.trim().isNotEmpty;
     final bool isImage = hasAttachment && (_isImageUrl(message.attachmentUrl!) || message.type == 'image');
     final bool isAudio = hasAttachment && (_isAudioUrl(message.attachmentUrl!) || message.type == 'audio' || message.type == 'voice');
     final bool isVideo = hasAttachment && (_isVideoUrl(message.attachmentUrl!) || message.type == 'video');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        // Sender message on Left, Receiver message on Right
-        mainAxisAlignment: isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Bubble Container
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: isMe ? AppColor.primary : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 4 : 16),
-                  bottomRight: Radius.circular(isMe ? 16 : 4),
+    final bool isSelected = _selectedMessageIndices.contains(index);
+
+    return InkWell(
+      onLongPress: _isSuperAdmin
+          ? () {
+              setState(() {
+                _isSelectMode = true;
+                if (_selectedMessageIndices.contains(index)) {
+                  _selectedMessageIndices.remove(index);
+                } else {
+                  _selectedMessageIndices.add(index);
+                }
+              });
+            }
+          : null,
+      onTap: _isSelectMode
+          ? () {
+              setState(() {
+                if (_selectedMessageIndices.contains(index)) {
+                  _selectedMessageIndices.remove(index);
+                } else {
+                  _selectedMessageIndices.add(index);
+                }
+              });
+            }
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          // Sender (isMe) on Right, Receiver on Left
+          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (_isSelectMode && !isMe)
+              Padding(
+                padding: const EdgeInsets.only(right: 6, bottom: 8),
+                child: Checkbox(
+                  value: isSelected,
+                  activeColor: AppColor.primary,
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedMessageIndices.add(index);
+                      } else {
+                        _selectedMessageIndices.remove(index);
+                      }
+                    });
+                  },
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-                border: isMe ? null : Border.all(color: Colors.grey.shade200, width: 1),
               ),
-              child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                children: [
-                  // Sender name label for receiver messages if group/named
-                  if (!isMe && message.senderName != null && message.senderName!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0),
-                      child: Text(
-                        message.senderName!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.primary,
-                        ),
-                      ),
+
+            // Bubble Container
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isMe ? AppColor.primary : Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(isMe ? 16 : 4),
+                    bottomRight: Radius.circular(isMe ? 4 : 16),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
                     ),
-
-                  // Attachment View
-                  if (hasAttachment) ...[
-                    if (isImage)
-                      GestureDetector(
-                        onTap: () => _openFullScreenImage(message.attachmentUrl!),
-                        onLongPress: () => _showMediaOptions(message.attachmentUrl!, 'image'),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              maxHeight: 240,
-                              minWidth: 160,
-                            ),
-                            color: Colors.black12,
-                            child: _buildImageWidget(message.attachmentUrl!),
-                          ),
-                        ),
-                      )
-                    else if (isVideo)
-                      _buildVideoBubble(message.attachmentUrl!, isMe: isMe)
-                    else if (isAudio)
-                      _buildAudioBubble(message.attachmentUrl!, isMe: isMe)
-                    else
-                      _buildDocumentBubble(message.attachmentUrl!, isMe: isMe),
-                    const SizedBox(height: 6),
                   ],
-
-                  // Location Card, Order Action Card, or Message text / caption
-                  if (message.content != null &&
-                      message.content!.isNotEmpty &&
-                      (!hasAttachment || message.content != _getFileName(message.attachmentUrl!))) ...[
-                    if (_isLocationMessage(message.content!))
-                      _buildLocationBubbleCard(message.content!, isMe: isMe)
-                    else if (_extractOrderInfo(message.content!) != null)
-                      _buildOrderActionBubbleCard(message.content!, isMe: isMe)
-                    else if (_extractUrlsFromText(message.content!).isNotEmpty && !hasAttachment)
-                      _buildTextWithLinks(message.content!, isMe: isMe)
-                    else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        child: Text(
-                          message.content!,
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black87,
-                            fontSize: 15,
-                            height: 1.25,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                  ],
-
-                  // Timestamp & ticks
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
+                  border: isMe ? null : Border.all(color: Colors.grey.shade200, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    // Top row: Sender name & top-right dropdown arrow for super admin
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _formatTime(message.createdAt),
-                          style: TextStyle(
-                            color: isMe ? Colors.white.withOpacity(0.75) : Colors.grey.shade500,
-                            fontSize: 10,
-                          ),
-                        ),
-                        if (isMe) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.done_all,
-                            size: 13,
-                            color: Colors.white.withOpacity(0.75),
-                          ),
-                        ],
+                        if (!isMe && message.senderName != null && message.senderName!.isNotEmpty)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 4.0, right: 6.0),
+                              child: Text(
+                                message.senderName!,
+                                textAlign: TextAlign.left,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColor.primary,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        if (_isSuperAdmin)
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: isMe
+                                      ? Colors.white.withOpacity(0.2)
+                                      : Colors.black.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 16,
+                                  color: isMe ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              tooltip: "Forward Options",
+                              onSelected: (value) {
+                                if (value == 'forward_whatsapp') {
+                                  _forwardSingleToWhatsApp(message);
+                                } else if (value == 'select_multiple') {
+                                  setState(() {
+                                    _isSelectMode = true;
+                                    _selectedMessageIndices.add(index);
+                                  });
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'forward_whatsapp',
+                                  child: Row(
+                                    children: [
+                                      Icon(FontAwesomeIcons.whatsapp, size: 20, color: Color(0xFF25D366)),
+                                      SizedBox(width: 8),
+                                      Text('Forward via WhatsApp', style: TextStyle(fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'select_multiple',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.checklist, size: 20, color: AppColor.primary),
+                                      SizedBox(width: 8),
+                                      Text('Select Multiple', style: TextStyle(fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          const SizedBox.shrink(),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+
+                    // Attachment View
+                    if (hasAttachment) ...[
+                      if (isImage)
+                        GestureDetector(
+                          onTap: () => _openFullScreenImage(message.attachmentUrl!),
+                          onLongPress: () => _showMediaOptions(message.attachmentUrl!, 'image'),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                maxHeight: 240,
+                                minWidth: 160,
+                              ),
+                              color: Colors.black12,
+                              child: _buildImageWidget(message.attachmentUrl!),
+                            ),
+                          ),
+                        )
+                      else if (isVideo)
+                        _buildVideoBubble(message.attachmentUrl!, isMe: isMe)
+                      else if (isAudio)
+                        _buildAudioBubble(message.attachmentUrl!, isMe: isMe)
+                      else
+                        _buildDocumentBubble(message.attachmentUrl!, isMe: isMe),
+                      const SizedBox(height: 6),
+                    ],
+
+                    // Location Card, Order Action Card, or Message text / caption
+                    if (message.content != null &&
+                        message.content!.isNotEmpty &&
+                        (!hasAttachment || message.content != _getFileName(message.attachmentUrl!))) ...[
+                      if (_isLocationMessage(message.content!))
+                        _buildLocationBubbleCard(message.content!, isMe: isMe)
+                      else if (_extractOrderInfo(message.content!) != null)
+                        _buildOrderActionBubbleCard(message.content!, isMe: isMe)
+                      else if (_extractUrlsFromText(message.content!).isNotEmpty && !hasAttachment)
+                        _buildTextWithLinks(message.content!, isMe: isMe)
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: Text(
+                            message.content!,
+                            style: TextStyle(
+                              color: isMe ? Colors.white : Colors.black87,
+                              fontSize: 15,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                    ],
+
+                    // Timestamp & ticks
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatTime(message.createdAt),
+                            style: TextStyle(
+                              color: isMe ? Colors.white.withOpacity(0.75) : Colors.grey.shade500,
+                              fontSize: 10,
+                            ),
+                          ),
+                          if (isMe) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.done_all,
+                              size: 13,
+                              color: Colors.white.withOpacity(0.75),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          if (isMe) const SizedBox(width: 4),
-        ],
+            if (_isSelectMode && isMe)
+              Padding(
+                padding: const EdgeInsets.only(left: 6, bottom: 8),
+                child: Checkbox(
+                  value: isSelected,
+                  activeColor: AppColor.primary,
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedMessageIndices.add(index);
+                      } else {
+                        _selectedMessageIndices.remove(index);
+                      }
+                    });
+                  },
+                ),
+              ),
+
+            if (!isMe) const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }
@@ -1431,6 +1721,345 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                   Get.until((route) => route.settings.name == AppRoutes.home || Get.currentRoute == AppRoutes.home || route.isFirst);
                 }
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // WhatsApp Forwarding Implementation for Super Admin
+  Future<void> _forwardSingleToWhatsApp(MessageModel message) async {
+    await _shareMessagesToWhatsApp([message]);
+  }
+
+  Future<void> _forwardSelectedToWhatsApp(List<MessageModel> allMessages) async {
+    if (_selectedMessageIndices.isEmpty) return;
+    final List<MessageModel> selected = _selectedMessageIndices
+        .where((idx) => idx >= 0 && idx < allMessages.length)
+        .map((idx) => allMessages[idx])
+        .toList();
+    // Reverse because messages are stored reverse in chat list (index 0 is newest)
+    await _shareMessagesToWhatsApp(selected.reversed.toList());
+    if (mounted) {
+      setState(() {
+        _isSelectMode = false;
+        _selectedMessageIndices.clear();
+      });
+    }
+  }
+
+  Future<void> _shareMessagesToWhatsApp(List<MessageModel> messages) async {
+    if (messages.isEmpty) return;
+
+    // 1. Analyze items to forward
+    int textCount = 0;
+    int imageCount = 0;
+    int videoCount = 0;
+    int audioCount = 0;
+    int docCount = 0;
+
+    for (final msg in messages) {
+      final url = msg.attachmentUrl?.trim();
+      if (url != null && url.isNotEmpty) {
+        if (_isImageUrl(url) || msg.type == 'image') {
+          imageCount++;
+        } else if (_isVideoUrl(url) || msg.type == 'video') {
+          videoCount++;
+        } else if (_isAudioUrl(url) || msg.type == 'audio' || msg.type == 'voice') {
+          audioCount++;
+        } else {
+          docCount++;
+        }
+      }
+      if (msg.content != null && msg.content!.trim().isNotEmpty) {
+        final content = msg.content!.trim();
+        if (url == null || content != _getFileName(url)) {
+          textCount++;
+        }
+      }
+    }
+
+    final int totalAttachments = imageCount + videoCount + audioCount + docCount;
+    bool isCancelled = false;
+    double progress = totalAttachments == 0 ? 0.5 : 0.0;
+    int completedCount = 0;
+    int elapsedSeconds = 0;
+    Timer? durationTimer;
+
+    // Show persistent progress dialog with white text
+    final dialogCompleter = Completer<void>();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            durationTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (dialogCtx.mounted) {
+                setDialogState(() => elapsedSeconds++);
+              }
+            });
+
+            final String durationString =
+                "${(elapsedSeconds ~/ 60).toString().padLeft(2, '0')}:${(elapsedSeconds % 60).toString().padLeft(2, '0')}";
+
+            return PopScope(
+              canPop: false,
+              child: Dialog(
+                backgroundColor: const Color(0xFF1E232A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          const Icon(FontAwesomeIcons.whatsapp, size: 26, color: Color(0xFF25D366)),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              "Forwarding to WhatsApp",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              durationString,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Format breakdown chips
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (textCount > 0)
+                            _buildForwardCountBadge(Icons.text_fields_rounded, "$textCount Text${textCount > 1 ? 's' : ''}"),
+                          if (imageCount > 0)
+                            _buildForwardCountBadge(Icons.image_rounded, "$imageCount Image${imageCount > 1 ? 's' : ''}"),
+                          if (videoCount > 0)
+                            _buildForwardCountBadge(Icons.videocam_rounded, "$videoCount Video${videoCount > 1 ? 's' : ''}"),
+                          if (audioCount > 0)
+                            _buildForwardCountBadge(Icons.audiotrack_rounded, "$audioCount Audio"),
+                          if (docCount > 0)
+                            _buildForwardCountBadge(Icons.insert_drive_file_rounded, "$docCount File${docCount > 1 ? 's' : ''}"),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Progress Bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: totalAttachments == 0 ? null : progress,
+                          backgroundColor: Colors.white.withOpacity(0.15),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF25D366)),
+                          minHeight: 7,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Progress percentage / count
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            totalAttachments > 0
+                                ? "Processing $completedCount of $totalAttachments media"
+                                : "Preparing text content...",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          Text(
+                            "${(progress * 100).toInt()}%",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Cancel Button with White Text
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white54, width: 1.2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () {
+                            isCancelled = true;
+                            Navigator.of(dialogCtx, rootNavigator: true).pop();
+                          },
+                          child: const Text(
+                            "Cancel",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      durationTimer?.cancel();
+      isCancelled = true;
+    });
+
+    setState(() => _isForwarding = true);
+
+    try {
+      final List<XFile> mediaFiles = [];
+      final List<String> textParts = [];
+      final tempDir = await getTemporaryDirectory();
+      final token = SharedPreferencesHelper().getString("token") ?? "";
+      final dio = Dio();
+
+      for (int i = 0; i < messages.length; i++) {
+        if (isCancelled) break;
+
+        final msg = messages[i];
+        final url = msg.attachmentUrl?.trim();
+
+        // 1. If message has attachment (image, video, document, audio)
+        if (url != null && url.isNotEmpty) {
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            if (File(url).existsSync()) {
+              mediaFiles.add(XFile(url));
+            }
+          } else {
+            try {
+              final fileName = _getFileName(url);
+              final safeFileName = "${DateTime.now().millisecondsSinceEpoch}_$i"
+                  "_${fileName.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')}";
+              final localPath = '${tempDir.path}/$safeFileName';
+
+              await dio.download(
+                url,
+                localPath,
+                options: Options(
+                  headers: {
+                    'Authorization': 'Bearer $token',
+                    'Accept': '*/*',
+                  },
+                ),
+              );
+
+              if (File(localPath).existsSync()) {
+                mediaFiles.add(XFile(localPath));
+              }
+            } catch (err) {
+              debugPrint("Failed to download attachment for WhatsApp share: $err");
+              textParts.add(url);
+            }
+          }
+          completedCount++;
+          progress = totalAttachments > 0 ? (completedCount / totalAttachments).clamp(0.0, 1.0) : 1.0;
+        }
+
+        // 2. If message has text/content
+        if (msg.content != null && msg.content!.trim().isNotEmpty) {
+          final content = msg.content!.trim();
+          if (url == null || content != _getFileName(url)) {
+            textParts.add(content);
+          }
+        }
+      }
+
+      durationTimer?.cancel();
+
+      // Close progress dialog if still open
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (isCancelled) return;
+
+      final String sharedText = textParts.join("\n\n");
+
+      if (mediaFiles.isNotEmpty) {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: mediaFiles,
+            text: sharedText.isNotEmpty ? sharedText : null,
+          ),
+        );
+      } else if (sharedText.isNotEmpty) {
+        await SharePlus.instance.share(
+          ShareParams(
+            text: sharedText,
+          ),
+        );
+      } else {
+        Fluttertoast.showToast(msg: "No content available to forward");
+      }
+    } catch (e) {
+      debugPrint("WhatsApp forward error: $e");
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      Fluttertoast.showToast(msg: "Failed to forward via WhatsApp");
+    } finally {
+      durationTimer?.cancel();
+      if (mounted) {
+        setState(() => _isForwarding = false);
+      }
+    }
+  }
+
+  Widget _buildForwardCountBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white24, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF25D366)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ],

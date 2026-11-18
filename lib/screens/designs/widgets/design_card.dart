@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:arianth/app_color/app_color.dart';
 import 'dart:ui'; // Added import for ImageFilter
 import 'package:arianth/screens/designs/model/designs_model.dart';
@@ -46,16 +47,24 @@ class DesignCard extends StatefulWidget {
   State<DesignCard> createState() => _DesignCardState();
 }
 
-class _DesignCardState extends State<DesignCard> {
+class _DesignCardState extends State<DesignCard>
+    with SingleTickerProviderStateMixin {
   late PageController _imageController;
   int _currentPage = 0;
   bool _isSharing = false;
   Timer? _autoSlideTimer;
+  late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
+
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
       final imageCount = widget.design.images?.length ?? 0;
       if (imageCount > 1) {
@@ -78,6 +87,7 @@ class _DesignCardState extends State<DesignCard> {
 
   @override
   void dispose() {
+    _rotationController.dispose();
     _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
@@ -173,45 +183,134 @@ class _DesignCardState extends State<DesignCard> {
                                     );
                                   }
 
-                                  return imageUrl != null && imageUrl.isNotEmpty
-                                      ? GestureDetector(
-                                          onTap: () => FullScreenImageViewer.show(context, imageUrl),
-                                          child: Stack(
-                                            alignment: Alignment.center,
-                                            children: [
-                                              ImageFiltered(
-                                                imageFilter: (widget.design.isLocked == 1 && widget.role?.toLowerCase() != 'super_admin')
-                                                    ? ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0)
-                                                    : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
-                                                child: ClipRRect(
-                                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                                                  child: Image.network(
-                                                    imageUrl,
-                                                    fit: BoxFit.contain,
-                                                    loadingBuilder: (context, child, loadingProgress) {
-                                                      if (loadingProgress == null) return child;
-                                                      return const Center(
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          valueColor: AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                  if (imageUrl == null || imageUrl.isEmpty) {
+                                    return Center(child: const Icon(Icons.image, color: Colors.white24, size: 30));
+                                  }
+
+                                  final bool isBuyerOrCraftsman = widget.role?.toLowerCase() == 'buyer' ||
+                                      widget.role?.toLowerCase() == 'key_user' ||
+                                      widget.role?.toLowerCase() == 'user' ||
+                                      widget.role?.toLowerCase() == 'craftsman' ||
+                                      widget.role?.toLowerCase() == 'craftsman_staff';
+
+                                  Widget imageWidget = Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      final total = loadingProgress.expectedTotalBytes;
+                                      final loaded = loadingProgress.cumulativeBytesLoaded;
+                                      final double? progress = total != null && total > 0 ? loaded / total : null;
+
+                                      return Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            value: progress,
+                                            strokeWidth: 2,
+                                            valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) => Center(
+                                      child: const Icon(
+                                        Icons.image_not_supported,
+                                        color: AppColor.textHint,
+                                      ),
+                                    ),
+                                  );
+
+                                  if (isBuyerOrCraftsman) {
+                                    imageWidget = AnimatedBuilder(
+                                      animation: _rotationController,
+                                      builder: (context, child) {
+                                        final double progress = _rotationController.value * 2 * math.pi;
+                                        final double yaw = math.sin(progress) * 0.38;
+                                        final double pitch = math.cos(progress * 2) * 0.04;
+                                        final double lightShift = math.sin(progress);
+
+                                        return Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: Transform(
+                                                transform: Matrix4.identity()
+                                                  ..setEntry(3, 2, 0.0018)
+                                                  ..rotateY(yaw)
+                                                  ..rotateX(pitch),
+                                                alignment: Alignment.center,
+                                                child: Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    child!,
+                                                    Positioned.fill(
+                                                      child: IgnorePointer(
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                                                            gradient: LinearGradient(
+                                                              begin: Alignment(-1.0 + lightShift * 0.6, -1.0),
+                                                              end: Alignment(1.0 + lightShift * 0.6, 1.0),
+                                                              colors: [
+                                                                Colors.white.withValues(alpha: (0.16 + lightShift.abs() * 0.12).clamp(0.0, 0.3)),
+                                                                Colors.transparent,
+                                                                Colors.black.withValues(alpha: (0.05 + (-lightShift).clamp(0.0, 1.0) * 0.08)),
+                                                              ],
+                                                              stops: const [0.0, 0.45, 1.0],
+                                                            ),
+                                                          ),
                                                         ),
-                                                      );
-                                                    },
-                                                    errorBuilder: (context, error, stackTrace) => Center(
-                                                      child: const Icon(
-                                                        Icons.image_not_supported,
-                                                        color: AppColor.textHint,
                                                       ),
                                                     ),
-                                                  ),
+                                                  ],
                                                 ),
                                               ),
-                                              if (widget.design.isLocked == 1 && widget.role?.toLowerCase() != 'super_admin')
-                                                Image.asset('assets/image/tara_logo_color.jpeg', width: 40, height: 40, fit: BoxFit.contain),
-                                            ],
+                                            ),
+                                            Transform.translate(
+                                              offset: Offset(yaw * 16, -2),
+                                              child: Container(
+                                                width: 48 + (1 - yaw.abs()) * 16,
+                                                height: 4,
+                                                decoration: BoxDecoration(
+                                                  borderRadius: const BorderRadius.all(Radius.elliptical(50, 6)),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.12),
+                                                      blurRadius: 7,
+                                                      spreadRadius: 1,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                      child: imageWidget,
+                                    );
+                                  }
+
+                                  return GestureDetector(
+                                    onTap: () => FullScreenImageViewer.show(context, imageUrl),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        ImageFiltered(
+                                          imageFilter: (widget.design.isLocked == 1 && widget.role?.toLowerCase() != 'super_admin')
+                                              ? ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0)
+                                              : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+                                          child: ClipRRect(
+                                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                                            child: imageWidget,
                                           ),
-                                        )
-                                      : Center(child: const Icon(Icons.image, color: Colors.white24, size: 30));
+                                        ),
+                                        if (widget.design.isLocked == 1 && widget.role?.toLowerCase() != 'super_admin')
+                                          Image.asset('assets/image/tara_logo_color.jpeg', width: 40, height: 40, fit: BoxFit.contain),
+                                      ],
+                                    ),
+                                  );
                                 },
                               )
                             : Center(child: const Icon(Icons.image, color: Colors.white24, size: 30)),
@@ -256,26 +355,26 @@ class _DesignCardState extends State<DesignCard> {
                           ),
                         ),
                       ],
-                      if (widget.onFavoriteToggle != null)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: GestureDetector(
-                            onTap: widget.onFavoriteToggle,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.8),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: Colors.red,
-                                size: 26,
-                              ),
-                            ),
-                          ),
-                        ),
+                      // if (widget.onFavoriteToggle != null)
+                      //   Positioned(
+                      //     top: 4,
+                      //     right: 4,
+                      //     child: GestureDetector(
+                      //       onTap: widget.onFavoriteToggle,
+                      //       child: Container(
+                      //         padding: const EdgeInsets.all(8),
+                      //         decoration: BoxDecoration(
+                      //           color: Colors.white.withOpacity(0.8),
+                      //           shape: BoxShape.circle,
+                      //         ),
+                      //         child: Icon(
+                      //           widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                      //           color: Colors.red,
+                      //           size: 26,
+                      //         ),
+                      //       ),
+                      //     ),
+                      //   ),
                     ],
                   ),
                 ),

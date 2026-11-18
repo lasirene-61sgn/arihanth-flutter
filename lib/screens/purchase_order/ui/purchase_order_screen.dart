@@ -246,7 +246,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
         ),
 
         actions: [
-          if (selectedIds.isNotEmpty && (_activeStatus != "New" && _activeStatus != "All" || role?.toLowerCase() == 'super_admin'))
+          if (selectedIds.isNotEmpty && (_activeStatus != "New" && _activeStatus != "All" || role?.toLowerCase() == 'super_admin' || role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff'))
             _isBulkSharing
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
@@ -499,7 +499,7 @@ class _PurchaseOrderScreenState extends ConsumerState<PurchaseOrderScreen> {
           isFab: isFab,
         ),
       );
-    } else if (_activeStatus == 'Allocated' && isCraftsman) {
+    } else if ((_activeStatus == 'Allocated' || _activeStatus == 'New') && isCraftsman) {
       actions.add(
         _buildActionBtn(
           label: 'Reject',

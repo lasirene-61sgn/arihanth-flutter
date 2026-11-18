@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:arianth/screens/catelogue/riverpod/catalogue_notifier.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
@@ -89,18 +91,47 @@ class _CataloguePageItem extends StatefulWidget {
   State<_CataloguePageItem> createState() => _CataloguePageItemState();
 }
 
-class _CataloguePageItemState extends State<_CataloguePageItem> {
+class _CataloguePageItemState extends State<_CataloguePageItem>
+    with SingleTickerProviderStateMixin {
   late PageController _imageController;
   int _currentImageIndex = 0;
+  late AnimationController _rotationController;
+  Timer? _autoSlideTimer;
+  int _latestImageCount = 0;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
+
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (_latestImageCount > 1) {
+        if (_currentImageIndex < _latestImageCount - 1) {
+          _imageController.animateToPage(
+            _currentImageIndex + 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _imageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _rotationController.dispose();
+    _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
   }
@@ -122,9 +153,11 @@ class _CataloguePageItemState extends State<_CataloguePageItem> {
       imageUrls.add(path.startsWith('http') ? path : '${ApiClient.baseUrl}storage/$path');
     }
 
+    _latestImageCount = imageUrls.length;
+
     return Column(
       children: [
-        // Top 70%: Image Section
+        
         Expanded(
           flex: 7,
           child: Stack(
@@ -151,10 +184,94 @@ class _CataloguePageItemState extends State<_CataloguePageItem> {
 
                           return GestureDetector(
                             onTap: () => FullScreenImageViewer.show(context, url),
-                            child: Image.network(
-                              url,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50)),
+                            child: AnimatedBuilder(
+                              animation: _rotationController,
+                              builder: (context, child) {
+                                final double progress = _rotationController.value * 2 * math.pi;
+                                final double yaw = math.sin(progress) * 0.38;
+                                final double pitch = math.cos(progress * 2) * 0.04;
+                                final double lightShift = math.sin(progress);
+
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Transform(
+                                        transform: Matrix4.identity()
+                                          ..setEntry(3, 2, 0.0018)
+                                          ..rotateY(yaw)
+                                          ..rotateX(pitch),
+                                        alignment: Alignment.center,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            child!,
+                                            Positioned.fill(
+                                              child: IgnorePointer(
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    gradient: LinearGradient(
+                                                      begin: Alignment(-1.0 + lightShift * 0.6, -1.0),
+                                                      end: Alignment(1.0 + lightShift * 0.6, 1.0),
+                                                      colors: [
+                                                        Colors.white.withValues(alpha: (0.16 + lightShift.abs() * 0.12).clamp(0.0, 0.3)),
+                                                        Colors.transparent,
+                                                        Colors.black.withValues(alpha: (0.05 + (-lightShift).clamp(0.0, 1.0) * 0.08)),
+                                                      ],
+                                                      stops: const [0.0, 0.45, 1.0],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Transform.translate(
+                                      offset: Offset(yaw * 20, -4),
+                                      child: Container(
+                                        width: 80 + (1 - yaw.abs()) * 25,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          borderRadius: const BorderRadius.all(Radius.elliptical(60, 6)),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.12),
+                                              blurRadius: 8,
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.contain,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  final total = loadingProgress.expectedTotalBytes;
+                                  final loaded = loadingProgress.cumulativeBytesLoaded;
+                                  final double? progress = total != null && total > 0 ? loaded / total : null;
+
+                                  return Center(
+                                    child: SizedBox(
+                                      width: 28,
+                                      height: 28,
+                                      child: CircularProgressIndicator(
+                                        value: progress,
+                                        strokeWidth: 2.5,
+                                        valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 50)),
+                              ),
                             ),
                           );
                         },

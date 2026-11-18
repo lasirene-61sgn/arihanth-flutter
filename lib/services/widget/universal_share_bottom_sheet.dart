@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:arianth/app_color/app_color.dart';
+import 'package:arianth/services/widget/pdf_thumbnail.dart';
 import 'package:arianth/screens/chat/model/chat_model.dart';
 import 'package:arianth/screens/chat/riverpod/chat_detail_notifier.dart';
 import 'package:arianth/screens/chat/riverpod/chat_notifier.dart';
@@ -105,7 +106,7 @@ class _UniversalShareOptionsBottomSheetState
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => _UniversalChatRecipientPicker(
+      builder: (sheetContext) => UniversalChatRecipientPicker(
         onRecipientSelected: (chat) async {
           Navigator.of(sheetContext).pop();
           await _sendToConversation(chat, files);
@@ -301,15 +302,38 @@ class _UniversalShareOptionsBottomSheetState
                                   width: 70,
                                   height: 70,
                                   color: Colors.grey.shade200,
-                                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                                      ? Image.network(
-                                          item.imageUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.image_outlined,
-                                            color: Colors.grey,
-                                          ),
-                                        )
+                                  child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                                      ? (item.imageUrl!.toLowerCase().endsWith('.pdf')
+                                          ? PdfThumbnail(
+                                              url: item.imageUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              item.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                final total = loadingProgress.expectedTotalBytes;
+                                                final loaded = loadingProgress.cumulativeBytesLoaded;
+                                                final double? progress =
+                                                    total != null && total > 0 ? loaded / total : null;
+                                                return Center(
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      value: progress,
+                                                      strokeWidth: 2,
+                                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.image_outlined,
+                                                color: Colors.grey,
+                                              ),
+                                            ))
                                       : const Icon(Icons.description_outlined, color: Colors.grey),
                                 ),
                               ),
@@ -492,7 +516,7 @@ class _UniversalShareOptionsBottomSheetState
               ),
             ]
             // 4. Loaded State - Show Share via WhatsApp & In-App Chat
-            else ...[
+            else if (shareCardState.isLoaded) ...[
               _UniversalShareOptionTile(
                 iconWidget: Container(
                   width: 40,
@@ -595,16 +619,16 @@ class _UniversalShareOptionTile extends StatelessWidget {
   }
 }
 
-class _UniversalChatRecipientPicker extends ConsumerStatefulWidget {
+class UniversalChatRecipientPicker extends ConsumerStatefulWidget {
   final ValueChanged<ChatModel> onRecipientSelected;
 
-  const _UniversalChatRecipientPicker({required this.onRecipientSelected});
+  const UniversalChatRecipientPicker({super.key, required this.onRecipientSelected});
 
   @override
-  ConsumerState<_UniversalChatRecipientPicker> createState() => _UniversalChatRecipientPickerState();
+  ConsumerState<UniversalChatRecipientPicker> createState() => _UniversalChatRecipientPickerState();
 }
 
-class _UniversalChatRecipientPickerState extends ConsumerState<_UniversalChatRecipientPicker> {
+class _UniversalChatRecipientPickerState extends ConsumerState<UniversalChatRecipientPicker> {
   final TextEditingController _searchCtrl = TextEditingController();
   int _selectedTab = 0;
 

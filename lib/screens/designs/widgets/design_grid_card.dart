@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:arianth/screens/designs/model/designs_model.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
@@ -43,18 +44,26 @@ class DesignGridCard extends StatefulWidget {
   State<DesignGridCard> createState() => _DesignGridCardState();
 }
 
-class _DesignGridCardState extends State<DesignGridCard> {
+class _DesignGridCardState extends State<DesignGridCard>
+    with SingleTickerProviderStateMixin {
   bool _isSharing = false;
   String? role;
   late PageController _imageController;
   int _currentPage = 0;
   Timer? _autoSlideTimer;
+  late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
     role = SharedPreferencesHelper().getString("role") ?? '';
     _imageController = PageController();
+
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
       final images = widget.item.images ?? [];
       final imageCount = images.isNotEmpty ? images.length : (widget.item.imageUrl != null ? 1 : 0);
@@ -78,6 +87,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
 
   @override
   void dispose() {
+    _rotationController.dispose();
     _autoSlideTimer?.cancel();
     _imageController.dispose();
     super.dispose();
@@ -194,26 +204,26 @@ class _DesignGridCardState extends State<DesignGridCard> {
                           ),
                         ),
                       ),
-                    if (widget.onFavoriteToggle != null)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: widget.onFavoriteToggle,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: Colors.red,
-                              size: 26,
-                            ),
-                          ),
-                        ),
-                      ),
+                    // if (widget.onFavoriteToggle != null)
+                    //   Positioned(
+                    //     top: 4,
+                    //     right: 4,
+                    //     child: GestureDetector(
+                    //       onTap: widget.onFavoriteToggle,
+                    //       child: Container(
+                    //         padding: const EdgeInsets.all(8),
+                    //         decoration: BoxDecoration(
+                    //           color: Colors.white.withOpacity(0.8),
+                    //           shape: BoxShape.circle,
+                    //         ),
+                    //         child: Icon(
+                    //           widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    //           color: Colors.red,
+                    //           size: 26,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ),
                     Positioned(
                       bottom: 8,
                       right: 8,
@@ -456,10 +466,104 @@ class _DesignGridCardState extends State<DesignGridCard> {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      final total = loadingProgress.expectedTotalBytes;
+                      final loaded = loadingProgress.cumulativeBytesLoaded;
+                      final double? progress = total != null && total > 0 ? loaded / total : null;
+
+                      return Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 2,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                          ),
+                        ),
+                      );
+                    },
                     errorBuilder: (context, error, stackTrace) =>
                         const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40),
                   )
                 : const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40);
+
+        final bool isBuyerOrCraftsman = role?.toLowerCase() == 'buyer' ||
+            role?.toLowerCase() == 'key_user' ||
+            role?.toLowerCase() == 'user' ||
+            role?.toLowerCase() == 'craftsman' ||
+            role?.toLowerCase() == 'craftsman_staff';
+
+        final animatedContent = (!isPdf && isBuyerOrCraftsman && imageUrl != null && imageUrl.isNotEmpty)
+            ? AnimatedBuilder(
+                animation: _rotationController,
+                builder: (context, child) {
+                  final double progress = _rotationController.value * 2 * math.pi;
+                  final double yaw = math.sin(progress) * 0.38;
+                  final double pitch = math.cos(progress * 2) * 0.04;
+                  final double lightShift = math.sin(progress);
+
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Transform(
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.0018)
+                            ..rotateY(yaw)
+                            ..rotateX(pitch),
+                          alignment: Alignment.center,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              child!,
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      gradient: LinearGradient(
+                                        begin: Alignment(-1.0 + lightShift * 0.6, -1.0),
+                                        end: Alignment(1.0 + lightShift * 0.6, 1.0),
+                                        colors: [
+                                          Colors.white.withValues(alpha: (0.16 + lightShift.abs() * 0.12).clamp(0.0, 0.3)),
+                                          Colors.transparent,
+                                          Colors.black.withValues(alpha: (0.05 + (-lightShift).clamp(0.0, 1.0) * 0.08)),
+                                        ],
+                                        stops: const [0.0, 0.45, 1.0],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Transform.translate(
+                        offset: Offset(yaw * 16, -2),
+                        child: Container(
+                          width: 58 + (1 - yaw.abs()) * 20,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.all(Radius.elliptical(50, 6)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 7,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                child: content,
+              )
+            : content;
 
         return Stack(
           alignment: Alignment.center,
@@ -468,7 +572,7 @@ class _DesignGridCardState extends State<DesignGridCard> {
               imageFilter: (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
                   ? ImageFilter.blur(sigmaX: 40.0, sigmaY: 40.0)
                   : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
-              child: content,
+              child: animatedContent,
             ),
             if (widget.item.isLocked == 1 && role?.toLowerCase() != 'super_admin')
               Image.asset('assets/image/tara_text_bg.png', width: 60, height: 60, fit: BoxFit.contain),

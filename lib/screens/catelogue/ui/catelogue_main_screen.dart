@@ -479,11 +479,15 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
         final String? currentRole = SharedPreferencesHelper().getString("role");
         final bool restricted = ['super_admin', 'buyer', 'key_user', 'user', 'craftsman'].contains(currentRole?.toLowerCase());
 
+        String? imgUrl = (c.images != null && c.images!.isNotEmpty)
+            ? c.images!.first.imageUrl
+            : (c.imageUrl ?? c.productImage);
+
         return ShareCardItem(
-          imageUrl: c.imageUrl ?? c.productImage,
+          imageUrl: imgUrl,
           title: c.productName,
           productCode: restricted ? null : c.productCode,
-          category: c.categoryName,
+          category: c.categoryName ?? c.category?.name,
           weight: c.weightFrom != null ? "${c.weightFrom} gm" : null,
           size: c.size,
           refNo: restricted ? null : c.designCode,

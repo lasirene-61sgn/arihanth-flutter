@@ -18,9 +18,14 @@ class RepairListState {
   final List<RepairOrder> repairs;
   final RepairOrder? repairDetail;
   final bool isAccepting;
+  final bool isApproving;
   final bool isRejecting;
   final bool isAllocating;
   final bool isCompleting;
+  final bool isBuyerCompleting;
+  final bool isBuyerAccepting;
+  final String? activeActionRepairId;
+  final String? activeActionType; // 'accept', 'approve', 'reject', 'allocate', 'complete', 'buyer_complete', 'buyer_accept'
   final int currentPage;
   final String? nextUrl;
   final String? previousUrl;
@@ -33,9 +38,14 @@ class RepairListState {
     this.isLoading = false,
     this.isLoaded = false,
     this.isAccepting = false,
+    this.isApproving = false,
     this.isRejecting = false,
     this.isAllocating = false,
     this.isCompleting = false,
+    this.isBuyerCompleting = false,
+    this.isBuyerAccepting = false,
+    this.activeActionRepairId,
+    this.activeActionType,
     this.error,
     this.repairs = const [],
     this.repairDetail,
@@ -56,9 +66,14 @@ class RepairListState {
     RepairOrder? repairDetail,
     bool clearRepairDetail = false,
     bool? isAccepting,
+    bool? isApproving,
     bool? isRejecting,
     bool? isAllocating,
     bool? isCompleting,
+    bool? isBuyerCompleting,
+    bool? isBuyerAccepting,
+    dynamic activeActionRepairId = _sentinel,
+    dynamic activeActionType = _sentinel,
     int? currentPage,
     dynamic nextUrl = _sentinel,
     dynamic previousUrl = _sentinel,
@@ -71,9 +86,14 @@ class RepairListState {
       isLoading: isLoading ?? this.isLoading,
       isLoaded: isLoaded ?? this.isLoaded,
       isAccepting: isAccepting ?? this.isAccepting,
+      isApproving: isApproving ?? this.isApproving,
       isRejecting: isRejecting ?? this.isRejecting,
       isAllocating: isAllocating ?? this.isAllocating,
       isCompleting: isCompleting ?? this.isCompleting,
+      isBuyerCompleting: isBuyerCompleting ?? this.isBuyerCompleting,
+      isBuyerAccepting: isBuyerAccepting ?? this.isBuyerAccepting,
+      activeActionRepairId: activeActionRepairId == _sentinel ? this.activeActionRepairId : activeActionRepairId as String?,
+      activeActionType: activeActionType == _sentinel ? this.activeActionType : activeActionType as String?,
       error: error ?? this.error,
       repairs: repairs ?? this.repairs,
       repairDetail: clearRepairDetail ? null : repairDetail ?? this.repairDetail,
@@ -96,10 +116,15 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
   Future<void> fetchRepairs({String? customUrl, String? tab}) async {
     state = state.copyWith(isLoading: true, error: null);
 
+    final effectiveTab = tab ?? state.activeTab;
     String endpoint = customUrl ?? 'api/common/repairs';
-    // Append tab filter if provided and no custom URL
-    if (tab != null && customUrl == null) {
-      endpoint = 'api/common/repairs?tab=$tab';
+    // Append tab filter if not already present in custom URL
+    if (customUrl == null) {
+      if (effectiveTab.isNotEmpty && effectiveTab != 'all') {
+        endpoint = 'api/common/repairs?tab=$effectiveTab';
+      } else {
+        endpoint = 'api/common/repairs?tab=all';
+      }
     }
 
     try {
@@ -118,8 +143,10 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
             });
           }
 
-          final String activeTab =
-              responseData['active_tab']?.toString() ?? tab ?? state.activeTab;
+          final String activeTab = tab ??
+              (responseData['active_tab']?.toString().isNotEmpty == true
+                  ? responseData['active_tab'].toString()
+                  : state.activeTab);
           final String? role = responseData['role']?.toString();
 
           // Parse paginated list data
@@ -153,6 +180,8 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
                 .toList();
             count = loadedRepairs.length;
           }
+
+          print("FETCH_REPAIRS SUCCESS: tab=$activeTab, count=${loadedRepairs.length}, total=$count");
 
           state = state.copyWith(
             isLoading: false,
@@ -301,45 +330,184 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
   // --- Actions ---
 
   Future<bool> acceptRepair(String id) async {
-    return _performAction('api/common/repairs/$id/accept', {}, actionFlag: 'accepting');
+    return _performAction(
+      'api/common/repairs/$id/accept',
+      {},
+      repairId: id,
+      actionFlag: 'accepting',
+      actionType: 'accept',
+    );
+  }
+
+  Future<bool> approveRepair(String id, {String? itemSentBy}) async {
+    return _performAction(
+      'api/common/repairs/$id/approve',
+      {
+        if (itemSentBy != null && itemSentBy.isNotEmpty) 'item_sent_by': itemSentBy,
+      },
+      repairId: id,
+      actionFlag: 'approving',
+      actionType: 'approve',
+    );
   }
 
   Future<bool> rejectRepair(String id, String reason) async {
-    return _performAction('api/common/repairs/$id/reject', {'reject_reason': reason}, actionFlag: 'rejecting');
+    return _performAction(
+      'api/common/repairs/$id/reject',
+      {'reject_reason': reason},
+      repairId: id,
+      actionFlag: 'rejecting',
+      actionType: 'reject',
+    );
   }
 
-  Future<bool> allocateRepair(String id, String craftsmanCode, String notes) async {
-    return _performAction('api/common/repairs/$id/allocate', {
-      'craftsman_code': craftsmanCode,
-      'note': notes
-    }, actionFlag: 'allocating');
+  Future<bool> allocateRepair(
+    String id, {
+    required String craftsmanCode,
+    String? itemSentBy,
+    String? notes,
+  }) async {
+    return _performAction(
+      'api/common/repairs/$id/allocate',
+      {
+        'craftman_code': craftsmanCode,
+        'craftsman_code': craftsmanCode, // support both field spellings
+        if (itemSentBy != null && itemSentBy.isNotEmpty) 'item_sent_by': itemSentBy,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (notes != null && notes.isNotEmpty) 'note': notes,
+      },
+      repairId: id,
+      actionFlag: 'allocating',
+      actionType: 'allocate',
+    );
   }
 
-  Future<bool> completeRepair(String id) async {
-    return _performAction('api/common/repairs/$id/complete', {}, actionFlag: 'completing');
+  Future<bool> completeRepair(
+    String id, {
+    String? itemCollectedBy,
+    String? itemReturnedBy,
+    PlatformFile? craftsmanVoucherImage,
+    PlatformFile? craftsmanCompletionProofImage,
+  }) async {
+    final fields = <String, dynamic>{
+      if (itemCollectedBy != null && itemCollectedBy.isNotEmpty)
+        'item_collected_by': itemCollectedBy,
+      if (itemReturnedBy != null && itemReturnedBy.isNotEmpty)
+        'item_returned_by': itemReturnedBy,
+    };
+
+    final files = <String, dynamic>{
+      if (craftsmanVoucherImage != null)
+        'craftsman_voucher_image': craftsmanVoucherImage,
+      if (craftsmanCompletionProofImage != null)
+        'craftsman_completion_proof_image': craftsmanCompletionProofImage,
+    };
+
+    if (files.isNotEmpty) {
+      return _performActionWithFiles(
+        'api/common/repairs/$id/complete',
+        fields,
+        files: files,
+        repairId: id,
+        actionFlag: 'completing',
+        actionType: 'complete',
+      );
+    }
+
+    return _performAction(
+      'api/common/repairs/$id/complete',
+      fields,
+      repairId: id,
+      actionFlag: 'completing',
+      actionType: 'complete',
+    );
   }
 
-  Future<bool> buyerAcceptRepair(String id) async {
-    return _performAction('api/common/repairs/$id/buyer-accept', {}, actionFlag: 'accepting');
+  Future<bool> buyerCompleteRepair(
+    String id, {
+    String? itemCollectedBy,
+    String? itemReturnedBy,
+    PlatformFile? buyerVoucherImage,
+    PlatformFile? buyerCompletionProofImage,
+  }) async {
+    final fields = <String, dynamic>{
+      if (itemCollectedBy != null && itemCollectedBy.isNotEmpty)
+        'item_collected_by': itemCollectedBy,
+      if (itemReturnedBy != null && itemReturnedBy.isNotEmpty)
+        'item_returned_by': itemReturnedBy,
+    };
+
+    final files = <String, dynamic>{
+      if (buyerVoucherImage != null)
+        'buyer_voucher_image': buyerVoucherImage,
+      if (buyerCompletionProofImage != null)
+        'buyer_completion_proof_image': buyerCompletionProofImage,
+    };
+
+    if (files.isNotEmpty) {
+      return _performActionWithFiles(
+        'api/common/repairs/$id/buyer-complete',
+        fields,
+        files: files,
+        repairId: id,
+        actionFlag: 'buyerCompleting',
+        actionType: 'buyer_complete',
+      );
+    }
+
+    return _performAction(
+      'api/common/repairs/$id/buyer-complete',
+      fields,
+      repairId: id,
+      actionFlag: 'buyerCompleting',
+      actionType: 'buyer_complete',
+    );
+  }
+
+  Future<bool> buyerAcceptRepair(String id, {String? itemAcceptedBy}) async {
+    return _performAction(
+      'api/common/repairs/$id/buyer-accept',
+      {
+        if (itemAcceptedBy != null && itemAcceptedBy.isNotEmpty)
+          'item_accepted_by': itemAcceptedBy,
+      },
+      repairId: id,
+      actionFlag: 'buyerAccepting',
+      actionType: 'buyer_accept',
+    );
   }
 
   Future<bool> buyerRejectRepair(String id, String reason) async {
-    return _performAction('api/common/repairs/$id/buyer-reject', {'reject_reason': reason}, actionFlag: 'rejecting');
+    return _performAction(
+      'api/common/repairs/$id/buyer-reject',
+      {'reject_reason': reason},
+      repairId: id,
+      actionFlag: 'rejecting',
+      actionType: 'reject',
+    );
   }
 
   Future<bool> _performAction(
     String endpoint,
     Map<String, dynamic> body, {
+    String? repairId,
     String? actionFlag,
+    String? actionType,
     String? successMessage,
   }) async {
-    // Set individual flag
-    if (actionFlag == 'accepting') state = state.copyWith(isAccepting: true);
-    if (actionFlag == 'rejecting') state = state.copyWith(isRejecting: true);
-    if (actionFlag == 'allocating') state = state.copyWith(isAllocating: true);
-    if (actionFlag == 'completing') state = state.copyWith(isCompleting: true);
-
-    state = state.copyWith(isLoading: true, error: null);
+    // Set individual flag and active action
+    state = state.copyWith(
+      activeActionRepairId: repairId,
+      activeActionType: actionType,
+      isAccepting: actionFlag == 'accepting' ? true : null,
+      isApproving: actionFlag == 'approving' ? true : null,
+      isRejecting: actionFlag == 'rejecting' ? true : null,
+      isAllocating: actionFlag == 'allocating' ? true : null,
+      isCompleting: actionFlag == 'completing' ? true : null,
+      isBuyerCompleting: actionFlag == 'buyerCompleting' ? true : null,
+      isBuyerAccepting: actionFlag == 'buyerAccepting' ? true : null,
+      error: null,
+    );
     try {
       final response = await ApiClient().post(endpoint: endpoint, body: body);
 
@@ -350,7 +518,62 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
             "Action completed successfully";
         Toaster.showSuccess(msg);
         _resetActionFlags();
-        await fetchRepairs();
+        await fetchRepairs(tab: state.activeTab);
+        return true;
+      } else {
+        String errMsg = "Action failed";
+        if (response != null && response['message'] != null) {
+          errMsg = response['message'].toString();
+        } else if (response != null &&
+            response['data'] != null &&
+            response['data']['message'] != null) {
+          errMsg = response['data']['message'].toString();
+        }
+        Toaster.showError(errMsg);
+        _resetActionFlags();
+        state = state.copyWith(isLoading: false, error: errMsg);
+        return false;
+      }
+    } catch (e) {
+      final errMsg = e.toString();
+      Toaster.showError("Error: $errMsg");
+      _resetActionFlags();
+      state = state.copyWith(isLoading: false, error: errMsg);
+      return false;
+    }
+  }
+
+  Future<bool> _performActionWithFiles(
+    String endpoint,
+    Map<String, dynamic> fields, {
+    Map<String, dynamic>? files,
+    String? repairId,
+    String? actionFlag,
+    String? actionType,
+    String? successMessage,
+  }) async {
+    state = state.copyWith(
+      activeActionRepairId: repairId,
+      activeActionType: actionType,
+      isCompleting: actionFlag == 'completing' ? true : null,
+      isBuyerCompleting: actionFlag == 'buyerCompleting' ? true : null,
+      error: null,
+    );
+    try {
+      final response = await ApiClient().requestWithFiles(
+        endpoint: endpoint,
+        fields: fields,
+        files: files,
+      );
+
+      if (response != null && response['status'] == 1) {
+        final msg = response['message']?.toString() ??
+            response['data']?['message']?.toString() ??
+            successMessage ??
+            "Action completed successfully";
+        Toaster.showSuccess(msg);
+        _resetActionFlags();
+        await fetchRepairs(tab: state.activeTab);
         return true;
       } else {
         String errMsg = "Action failed";
@@ -379,9 +602,14 @@ class RepairListNotifier extends StateNotifier<RepairListState> {
     state = state.copyWith(
       isLoading: false,
       isAccepting: false,
+      isApproving: false,
       isRejecting: false,
       isAllocating: false,
       isCompleting: false,
+      isBuyerCompleting: false,
+      isBuyerAccepting: false,
+      activeActionRepairId: null,
+      activeActionType: null,
     );
   }
 

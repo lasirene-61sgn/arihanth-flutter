@@ -38,6 +38,7 @@ class WorkOrder {
   final String? status;
   final int? approvedBy;
   final String? craftsmanStatus;
+  final String? priority;
   final String? rejectionReason;
   final String? createdAt;
   final String? updatedAt;
@@ -95,6 +96,7 @@ class WorkOrder {
     this.status,
     this.approvedBy,
     this.craftsmanStatus,
+    this.priority,
     this.rejectionReason,
     this.createdAt,
     this.updatedAt,
@@ -151,6 +153,7 @@ class WorkOrder {
     String? status,
     int? approvedBy,
     String? craftsmanStatus,
+    String? priority,
     String? rejectionReason,
     String? createdAt,
     String? updatedAt,
@@ -206,6 +209,7 @@ class WorkOrder {
       status: status ?? this.status,
       approvedBy: approvedBy ?? this.approvedBy,
       craftsmanStatus: craftsmanStatus ?? this.craftsmanStatus,
+      priority: priority ?? this.priority,
       rejectionReason: rejectionReason ?? this.rejectionReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -264,6 +268,7 @@ class WorkOrder {
       status: json['status'],
       approvedBy: json['approved_by'],
       craftsmanStatus: json['craftsman_status'],
+      priority: json['priority']?.toString(),
       rejectionReason: json['rejection_reason'],
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],

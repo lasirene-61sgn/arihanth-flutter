@@ -4,6 +4,7 @@ import 'package:arianth/services/widget/no_data_widget.dart';
 import 'package:arianth/screens/repairs/riverpod/repairs_notifier.dart';
 import 'package:arianth/services/common_notifiers/pdf_download_notifier.dart';
 import 'package:arianth/services/widget/custom_msg.dart';
+import 'package:arianth/services/widget/tara_text_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,8 @@ import 'package:arianth/services/routes/route_name/route_name.dart';
 import '../../../services/widget/enterprise_search_bar.dart';
 import '../../../services/widget/reusable_sort.dart';
 import 'widgets/repair_card.dart';
+import 'widgets/allocate_repair_dialog.dart';
+import 'widgets/repair_completion_dialog.dart';
 import 'package:arianth/services/widget/reusable_bottom_nav_bar.dart';
 import 'package:arianth/services/widget/reusable_share_card.dart';
 import 'package:arianth/services/widget/pagination_controls.dart';
@@ -52,35 +55,40 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
     // Compute tabs once and cache — never recomputed, so TabController index is stable
     _tabs = _roleTabs();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
+    _tabController.addListener(() {
+      setState(() {});
+      _onTabChanged();
+    });
 
     Future.microtask(() {
-      ref.read(repairListProvider.notifier).fetchRepairs();
+      final initialTab = _tabs.isNotEmpty ? _tabs.first.key : null;
+      ref.read(repairListProvider.notifier).fetchRepairs(tab: initialTab);
       ref.read(productListProvider.notifier).fetchBPCodes();
     });
   }
 
   /// Returns the tab list appropriate for the current [role].
   List<_TabDef> _roleTabs() {
-    if (role == 'buyer' || role == 'key_user' || role == 'user') {
+    if (role == 'craftsman' || role == 'craftsman_staff') {
       return [
-        const _TabDef(key: 'all',       label: 'All'),
-        const _TabDef(key: 'approval',  label: 'Approval'),
-        const _TabDef(key: 'completed', label: 'Completed'),
-      ];
-    } else if (role == 'craftsman' || role == 'craftsman_staff') {
-      return [
-        const _TabDef(key: 'all',       label: 'All'),
-        const _TabDef(key: 'assigned',  label: 'Assigned'),
-        const _TabDef(key: 'completed', label: 'Completed'),
+        const _TabDef(key: 'all',              label: 'All'),
+        const _TabDef(key: 'assigned',         label: 'Assigned'),
+        const _TabDef(key: 'in_process',       label: 'In Process'),
+        const _TabDef(key: 'pending_approval', label: 'Pending Approval'),
+        const _TabDef(key: 'completed',        label: 'Completed'),
       ];
     } else {
-      // super_admin, admin and any other role
+      // Super Admin, Admin, and Buyer see entire set of tabs
       return [
-        const _TabDef(key: 'all',       label: 'All'),
-        const _TabDef(key: 'received',  label: 'Received'),
-        const _TabDef(key: 'allocated', label: 'Allocated'),
-        const _TabDef(key: 'completed', label: 'Completed'),
+        const _TabDef(key: 'all',                label: 'All'),
+        const _TabDef(key: 'new',                label: 'New'),
+        const _TabDef(key: 'accepted',           label: 'Accepted'),
+        const _TabDef(key: 'allocated',          label: 'Allocated'),
+        const _TabDef(key: 'craftsman_approval', label: 'Craftsman Approval'),
+        const _TabDef(key: 'approval',           label: 'Approval'),
+        const _TabDef(key: 'buyer_approval',     label: 'Buyer Approval'),
+        const _TabDef(key: 'completed',          label: 'Completed'),
+        const _TabDef(key: 'rejected',           label: 'Rejected'),
       ];
     }
   }
@@ -196,8 +204,10 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
               if (selectedFilter != null) _buildActiveFilterRibbon(),
               _buildSelectAllBar(state),
               Expanded(
-                child: state.isLoading && !state.isLoaded
-                    ? const Center(
+                child: (state.isLoading && state.repairs.isEmpty)
+                    ?
+
+                const Center(
                         child: CircularProgressIndicator(
                             color: AppColor.primary))
                     : state.repairs.isEmpty
@@ -211,9 +221,175 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
                             itemCount: state.repairs.length,
                             itemBuilder: (context, index) {
                               final repair = state.repairs[index];
+                              final status = (repair.status ?? '').toLowerCase();
+                              final craftsmanStatus = (repair.craftsmanStatus ?? '').toLowerCase();
+                              final isPending = status == 'pending' || status == 'new';
+                              final isAccepted = status == 'accepted' || status == 'allocated';
+                              final activeTabKey = _tabs[_tabController.index].key.toLowerCase();
+                              final isCraftsmanApprovalTab = activeTabKey == 'craftsman_approval';
+                              final isBuyerApprovalTab = activeTabKey == 'buyer_approval';
+
+                              final isSuperAdmin = role == 'super_admin' || role == 'admin';
+                              final isCraftsman = role == 'craftsman' || role == 'craftsman_staff';
+                              final isBuyer = role == 'buyer' || role == 'key_user' || role == 'user';
+
+                              // Effective craftsman status: if craftsmanStatus is set, prefer it
+                              final effectiveCraftsmanStatus = craftsmanStatus.isNotEmpty ? craftsmanStatus : status;
+
+                              // --- Super Admin Actions ---
+                              // 1. New tab: only Accept, Reject, Edit, Share
+                              // 2. Accepted tab: only Allocate, Edit, Share
+                              // 3. Allocated tab: no workflow buttons, only Edit, Share
+                              // 4. Craftsman Approval tab: only Approve, Edit, Share
+                              // 5. Buyer Approval tab: only Complete, Edit, Share
+                              // 6. Completed / Rejected: only Edit, Share
+                              // 7. All tab: matches the item's individual state
+                              bool superAdminCanAccept = false;
+                              bool superAdminCanApprove = false;
+                              bool superAdminCanAllocate = false;
+                              bool superAdminCanCompleteBuyer = false;
+                              bool superAdminCanReject = false;
+
+                              if (isSuperAdmin) {
+                                switch (activeTabKey) {
+                                  case 'new':
+                                    superAdminCanAccept = true;
+                                    superAdminCanReject = true;
+                                    break;
+                                  case 'accepted':
+                                    superAdminCanAllocate = true;
+                                    break;
+                                  case 'allocated':
+                                    // allocated no need button
+                                    break;
+                                  case 'craftsman_approval':
+                                    superAdminCanApprove = true;
+                                    break;
+                                  case 'buyer_approval':
+                                    superAdminCanCompleteBuyer = true;
+                                    break;
+                                  case 'approval':
+                                    superAdminCanApprove = true;
+                                    break;
+                                  case 'completed':
+                                  case 'rejected':
+                                    break;
+                                  case 'all':
+                                  default:
+                                    if (isPending) {
+                                      superAdminCanAccept = true;
+                                      superAdminCanReject = true;
+                                    } else if (status == 'accepted') {
+                                      superAdminCanAllocate = true;
+                                    } else if (status == 'craftsman_approval') {
+                                      superAdminCanApprove = true;
+                                    } else if (status == 'buyer_approval') {
+                                      superAdminCanCompleteBuyer = true;
+                                    }
+                                    break;
+                                }
+                              }
+
+                              // --- Craftsman Actions ---
+                              // 1. Assigned tab: only Accept, Reject, Share
+                              // 2. In Process tab: only Complete, Share
+                              // 3. Other tabs / All: strictly per status
+                              bool craftsmanCanAccept = false;
+                              bool craftsmanCanReject = false;
+                              bool craftsmanCanComplete = false;
+
+                              if (isCraftsman) {
+                                switch (activeTabKey) {
+                                  case 'assigned':
+                                    craftsmanCanAccept = true;
+                                    craftsmanCanReject = true;
+                                    break;
+                                  case 'in_process':
+                                    craftsmanCanComplete = true;
+                                    break;
+                                  case 'pending_approval':
+                                  case 'completed':
+                                    break;
+                                  case 'all':
+                                  default:
+                                    if (effectiveCraftsmanStatus == 'in_process' ||
+                                        effectiveCraftsmanStatus == 'accepted' ||
+                                        effectiveCraftsmanStatus == 'craftsman_accepted') {
+                                      craftsmanCanComplete = true;
+                                    } else if (effectiveCraftsmanStatus == 'allocated' ||
+                                        effectiveCraftsmanStatus == 'assigned') {
+                                      craftsmanCanAccept = true;
+                                      craftsmanCanReject = true;
+                                    }
+                                    break;
+                                }
+                              }
+
+                              // --- Buyer Actions ---
+                              // 1. Approval tab: Accept & Complete buttons
+                              // 2. New tab: only Edit, Share
+                              // 3. Other tabs: only Share
+                              bool buyerCanAccept = false;
+                              bool buyerCanComplete = false;
+                              bool buyerCanReject = false;
+
+                              if (isBuyer) {
+                                switch (activeTabKey) {
+                                  case 'approval':
+                                  case 'buyer_approval':
+                                    buyerCanAccept = true;
+                                    buyerCanComplete = true;
+                                    break;
+                                  case 'new':
+                                  case 'accepted':
+                                  case 'allocated':
+                                  case 'rejected':
+                                  case 'completed':
+                                    break;
+                                  case 'all':
+                                  default:
+                                    if (status == 'approval' ||
+                                        status == 'buyer_approval' ||
+                                        status == 'craftsman_completed') {
+                                      buyerCanAccept = true;
+                                      buyerCanComplete = true;
+                                    }
+                                    break;
+                                }
+                              }
+
+                              // Edit button permission:
+                              // Super Admin can edit on tabs
+                              // Buyer can ONLY edit on 'new' tab / pending state
+                              bool canEdit = false;
+                              if (isSuperAdmin) {
+                                canEdit = true;
+                              } else if (isBuyer) {
+                                canEdit = (activeTabKey == 'new' || isPending);
+                              }
+
+                              final currentRepairId = repair.id?.toString();
+                              final isThisRepairBusy = state.activeActionRepairId != null &&
+                                  state.activeActionRepairId == currentRepairId;
+
+                              final isAcceptLoading = isThisRepairBusy &&
+                                  (state.activeActionType == 'accept' ||
+                                      state.activeActionType == 'buyer_accept');
+                              final isApproveLoading = isThisRepairBusy && state.activeActionType == 'approve';
+                              final isRejectLoading = isThisRepairBusy && state.activeActionType == 'reject';
+                              final isAllocateLoading = isThisRepairBusy && state.activeActionType == 'allocate';
+                              final isCompleteLoading = isThisRepairBusy &&
+                                  (state.activeActionType == 'complete' ||
+                                      state.activeActionType == 'buyer_complete');
+
                               return RepairListCard(
                                 repair: repair,
                                 role: role,
+                                isAcceptLoading: isAcceptLoading,
+                                isApproveLoading: isApproveLoading,
+                                isRejectLoading: isRejectLoading,
+                                isAllocateLoading: isAllocateLoading,
+                                isCompleteLoading: isCompleteLoading,
                                 isSelected: selectedIds
                                     .contains(repair.id.toString()),
                                 onSelectionChanged: (value) {
@@ -226,10 +402,33 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
                                     }
                                   });
                                 },
-                                onEdit: () => Get.toNamed(
-                                    AppRoutes.repairsAdd,
-                                    arguments: repair.id.toString()),
+                                onEdit: canEdit
+                                    ? () => Get.toNamed(
+                                        AppRoutes.repairsAdd,
+                                        arguments: repair.id.toString())
+                                    : null,
                                 onShare: () => _shareRepair(repair),
+                                onAccept: superAdminCanAccept
+                                    ? () => _handleSingleAccept(repair)
+                                    : (craftsmanCanAccept
+                                        ? () => _handleSingleAccept(repair)
+                                        : (buyerCanAccept ? () => _handleSingleBuyerAccept(repair) : null)),
+                                onApprove: superAdminCanApprove
+                                    ? () => _handleSingleApprove(repair)
+                                    : null,
+                                onComplete: superAdminCanCompleteBuyer
+                                    ? () => _handleSingleBuyerComplete(repair)
+                                    : (craftsmanCanComplete
+                                        ? () => _handleSingleCraftsmanComplete(repair)
+                                        : (buyerCanComplete ? () => _handleSingleBuyerComplete(repair) : null)),
+                                onReject: superAdminCanReject
+                                    ? () => _handleSingleReject(repair)
+                                    : (craftsmanCanReject
+                                        ? () => _handleSingleReject(repair)
+                                        : (buyerCanReject ? () => _handleSingleBuyerReject(repair) : null)),
+                                onAllocate: superAdminCanAllocate
+                                    ? () => _handleSingleAllocate(repair)
+                                    : null,
                                 onTap: () {
                                   Get.toNamed(AppRoutes.repairsDetails,
                                       arguments: repair.id.toString());
@@ -633,11 +832,17 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
   Widget _buildBulkActions() {
     if (selectedIds.isEmpty) return const SizedBox.shrink();
 
-    // Check if role is super_admin and active tab is received
-    if (role != 'super_admin' && role != 'admin') return const SizedBox.shrink();
-
     final currentTabKey = _tabs[_tabController.index].key.toLowerCase();
-    if (currentTabKey != 'received') return const SizedBox.shrink();
+    final isSuperAdmin = role == 'super_admin' || role == 'admin';
+    final isCraftsman = role == 'craftsman' || role == 'craftsman_staff';
+
+    // Show for super admin on 'new' or 'pending' or 'received' tab
+    final bool isSuperAdminPending = isSuperAdmin &&
+        (currentTabKey == 'new' || currentTabKey == 'pending' || currentTabKey == 'received');
+    // Show for craftsman on 'assigned' tab
+    final bool isCraftsmanAssigned = isCraftsman && currentTabKey == 'assigned';
+
+    if (!isSuperAdminPending && !isCraftsmanAssigned) return const SizedBox.shrink();
 
     final state = ref.read(repairListProvider);
     final selectedRepairs = state.repairs
@@ -645,11 +850,6 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
         .toList();
 
     if (selectedRepairs.isEmpty) return const SizedBox.shrink();
-
-    // Show operation ONLY when selected items are strictly pending
-    final bool allPending = selectedRepairs.every(
-        (r) => (r.status ?? '').toLowerCase() == 'pending');
-    if (!allPending) return const SizedBox.shrink();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -706,6 +906,302 @@ class _RepairsScreenState extends ConsumerState<RepairsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _handleSingleAccept(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    Get.dialog(
+      AlertDialog(
+        title: Text("Accept Repair #$id"),
+        content: Text("Are you sure you want to accept repair order #$id?"),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              await ref.read(repairListProvider.notifier).acceptRepair(id);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Confirm Accept"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSingleApprove(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    final TextEditingController itemSentByController =
+        TextEditingController(text: repair.itemSentBy ?? '');
+
+    Get.dialog(
+      AlertDialog(
+        title: Text("Approve Repair #$id"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Item Sent By"),
+            const SizedBox(height: 8),
+            TextField(
+              controller: itemSentByController,
+              decoration: const InputDecoration(
+                hintText: "Enter item sent by",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              await ref.read(repairListProvider.notifier).approveRepair(
+                    id,
+                    itemSentBy: itemSentByController.text.trim(),
+                  );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Approve"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSingleCraftsmanComplete(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    RepairCompletionDialog.show(
+      context: context,
+      repairId: id,
+      type: RepairCompletionType.craftsman,
+      initialItemCollectedBy: repair.itemCollectedBy,
+      initialItemReturnedBy: repair.itemReturnedBy,
+      onComplete: ({
+        required itemCollectedBy,
+        required itemReturnedBy,
+        voucherImage,
+        completionProofImage,
+      }) async {
+        return await ref.read(repairListProvider.notifier).completeRepair(
+              id,
+              itemCollectedBy: itemCollectedBy,
+              itemReturnedBy: itemReturnedBy,
+              craftsmanVoucherImage: voucherImage,
+              craftsmanCompletionProofImage: completionProofImage,
+            );
+      },
+    );
+  }
+
+  void _handleSingleBuyerAccept(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    final TextEditingController itemAcceptedByController = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        title: Text("Accept Repair #$id"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Item Accepted By *"),
+            const SizedBox(height: 8),
+            TextField(
+              controller: itemAcceptedByController,
+              decoration: const InputDecoration(
+                hintText: "Enter item accepted by",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final acceptedBy = itemAcceptedByController.text.trim();
+              if (acceptedBy.isEmpty) {
+                Toaster.showError("Please enter Item Accepted By");
+                return;
+              }
+              Get.back();
+              await ref.read(repairListProvider.notifier).buyerAcceptRepair(
+                    id,
+                    itemAcceptedBy: acceptedBy,
+                  );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Confirm Accept"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSingleBuyerReject(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    final TextEditingController reasonController = TextEditingController();
+    Get.dialog(
+      AlertDialog(
+        title: Text("Reject Repair #$id"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Enter rejection reason for repair order #$id:"),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: "Enter rejection reason *",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                Toaster.showError("Please enter a rejection reason");
+                return;
+              }
+              Get.back();
+              await ref.read(repairListProvider.notifier).buyerRejectRepair(id, reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColor.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Confirm Reject"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSingleBuyerComplete(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    RepairCompletionDialog.show(
+      context: context,
+      repairId: id,
+      type: RepairCompletionType.buyer,
+      initialItemCollectedBy: repair.itemCollectedBy,
+      initialItemReturnedBy: repair.itemReturnedBy,
+      onComplete: ({
+        required itemCollectedBy,
+        required itemReturnedBy,
+        voucherImage,
+        completionProofImage,
+      }) async {
+        return await ref.read(repairListProvider.notifier).buyerCompleteRepair(
+              id,
+              itemCollectedBy: itemCollectedBy,
+              itemReturnedBy: itemReturnedBy,
+              buyerVoucherImage: voucherImage,
+              buyerCompletionProofImage: completionProofImage,
+            );
+      },
+    );
+  }
+
+  void _handleSingleReject(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    final TextEditingController reasonController = TextEditingController();
+    Get.dialog(
+      AlertDialog(
+        title: Text("Reject Repair #$id"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Enter rejection reason for repair order #$id:"),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: "Enter rejection reason *",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                Toaster.showError("Please enter a rejection reason");
+                return;
+              }
+              Get.back();
+              await ref.read(repairListProvider.notifier).rejectRepair(id, reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColor.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Confirm Reject"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSingleAllocate(RepairOrder repair) {
+    final id = repair.id?.toString();
+    if (id == null) return;
+    AllocateRepairDialog.show(
+      context: context,
+      repairId: id,
+      initialCraftsmanCode: repair.allocatedCraftsmanCode ?? repair.craftsmanCode,
+      initialItemSentBy: repair.itemSentBy,
+      initialNotes: repair.notes ?? repair.allocationNotes,
+      onAllocate: ({required craftsmanCode, itemSentBy, notes}) async {
+        return await ref.read(repairListProvider.notifier).allocateRepair(
+          id,
+          craftsmanCode: craftsmanCode,
+          itemSentBy: itemSentBy,
+          notes: notes,
+        );
+      },
     );
   }
 

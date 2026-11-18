@@ -37,6 +37,7 @@ import '../../../services/widget/reusable_fillter_dialog.dart';
 import '../../../services/widget/reusable_share_card.dart';
 import '../../../services/widget/reusable_sort.dart';
 import '../../../services/widget/enterprise_search_bar.dart';
+import '../../../services/widget/tara_text_loader.dart';
 
 class WorkOrdersScreen extends ConsumerStatefulWidget {
   const WorkOrdersScreen({super.key});
@@ -635,123 +636,126 @@ class _WorkOrdersScreenState extends ConsumerState<WorkOrdersScreen> {
       padding: isMobile
           ? const EdgeInsets.fromLTRB(4, 0, 4, 4)
           : const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      child: state.isLoading  && state.workOrders.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: AppColor.primary))
-          : state.workOrders.isEmpty
-              ? const NoDataWidget(
-                  title: "No Work Orders Found",
-                  subtitle: "We couldn't find any orders matching your criteria. Try adjusting your filters or search.",
-                  icon: Icons.assignment_outlined,
-                )
-              :
-      // isMobile
-          // ?
-      ListView.separated(
-
-              itemCount: state.workOrders.length + (state.isPaginating ? 1 : 0),
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              itemBuilder: (context, index) {
-                if (index == state.workOrders.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: CircularProgressIndicator(color: AppColor.primary),
-                    ),
-                  );
-                }
-                final partner = state.workOrders[index];
-                return GestureDetector(
-                  onTap: () {
-                    final isSelected = selectedIds.contains(partner.id.toString());
-                    setState(() {
-                      if (!isSelected) {
-                        selectedIds.add(partner.id.toString());
-                      } else {
-                        selectedIds.remove(partner.id.toString());
-                      }
-                    });
-                  },
-                  child: WorkOrderCard(
-                    workOrder: partner,
-                    role: role,
-                    activeStatus: _activeStatus,
-                    isSelected: selectedIds.contains(partner.id.toString()),
-                    onSelectionChanged: (value) {
-                      setState(() {
-                        if (value == true) {
-                          selectedIds.add(partner.id.toString());
-                        } else {
-                          selectedIds.remove(partner.id.toString());
+      child: Stack(
+        children: [
+          state.isLoading && state.workOrders.isEmpty
+              ? const Center(child: CircularProgressIndicator(color: AppColor.primary))
+              : state.workOrders.isEmpty
+                  ? const NoDataWidget(
+                      title: "No Work Orders Found",
+                      subtitle: "We couldn't find any orders matching your criteria. Try adjusting your filters or search.",
+                      icon: Icons.assignment_outlined,
+                    )
+                  : ListView.separated(
+                      itemCount: state.workOrders.length + (state.isPaginating ? 1 : 0),
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      itemBuilder: (context, index) {
+                        if (index == state.workOrders.length) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: CircularProgressIndicator(color: AppColor.primary),
+                            ),
+                          );
                         }
-                      });
-                    },
-                    onView: () {
-                      Get.toNamed(AppRoutes.workOrdersDetails, arguments: partner.id.toString());
-                    },
-                    onEdit: () async {
-                      final id = partner.id;
-                      Get.toNamed(AppRoutes.workOrdersAdd, arguments: id.toString());
-                    },
-                    onShare: () async {
-                      final List<String> allImages = [];
-                      if (partner.galleryImages != null && partner.galleryImages!.isNotEmpty) {
-                        allImages.addAll(partner.galleryImages!);
-                      } else if (partner.images != null && partner.images!.isNotEmpty) {
-                        allImages.addAll(partner.images!);
-                      } else if (partner.productImageUrl != null && partner.productImageUrl != 'null') {
-                        allImages.add(partner.productImageUrl!);
-                      } else if (partner.productImage != null && partner.productImage != 'null') {
-                        allImages.add(partner.productImage!);
-                      }
+                        final partner = state.workOrders[index];
+                        return GestureDetector(
+                          onTap: () {
+                            final isSelected = selectedIds.contains(partner.id.toString());
+                            setState(() {
+                              if (!isSelected) {
+                                selectedIds.add(partner.id.toString());
+                              } else {
+                                selectedIds.remove(partner.id.toString());
+                              }
+                            });
+                          },
+                          child: WorkOrderCard(
+                            workOrder: partner,
+                            role: role,
+                            activeStatus: _activeStatus,
+                            isSelected: selectedIds.contains(partner.id.toString()),
+                            onSelectionChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedIds.add(partner.id.toString());
+                                } else {
+                                  selectedIds.remove(partner.id.toString());
+                                }
+                              });
+                            },
+                            onView: () {
+                              Get.toNamed(AppRoutes.workOrdersDetails, arguments: partner.id.toString());
+                            },
+                            onEdit: () async {
+                              final id = partner.id;
+                              Get.toNamed(AppRoutes.workOrdersAdd, arguments: id.toString());
+                            },
+                            onShare: () async {
+                              final List<String> allImages = [];
+                              if (partner.galleryImages != null && partner.galleryImages!.isNotEmpty) {
+                                allImages.addAll(partner.galleryImages!);
+                              } else if (partner.images != null && partner.images!.isNotEmpty) {
+                                allImages.addAll(partner.images!);
+                              } else if (partner.productImageUrl != null && partner.productImageUrl != 'null') {
+                                allImages.add(partner.productImageUrl!);
+                              } else if (partner.productImage != null && partner.productImage != 'null') {
+                                allImages.add(partner.productImage!);
+                              }
 
-                      if (allImages.isEmpty) {
-                        Toaster.showError("No images to share");
-                        return;
-                      }
+                              if (allImages.isEmpty) {
+                                Toaster.showError("No images to share");
+                                return;
+                              }
 
-                      final List<ShareCardItem> shareItems = allImages.map((imageUrl) {
-                        final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
-                        return ShareCardItem(
-                          workOrderNumber: partner.workOrderNumber,
-                          imageUrl: imageUrl,
-                          title: partner.productName,
-                          category: partner.productCategory,
-                          quantity: partner.quantity,
-                          weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
-                          size: partner.size,
-                          stone: partner.stone,
-                          enamel: partner.enamel,
-                          hallmark: partner.hallmark,
-                          rodium: partner.rodium,
-                          hook: partner.hook,
-                          screwName: partner.screwName,
-                          type: partner.type,
-                          openClose: partner.openClose,
-                          isPdf: isPdf,
-                          narration: partner.narrationCraftsman,
-                          subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
+                              final List<ShareCardItem> shareItems = allImages.map((imageUrl) {
+                                final bool isPdf = imageUrl.toLowerCase().endsWith('.pdf');
+                                return ShareCardItem(
+                                  workOrderNumber: partner.workOrderNumber,
+                                  imageUrl: imageUrl,
+                                  title: partner.productName,
+                                  category: partner.productCategory,
+                                  quantity: partner.quantity,
+                                  weight: partner.weightFrom != null ? '${partner.weightFrom}-${partner.weightTo}g' : null,
+                                  size: partner.size,
+                                  stone: partner.stone,
+                                  enamel: partner.enamel,
+                                  hallmark: partner.hallmark,
+                                  rodium: partner.rodium,
+                                  hook: partner.hook,
+                                  screwName: partner.screwName,
+                                  type: partner.type,
+                                  openClose: partner.openClose,
+                                  isPdf: isPdf,
+                                  narration: partner.narrationCraftsman,
+                                  subtitle: 'WO# ${partner.workOrderNumber ?? ""}',
+                                );
+                              }).toList();
+
+                              await WorkOrderShareOptionsBottomSheet.show(
+                                context: context,
+                                shareItems: shareItems,
+                              );
+                            },
+                          ),
                         );
-                      }).toList();
-
-                      await WorkOrderShareOptionsBottomSheet.show(
-                        context: context,
-                        shareItems: shareItems,
-                      );
-                    },
+                      },
+                    ),
+          if (state.isLoading && state.workOrders.isNotEmpty)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
+                  child: const Center(
+                    child: TaraTextLoader(fontSize: 36.0),
                   ),
-                );
-              },
-            )
-          // : WorkOrdersTable(
-          //     state: state,
-          //     role: role,
-          //     activeStatus: _activeStatus,
-          //     selectedIds: selectedIds,
-          //     onSelectionChanged: (newSelection) {
-          //       setState(() => selectedIds = newSelection);
-          //     },
-          //   ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

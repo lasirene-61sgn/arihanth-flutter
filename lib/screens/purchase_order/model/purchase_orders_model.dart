@@ -13,6 +13,7 @@ class PurchaseOrder {
   final String? updatedAt;
   final String? totalWeight;
   final String? size;
+  final String? priority;
   final String? colorKey;
   final String? colorHex;
   final List<PurchaseItem>? items;
@@ -63,6 +64,7 @@ class PurchaseOrder {
     this.updatedAt,
     this.totalWeight,
     this.size,
+    this.priority,
     this.colorKey,
     this.colorHex,
     this.items,
@@ -102,6 +104,7 @@ class PurchaseOrder {
       updatedAt: json['updated_at']?.toString(),
       totalWeight: weightStr,
       size: json['size']?.toString(),
+      priority: json['priority']?.toString(),
       colorKey: json['color_key']?.toString(),
       colorHex: json['color_hex']?.toString(),
       items: parsedItems,
@@ -144,6 +147,7 @@ class PurchaseOrder {
     List<dynamic>? rejectedItemsWithImageUrls,
     num? totalWeight,
     String? size,
+    String? priority,
     String? colorKey,
     String? colorHex,
   }) {
@@ -165,6 +169,7 @@ class PurchaseOrder {
           ? totalWeight.toString()
           : this.totalWeight,
       size: size ?? this.size,
+      priority: priority ?? this.priority,
       colorKey: colorKey ?? this.colorKey,
       colorHex: colorHex ?? this.colorHex,
     );

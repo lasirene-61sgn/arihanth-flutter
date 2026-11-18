@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:get/get.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
+import 'package:arianth/screens/reports/ui/report_share_options_bottom_sheet.dart';
 
 class Reports extends ConsumerStatefulWidget {
   const Reports({super.key});
@@ -28,6 +29,7 @@ class _ReportsState extends ConsumerState<Reports> {
   final GlobalKey _buyerFavoritesKey = GlobalKey();
   int _currentIndex = 0;
   List<String> _hiddenTabs = [];
+  bool _isCapturingShare = false;
   Map<String, List<String>> _hiddenTableFields = {};
   final Map<String, Set<int>> _selectedIndicesByTab = {};
   List<String> _orderedTabs = [
@@ -187,9 +189,6 @@ class _ReportsState extends ConsumerState<Reports> {
           'Allocated',
           'In Process',
           if (isSuperAdmin) 'Completed',
-          'Total Wt',
-          'WA Wt',
-          'PO Wt',
           'Overdue',
           'New Orders',
         ];
@@ -242,24 +241,36 @@ class _ReportsState extends ConsumerState<Reports> {
             onPressed: () => _showManageReportsBottomSheet(reportState.reportData, currentTabType),
           ),
           if (isTable && reportState.reportData != null)
-            IconButton(
-              icon: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade400, width: 1),
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/image/whatsapp.png',
-                    fit: BoxFit.cover,
+            _isCapturingShare
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade400, width: 1),
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/image/whatsapp.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    tooltip: 'Share Report',
+                    onPressed: () => _shareToWhatsApp(currentTabType),
                   ),
-                ),
-              ),
-              tooltip: 'Share to WhatsApp',
-              onPressed: () => _shareToWhatsApp(currentTabType),
-            ),
           if (isTable && reportState.reportData != null)
             IconButton(
               icon: const Icon(Icons.screen_rotation),
@@ -323,14 +334,17 @@ class _ReportsState extends ConsumerState<Reports> {
 
       final tempDir = await getTemporaryDirectory();
       final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.png';
-      await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
+      final file = File(filePath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(filePath, mimeType: 'image/png')],
+      if (mounted) {
+        await ReportShareOptionsBottomSheet.show(
+          context: context,
+          file: file,
+          title: _formatTabName(tabType),
           subject: _formatTabName(tabType),
-        ),
-      );
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sharing table: $e')));
@@ -811,9 +825,6 @@ class _ReportsState extends ConsumerState<Reports> {
       'Allocated',
       'In Process',
       if (isSuperAdmin) 'Completed',
-      'Total Wt',
-      'WA Wt',
-      'PO Wt',
       'Overdue',
       'New Orders',
     ];
@@ -823,9 +834,6 @@ class _ReportsState extends ConsumerState<Reports> {
       120.0, // Allocated
       120.0, // In Process
       if (isSuperAdmin) 120.0, // Completed
-      110.0, // Total Wt
-      110.0, // WA Wt
-      110.0, // PO Wt
       110.0, // Overdue
       130.0, // New Orders
     ];
@@ -839,9 +847,6 @@ class _ReportsState extends ConsumerState<Reports> {
         if (header == 'Allocated') val = c.allocated.toString();
         if (header == 'In Process') val = c.inProcess.toString();
         if (header == 'Completed') val = c.completed.toString();
-        if (header == 'Total Wt') val = c.totalWeight == 0 ? '' : c.totalWeight.toString();
-        if (header == 'WA Wt') val = c.waTotalWeight == 0 ? '' : c.waTotalWeight.toString();
-        if (header == 'PO Wt') val = c.poTotalWeight == 0 ? '' : c.poTotalWeight.toString();
         if (header == 'Overdue') val = c.overdue.toString();
         if (header == 'New Orders') val = c.wo?.newOrders?.count.toString() ?? '0';
         return val.trim().isEmpty || val.trim().toUpperCase() == 'N/A' || val.trim() == 'NULL' || val.trim() == '-';
@@ -883,9 +888,6 @@ class _ReportsState extends ConsumerState<Reports> {
           craftsman.allocated.toString(),
           craftsman.inProcess.toString(),
           if (isSuperAdmin) craftsman.completed.toString(),
-          craftsman.totalWeight.toString(),
-          craftsman.waTotalWeight.toString(),
-          craftsman.poTotalWeight.toString(),
           craftsman.overdue.toString(),
           craftsman.wo?.newOrders?.count.toString() ?? '0',
         ];
@@ -905,6 +907,7 @@ class _ReportsState extends ConsumerState<Reports> {
           final po = craftsman.po;
           Get.toNamed(AppRoutes.reportOrders, arguments: {
             'title': '${craftsman.name} Orders',
+            'origin': 'top_picks_craftsman',
             'nestedTabData': {
               'Work Orders (WO)': {
                 'New': wo?.newOrders?.orders ?? [],
@@ -1040,6 +1043,7 @@ class _ReportsState extends ConsumerState<Reports> {
         void openDetails() {
           Get.toNamed(AppRoutes.reportOrders, arguments: {
             'title': '${client.name} Orders',
+            'origin': 'top_picks_client',
             'tabData': {
                'New': client.newOrders?.orders ?? [],
                'In Process': client.inProcess?.orders ?? [],

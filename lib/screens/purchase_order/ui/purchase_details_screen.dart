@@ -148,6 +148,19 @@ class _PurchaseOrderDetailScreenState
                             ? AppColor.warning
                             : null),
                   ),
+                  if (order.priority != null && order.priority!.isNotEmpty && order.priority != "null")
+                    _buildInfoRow(
+                      "Priority",
+                      order.priority,
+                      valueColor: () {
+                        final p = order.priority?.toLowerCase();
+                        if (p == 'urgent') return Colors.deepOrange;
+                        if (p == 'high') return Colors.red;
+                        if (p == 'medium') return Colors.amber.shade800;
+                        if (p == 'low') return Colors.green;
+                        return null;
+                      }(),
+                    ),
                   if (role != "craftsman" && role != "craftsman_staff")
                     _buildInfoRow("Customer BP", order.bpCode),
                   _buildInfoRow("Order Date", _formatDate(order.orderDate)),
@@ -456,7 +469,8 @@ class _PurchaseOrderDetailScreenState
                                               ),
                                             ),
 
-                                            if (role == "craftsman" && order.status == "created" && order.items!.length > 1) ...[
+                                            if ((role == "craftsman" || role == "craftsman_staff") &&
+                                                (order.status == "created" || order.status == "allocated")) ...[
                                               const SizedBox(height: 8),
                                               Row(
                                                 children: [
@@ -582,8 +596,8 @@ class _PurchaseOrderDetailScreenState
                 ],
               ),
             ),
-      floatingActionButton: (role == "craftsman" &&
-              ((order?.status == "created" && (order?.items != null && (_acceptIndices.length + _rejectIndices.length == order!.items!.length))) ||
+      floatingActionButton: ((role == "craftsman" || role == "craftsman_staff") &&
+              (((order?.status == "created" || order?.status == "allocated") && (order?.items != null && (_acceptIndices.length + _rejectIndices.length == order!.items!.length))) ||
               (order?.status == "in_process" && _completeIndices.isNotEmpty)))
           ? FloatingActionButton.extended(
               onPressed: state.isLoading || state.isProcessingItems

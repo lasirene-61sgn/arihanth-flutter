@@ -216,7 +216,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primary),
                               )
-                            : (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin') ? IconButton(
+                            : (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin' || widget.role?.toLowerCase() == 'craftsman' || widget.role?.toLowerCase() == 'craftsman_staff') ? IconButton(
                                 icon: Image.asset('assets/image/whatsapp.png', width: 18, height: 18),
                                 onPressed: _isSharing || _isIndividualSharing
                                     ? null
@@ -395,6 +395,58 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                                 style: const TextStyle(color: AppColor.softOrange, fontSize: 10, fontWeight: FontWeight.bold),
                               ),
                             ),
+                          if (widget.purchaseOrder.priority != null &&
+                              widget.purchaseOrder.priority!.isNotEmpty &&
+                              widget.purchaseOrder.priority != "null") ...[
+                            const SizedBox(width: 6),
+                            Builder(
+                              builder: (context) {
+                                final p = widget.purchaseOrder.priority!.toLowerCase();
+                                Color bgColor;
+                                Color textColor;
+                                Color borderColor;
+
+                                if (p == 'urgent') {
+                                  bgColor = Colors.deepOrange;
+                                  textColor = Colors.white;
+                                  borderColor = Colors.deepOrange;
+                                } else if (p == 'high') {
+                                  bgColor = Colors.red;
+                                  textColor = Colors.white;
+                                  borderColor = Colors.red;
+                                } else if (p == 'medium') {
+                                  bgColor = Colors.amber.shade700;
+                                  textColor = Colors.white;
+                                  borderColor = Colors.amber.shade700;
+                                } else if (p == 'low') {
+                                  bgColor = Colors.green;
+                                  textColor = Colors.white;
+                                  borderColor = Colors.green;
+                                } else {
+                                  bgColor = AppColor.surface;
+                                  textColor = AppColor.textPrimary;
+                                  borderColor = AppColor.divider;
+                                }
+
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: bgColor,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: borderColor),
+                                  ),
+                                  child: Text(
+                                    widget.purchaseOrder.priority!,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -548,7 +600,7 @@ class _PurchaseOrderCardState extends State<PurchaseOrderCard> {
                             ),
                           if (widget.role?.toLowerCase() != "craftsman" && widget.role?.toLowerCase() != "craftsman_staff")
                             const SizedBox(width: 10),
-                          if (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin')
+                          if (widget.activeStatus != "New" && widget.activeStatus != "All" || widget.role?.toLowerCase() == 'super_admin' || widget.role?.toLowerCase() == 'craftsman' || widget.role?.toLowerCase() == 'craftsman_staff')
                           SizedBox(
                             height: 28,
                             child: FormFeildCommonButton(

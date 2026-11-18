@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:arianth/app_color/app_color.dart';
+import 'package:arianth/services/widget/pdf_thumbnail.dart';
 import 'package:arianth/screens/chat/model/chat_model.dart';
 import 'package:arianth/screens/chat/riverpod/chat_detail_notifier.dart';
 import 'package:arianth/screens/chat/riverpod/chat_notifier.dart';
@@ -288,15 +289,38 @@ class _WorkOrderShareOptionsBottomSheetState
                                   width: 70,
                                   height: 70,
                                   color: Colors.grey.shade200,
-                                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                                      ? Image.network(
-                                          item.imageUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.image_outlined,
-                                            color: Colors.grey,
-                                          ),
-                                        )
+                                  child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                                      ? (item.imageUrl!.toLowerCase().endsWith('.pdf')
+                                          ? PdfThumbnail(
+                                              url: item.imageUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              item.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                final total = loadingProgress.expectedTotalBytes;
+                                                final loaded = loadingProgress.cumulativeBytesLoaded;
+                                                final double? progress =
+                                                    total != null && total > 0 ? loaded / total : null;
+                                                return Center(
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      value: progress,
+                                                      strokeWidth: 2,
+                                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColor.primary),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.image_outlined,
+                                                color: Colors.grey,
+                                              ),
+                                            ))
                                       : const Icon(Icons.description_outlined, color: Colors.grey),
                                 ),
                               ),

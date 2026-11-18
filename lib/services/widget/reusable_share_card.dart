@@ -238,7 +238,8 @@ class ShareCardService {
           ),
         ),
       );
-      Overlay.of(context).insert(entry);
+      final overlay = Overlay.maybeOf(context, rootOverlay: true) ?? Overlay.of(context);
+      overlay.insert(entry);
 
       // 3. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
@@ -299,7 +300,7 @@ class ShareCardService {
         } else if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf) {
           try {
             final netProvider = NetworkImage(item.imageUrl!);
-            await precacheImage(netProvider, context);
+            // Resolve image size directly without waiting long on precache
             final size = await _resolveImageSize(netProvider);
             if (size != null && size.width > 0 && size.height > 0) {
               item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
@@ -333,7 +334,8 @@ class ShareCardService {
           ),
         ),
       );
-      Overlay.of(context).insert(entry);
+      final overlay = Overlay.maybeOf(context, rootOverlay: true) ?? Overlay.of(context);
+      overlay.insert(entry);
 
       // 2. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
@@ -430,7 +432,7 @@ class ShareCardService {
         } else if (item.imageUrl != null && item.imageUrl!.isNotEmpty && !item.isPdf) {
           try {
             final netProvider = NetworkImage(item.imageUrl!);
-            await precacheImage(netProvider, context);
+            // Resolve image size directly without waiting long on precache
             final size = await _resolveImageSize(netProvider);
             if (size != null && size.width > 0 && size.height > 0) {
               item = item.copyWith(imageWidth: size.width, imageHeight: size.height);
@@ -464,7 +466,8 @@ class ShareCardService {
           ),
         ),
       );
-      Overlay.of(context).insert(entry);
+      final overlay = Overlay.maybeOf(context, rootOverlay: true) ?? Overlay.of(context);
+      overlay.insert(entry);
 
       // 2. Render the widget to an image
       await Future.delayed(const Duration(milliseconds: 2000));
@@ -474,18 +477,18 @@ class ShareCardService {
 
       for (int i = 0; i < items.length; i++) {
         final boundary = keys[i].currentContext?.findRenderObject() as RenderRepaintBoundary?;
-        if (boundary == null) continue;
-
-        try {
-          final ui.Image img = await boundary.toImage(pixelRatio: 1.0);
-          final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-          if (byteData != null) {
-            final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
-            await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
-            xFiles.add(XFile(filePath, mimeType: 'image/png'));
+        if (boundary != null) {
+          try {
+            final ui.Image img = await boundary.toImage(pixelRatio: 1.0);
+            final ByteData? byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+            if (byteData != null) {
+              final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+              await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
+              xFiles.add(XFile(filePath, mimeType: 'image/png'));
+            }
+          } catch (e) {
+            debugPrint('Error capturing card file $i: $e');
           }
-        } catch (e) {
-          debugPrint('Error capturing card file $i: $e');
         }
         onProgress?.call(i + 1, items.length);
       }
@@ -522,7 +525,7 @@ class _ShareCardWidget extends StatelessWidget {
 
     // Scale font size and padding proportionately so text looks crisp and balanced at any resolution
     final double scaleRatio = (cardWidth / 400.0).clamp(1.0, 3.5);
-    final double fontSize = (15.0 * scaleRatio).clamp(14.0, 38.0);
+    final double fontSize = (30.0 * scaleRatio).clamp(28.0, 76.0);
     final double horizontalPadding = (16.0 * scaleRatio).clamp(16.0, 48.0);
     final double verticalPadding = (18.0 * scaleRatio).clamp(18.0, 50.0);
     final double logoSize = (80.0 * scaleRatio).clamp(70.0, 160.0);

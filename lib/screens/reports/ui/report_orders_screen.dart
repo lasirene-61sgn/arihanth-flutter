@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:arianth/app_color/app_color.dart';
 import 'package:arianth/screens/reports/model/report_model.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
+import 'package:arianth/screens/reports/ui/report_share_options_bottom_sheet.dart';
 
 class ReportOrdersScreen extends StatefulWidget {
   const ReportOrdersScreen({super.key});
@@ -21,6 +22,7 @@ class ReportOrdersScreen extends StatefulWidget {
 
 class _ReportOrdersScreenState extends State<ReportOrdersScreen> {
   late String title;
+  String? origin;
   late Map<String, List<Order>> tabData;
   late List<String> tabNames;
   
@@ -40,17 +42,21 @@ class _ReportOrdersScreenState extends State<ReportOrdersScreen> {
   bool get isCraftsmanUser => role == 'craftsman' || role == 'craftsman_staff';
   bool get isBuyerUser => role == 'buyer' || role == 'key_user' || role == 'user';
 
-  List<String> get _allOrderFields => [
-    'Number',
-    'Qty',
-    'Weight',
-    if (!isCraftsmanUser) 'BP Code',
-    if (!isCraftsmanUser) 'Business Name',
-    'Due Date',
-    if (!isCraftsmanUser && !isBuyerUser) 'Craftsman Code',
-    if (!isCraftsmanUser && !isBuyerUser) 'Craftsman Name',
-    'Overdue Days',
-  ];
+  List<String> get _allOrderFields {
+    final bool isFromTopPicksCraftsman = origin == 'top_picks_craftsman' || (isNested && !isBuyerUser);
+    final bool isFromTopPicksClient = origin == 'top_picks_client';
+    return [
+      'Number',
+      'Qty',
+      'Weight',
+      if (!isCraftsmanUser && !isFromTopPicksCraftsman) 'BP Code',
+      if (!isCraftsmanUser && !isFromTopPicksCraftsman) 'Business Name',
+      'Due Date',
+      if (!isCraftsmanUser && !isBuyerUser && !isFromTopPicksClient) 'Craftsman Code',
+      if (!isCraftsmanUser && !isBuyerUser && !isFromTopPicksClient) 'Craftsman Name',
+      'Overdue Days',
+    ];
+  }
 
   @override
   void initState() {
@@ -58,6 +64,7 @@ class _ReportOrdersScreenState extends State<ReportOrdersScreen> {
     _loadCustomPreferences();
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     title = args['title'] ?? 'Orders';
+    origin = args['origin']?.toString();
 
     if (args['nestedTabData'] != null) {
       isNested = true;
@@ -283,14 +290,17 @@ class _ReportOrdersScreenState extends State<ReportOrdersScreen> {
 
       final tempDir = await getTemporaryDirectory();
       final filePath = '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.png';
-      await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
+      final file = File(filePath);
+      await file.writeAsBytes(byteData.buffer.asUint8List());
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(filePath, mimeType: 'image/png')],
+      if (mounted) {
+        await ReportShareOptionsBottomSheet.show(
+          context: context,
+          file: file,
+          title: title,
           subject: title,
-        ),
-      );
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sharing table: $e')));
@@ -340,9 +350,13 @@ class _ReportOrdersScreenState extends State<ReportOrdersScreen> {
     // In orders table:
     // - If craftsman is logged in, hide Buyer info (BP Code / Business Name) AND hide Craftsman columns (it's already their orders screen)
     // - If buyer is logged in, hide Craftsman info AND hide Buyer columns
-    // - Only admin / super_admin sees BP Code and Craftsman Code
-    final bool showBpInfo = !isCraftsmanUser && !isBuyerUser && !forSharing;
-    final bool showCraftsmanInfo = !isCraftsmanUser && !isBuyerUser && !forSharing;
+    // - In Top Picks Craftsman print/share (or origin top_picks_craftsman): remove buyer name and buyer BP code
+    // - In Top Picks Clients print/share (or origin top_picks_client): remove CM name and CM BP code
+    final bool isFromTopPicksCraftsman = origin == 'top_picks_craftsman' || title.toLowerCase().contains('orders');
+    final bool isFromTopPicksClient = origin == 'top_picks_client';
+
+    final bool showBpInfo = !isCraftsmanUser && !isBuyerUser && !isFromTopPicksCraftsman && (!forSharing || !isFromTopPicksCraftsman);
+    final bool showCraftsmanInfo = !isCraftsmanUser && !isBuyerUser && !isFromTopPicksClient && (!forSharing || !isFromTopPicksClient);
 
     final allHeaders = [
       'Number',

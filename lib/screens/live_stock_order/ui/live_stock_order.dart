@@ -241,12 +241,13 @@ class _LiveStockOrderState extends ConsumerState<LiveStockOrder> {
             color: selectedIds.isNotEmpty ? AppColor.primary : Colors.black,
             onPressed: _printTable,
           ),
-          NavActionItem(
-            label: ref.watchTr('share'),
-            icon: Icons.share,
-            color: selectedIds.isNotEmpty ? AppColor.primary : Colors.black,
-            onPressed: _shareSelected,
-          ),
+          if (!((role?.toLowerCase() == 'craftsman' || role?.toLowerCase() == 'craftsman_staff') && _activeStatus == 'Allocated'))
+            NavActionItem(
+              label: ref.watchTr('share'),
+              icon: Icons.share,
+              color: selectedIds.isNotEmpty ? AppColor.primary : Colors.black,
+              onPressed: _shareSelected,
+            ),
         ],
       ),
     ),

@@ -324,7 +324,9 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                   ),
                 ),
               ],
-              if (sliderItems.isNotEmpty)
+              if (sliderItems.isNotEmpty &&
+                  !((widget.role?.toLowerCase() == "craftsman" || widget.role?.toLowerCase() == "craftsman_staff") &&
+                      widget.activeStatus == 'Allocated'))
                 Positioned(
                   top: 4,
                   right: 4,
@@ -489,6 +491,58 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                           ],
                         ),
                       ),
+                      if (workOrder.priority != null &&
+                          workOrder.priority!.isNotEmpty &&
+                          workOrder.priority != "null") ...[
+                        const SizedBox(width: 6),
+                        Builder(
+                          builder: (context) {
+                            final p = workOrder.priority!.toLowerCase();
+                            Color bgColor;
+                            Color textColor;
+                            Color borderColor;
+
+                            if (p == 'urgent') {
+                              bgColor = Colors.deepOrange;
+                              textColor = Colors.white;
+                              borderColor = Colors.deepOrange;
+                            } else if (p == 'high') {
+                              bgColor = Colors.red;
+                              textColor = Colors.white;
+                              borderColor = Colors.red;
+                            } else if (p == 'medium') {
+                              bgColor = Colors.amber.shade700;
+                              textColor = Colors.white;
+                              borderColor = Colors.amber.shade700;
+                            } else if (p == 'low') {
+                              bgColor = Colors.green;
+                              textColor = Colors.white;
+                              borderColor = Colors.green;
+                            } else {
+                              bgColor = AppColor.surface;
+                              textColor = AppColor.textPrimary;
+                              borderColor = AppColor.divider;
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Text(
+                                workOrder.priority!,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -640,29 +694,32 @@ class _WorkOrderCardState extends ConsumerState<WorkOrderCard> {
                               role?.toLowerCase() == 'super_admin')) ...[
                         const SizedBox(width: 10),
                       ],
-                      const SizedBox(width: 10),
-                      _isSharing
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColor.primary,
+                      if (!((role?.toLowerCase() == "craftsman" || role?.toLowerCase() == "craftsman_staff") &&
+                              activeStatus == 'Allocated')) ...[
+                        const SizedBox(width: 10),
+                        _isSharing
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColor.primary,
+                                ),
+                              )
+                            : IconButton(
+                                icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
+                                onPressed: () async {
+                                  setState(() => _isSharing = true);
+                                  try {
+                                    await onShare();
+                                  } finally {
+                                    if (mounted) setState(() => _isSharing = false);
+                                  }
+                                },
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
                               ),
-                            )
-                          : IconButton(
-                              icon: Image.asset('assets/image/whatsapp.png', width: 24, height: 24),
-                              onPressed: () async {
-                                setState(() => _isSharing = true);
-                                try {
-                                  await onShare();
-                                } finally {
-                                  if (mounted) setState(() => _isSharing = false);
-                                }
-                              },
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                            ),
+                      ],
                     ],
                   ),
                     ],

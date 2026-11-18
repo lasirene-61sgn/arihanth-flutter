@@ -3,7 +3,8 @@ import 'package:arianth/screens/products/model/bp_buyer_model.dart';
 import 'package:arianth/screens/products/riverpod/products_notifier.dart';
 import 'package:arianth/screens/repairs/model/repair_model.dart';
 import 'package:arianth/screens/repairs/riverpod/repairs_notifier.dart';
-import 'package:arianth/screens/work_orders/ui/widgets/work_order_dropdown_widget.dart';
+import 'package:arianth/screens/repairs/ui/widgets/allocate_repair_dialog.dart';
+import 'package:arianth/screens/repairs/ui/widgets/repair_completion_dialog.dart';
 import 'package:arianth/services/api/api_client/api_client.dart';
 import 'package:arianth/services/local_storage/shared_preference.dart';
 import 'package:arianth/services/routes/route_name/route_name.dart';
@@ -291,24 +292,34 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
         buttons.add(_btn("Accept", AppColor.primary, () => _handleAccept(notifier), loading: state.isAccepting));
         buttons.add(const SizedBox(width: 16));
         buttons.add(_btn("Reject", AppColor.primary, () => _handleReject(notifier), loading: state.isRejecting));
+      } else if (status == 'craftsman_approval' || status == 'craftsman_completed') {
+        buttons.add(_btn("Approve", AppColor.primary, () => _handleApprove(notifier), loading: state.isApproving));
+        buttons.add(const SizedBox(width: 16));
+        buttons.add(_btn("Reject", AppColor.error, () => _handleReject(notifier), loading: state.isRejecting));
+      } else if (status == 'buyer_approval') {
+        buttons.add(_btn("Complete Buyer Approval", AppColor.primary, () => _handleBuyerComplete(notifier), loading: state.isBuyerCompleting));
+        buttons.add(const SizedBox(width: 16));
+        buttons.add(_btn("Reject", AppColor.error, () => _handleReject(notifier), loading: state.isRejecting));
       } else if (status == 'accepted' || status == 'buyer_accepted') {
         buttons.add(_btn("Allocate to Craftsman", AppColor.primary, () => _handleAllocate(notifier), loading: state.isAllocating));
-      } else if (status == 'craftsman_completed' && role == 'super_admin') {
-        buttons.add(_btn("Complete", AppColor.primary, () => _handleComplete(notifier), loading: state.isCompleting));
+      } else if (status == 'completed') {
+        // already completed
       }
     } else if (role == 'craftsman' || role == 'craftsman_staff') {
       if (status == 'allocated') {
         buttons.add(_btn("Accept", AppColor.primary, () => _handleAccept(notifier), loading: state.isAccepting));
         buttons.add(const SizedBox(width: 16));
         buttons.add(_btn("Reject", AppColor.primary, () => _handleReject(notifier), loading: state.isRejecting));
-      } else if (status == 'accepted' || status == 'craftsman_accepted') {
-        buttons.add(_btn("Mark as Completed", AppColor.primary, () => _handleComplete(notifier), loading: state.isCompleting));
+      } else if (status == 'accepted' || status == 'in_process' || status == 'craftsman_accepted') {
+        buttons.add(_btn("Complete", AppColor.primary, () => _handleCraftsmanComplete(notifier), loading: state.isCompleting));
       }
-    } else if (role == 'buyer') {
-      if (status == 'completed' || status == 'craftsman_completed') {
-        buttons.add(_btn("Accept", AppColor.primary, () => _handleBuyerAccept(notifier), loading: state.isAccepting));
+    } else if (role == 'buyer' || role == 'key_user' || role == 'user') {
+      if (status == 'completed' || status == 'craftsman_completed' || status == 'buyer_approval' || status == 'approval') {
+        buttons.add(_btn("Accept", Colors.green, () => _handleBuyerAccept(notifier), loading: state.isAccepting));
         buttons.add(const SizedBox(width: 16));
-        buttons.add(_btn("Reject", AppColor.primary, () => _handleBuyerReject(notifier), loading: state.isRejecting));
+        buttons.add(_btn("Complete", AppColor.primary, () => _handleBuyerComplete(notifier), loading: state.isBuyerCompleting));
+        buttons.add(const SizedBox(width: 16));
+        buttons.add(_btn("Reject", AppColor.error, () => _handleBuyerReject(notifier), loading: state.isRejecting));
       }
     }
 
@@ -324,6 +335,54 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
     if (success) {
       notifier.fetchRepairDetail(widget.repairId); // Refresh via notifier
     }
+  }
+
+  void _handleApprove(RepairListNotifier notifier) {
+    final repair = ref.read(repairListProvider).repairDetail;
+    final TextEditingController itemSentByController =
+        TextEditingController(text: repair?.itemSentBy ?? '');
+
+    Get.dialog(
+      AlertDialog(
+        title: Text("Approve Repair #${widget.repairId}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Item Sent By"),
+            const SizedBox(height: 8),
+            TextField(
+              controller: itemSentByController,
+              decoration: const InputDecoration(
+                hintText: "Enter item sent by",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              bool success = await notifier.approveRepair(
+                widget.repairId,
+                itemSentBy: itemSentByController.text.trim(),
+              );
+              if (success) {
+                notifier.fetchRepairDetail(widget.repairId);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColor.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Approve"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleReject(RepairListNotifier notifier) {
@@ -354,67 +413,79 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
   }
 
   void _handleAllocate(RepairListNotifier notifier) {
-    String? selectedCraftsmanCode;
-    final TextEditingController notesController = TextEditingController();
+    final repair = ref.read(repairListProvider).repairDetail;
+    AllocateRepairDialog.show(
+      context: context,
+      repairId: widget.repairId,
+      initialCraftsmanCode: repair?.allocatedCraftsmanCode ?? repair?.craftsmanCode,
+      initialItemSentBy: repair?.itemSentBy,
+      initialNotes: repair?.notes ?? repair?.allocationNotes,
+      onAllocate: ({required craftsmanCode, itemSentBy, notes}) async {
+        bool success = await notifier.allocateRepair(
+          widget.repairId,
+          craftsmanCode: craftsmanCode,
+          itemSentBy: itemSentBy,
+          notes: notes,
+        );
+        if (success) {
+          notifier.fetchRepairDetail(widget.repairId);
+        }
+        return success;
+      },
+    );
+  }
 
-    // Ensure craftsman list is loaded
-    if (ref.read(productListProvider).bpCraftsmanList.isEmpty) {
-      ref.read(productListProvider.notifier).fetchCraftBPCodes();
-    }
+  void _handleCraftsmanComplete(RepairListNotifier notifier) {
+    final repair = ref.read(repairListProvider).repairDetail;
+    RepairCompletionDialog.show(
+      context: context,
+      repairId: widget.repairId,
+      type: RepairCompletionType.craftsman,
+      initialItemCollectedBy: repair?.itemCollectedBy,
+      initialItemReturnedBy: repair?.itemReturnedBy,
+      onComplete: ({
+        required itemCollectedBy,
+        required itemReturnedBy,
+        voucherImage,
+        completionProofImage,
+      }) async {
+        bool success = await notifier.completeRepair(
+          widget.repairId,
+          itemCollectedBy: itemCollectedBy,
+          itemReturnedBy: itemReturnedBy,
+          craftsmanVoucherImage: voucherImage,
+          craftsmanCompletionProofImage: completionProofImage,
+        );
+        if (success) notifier.fetchRepairDetail(widget.repairId);
+        return success;
+      },
+    );
+  }
 
-    Get.dialog(
-      Consumer(
-        builder: (context, ref, child) {
-          final productState = ref.watch(productListProvider);
-          final craftsmen = productState.bpCraftsmanList;
-
-          return AlertDialog(
-            title: const Text("Allocate Repair"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                WorkOrderDropdownWidget<BpBuyerModel>(
-                  label: 'craftsman Code',
-                  fieldKeyName: 'craftsman_code',
-                  items: craftsmen,
-                  itemLabel: (bp) => "${bp.bpCode} - ${bp.businessName}",
-                  selectedItemLabel: (bp) => bp.bpCode ?? '',
-                  isSearchable: true,
-                  hintText: 'Select craftsman',
-                  onChanged: (BpBuyerModel? selected) {
-                    selectedCraftsmanCode = selected?.bpCode;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(
-                    labelText: "Worker",
-                    hintText: "Enter Worker Name",
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("Cancel")),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedCraftsmanCode == null) {
-                    Toaster.showError("Please select a worker");
-                    return;
-                  }
-                  Get.back();
-                  bool success = await notifier.allocateRepair(widget.repairId, selectedCraftsmanCode!, notesController.text);
-                  if (success) notifier.fetchRepairDetail(widget.repairId);
-                },
-                child: const Text("Allocate"),
-              )
-            ],
-          );
-        },
-      ),
+  void _handleBuyerComplete(RepairListNotifier notifier) {
+    final repair = ref.read(repairListProvider).repairDetail;
+    RepairCompletionDialog.show(
+      context: context,
+      repairId: widget.repairId,
+      type: RepairCompletionType.buyer,
+      initialItemCollectedBy: repair?.itemCollectedBy,
+      initialItemReturnedBy: repair?.itemReturnedBy,
+      onComplete: ({
+        required itemCollectedBy,
+        required itemReturnedBy,
+        voucherImage,
+        completionProofImage,
+      }) async {
+        bool success = await notifier.buyerCompleteRepair(
+          widget.repairId,
+          itemCollectedBy: itemCollectedBy,
+          itemReturnedBy: itemReturnedBy,
+          buyerVoucherImage: voucherImage,
+          buyerCompletionProofImage: completionProofImage,
+        );
+        if (success) notifier.fetchRepairDetail(widget.repairId);
+        return success;
+      },
     );
   }
 
@@ -439,9 +510,52 @@ class _RepairDetailsScreenState extends ConsumerState<RepairDetailsScreen> {
     );
   }
 
-  void _handleBuyerAccept(RepairListNotifier notifier) async {
-    bool success = await notifier.buyerAcceptRepair(widget.repairId);
-    if (success) notifier.fetchRepairDetail(widget.repairId);
+  void _handleBuyerAccept(RepairListNotifier notifier) {
+    final TextEditingController itemAcceptedByCtrl = TextEditingController();
+    Get.dialog(
+      AlertDialog(
+        title: Text("Accept Repair #${widget.repairId}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Item Accepted By *"),
+            const SizedBox(height: 8),
+            TextField(
+              controller: itemAcceptedByCtrl,
+              decoration: const InputDecoration(
+                hintText: "Enter item accepted by",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final acceptedBy = itemAcceptedByCtrl.text.trim();
+              if (acceptedBy.isEmpty) {
+                Toaster.showError("Please enter Item Accepted By");
+                return;
+              }
+              Get.back();
+              bool success = await notifier.buyerAcceptRepair(
+                widget.repairId,
+                itemAcceptedBy: acceptedBy,
+              );
+              if (success) notifier.fetchRepairDetail(widget.repairId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Confirm Accept"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleBuyerReject(RepairListNotifier notifier) {
