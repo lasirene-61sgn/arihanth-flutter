@@ -54,64 +54,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Register background handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint("Firebase.initializeApp error: $e");
+  }
 
   await SharedPreferencesHelper().init();
-  await NotificationService.init();
 
-  if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-    String? apnsToken = await NotificationService.getAPNSToken();
-    if (apnsToken != null) {
-      print("--------- APNS TOKEN ---------");
-      print(apnsToken);
-      print("------------------------------");
-    }
-
-    // Extra VoIP token for meeting calls in background/closed state
-    try {
-      String? voipToken = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
-      if (voipToken != null && voipToken.isNotEmpty) {
-        print("--------- VOIP TOKEN (PushKit for Meetings) ---------");
-        print(voipToken);
-        print("-----------------------------------------------------");
-        SharedPreferencesHelper().setString("VoIPToken", voipToken);
-      }
-    } catch (e) {
-      print("Error getting VoIP token: $e");
-    }
-  }
-
-  String? deviceToken = await NotificationService.getToken();
-  if (deviceToken != null) {
-    print("--------- DEVICE TOKEN ---------");
-    print(deviceToken);
-    SharedPreferencesHelper().setString("DToken", deviceToken);
-    print("--------------------------------");
-  } else {
-    print("Device token is null");
-  }
-
-
-  RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMessage != null) {
-    print("App launched from terminated state via notification: ${initialMessage.data}");
-    final isMeeting = initialMessage.data['action'] == 'join_meeting' ||
-        initialMessage.data['meeting_id'] != null ||
-        initialMessage.data['room_id'] != null ||
-        initialMessage.data['call_type'] != null;
-
-    if (!isMeeting) {
-      Future.delayed(const Duration(seconds: 1), () {
-        NotificationService.navigateToChat(initialMessage.data);
-      });
-    }
-  }
-
+  // Run app immediately so iOS Watchdog timer never terminates app on startup
   final String? token = SharedPreferencesHelper().getString("token");
   final String initialRoute = (token != null && token.isNotEmpty)
       ? AppRoutes.home
@@ -122,6 +76,67 @@ Future<void> main() async {
       child: MyApp(initialRoute: initialRoute),
     ),
   );
+
+  // Initialize background push notifications, VoIP, and FCM tokens asynchronously
+  _initServicesAsync();
+}
+
+Future<void> _initServicesAsync() async {
+  try {
+    await NotificationService.init();
+
+    if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
+      try {
+        String? apnsToken = await NotificationService.getAPNSToken();
+        if (apnsToken != null) {
+          debugPrint("--------- APNS TOKEN ---------\n$apnsToken\n------------------------------");
+        }
+      } catch (e) {
+        debugPrint("Error getting APNS token: $e");
+      }
+
+      try {
+        String? voipToken = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
+        if (voipToken != null && voipToken.isNotEmpty) {
+          debugPrint("--------- VOIP TOKEN (PushKit for Meetings) ---------\n$voipToken\n-----------------------------------------------------");
+          await SharedPreferencesHelper().setString("VoIPToken", voipToken);
+        }
+      } catch (e) {
+        debugPrint("Error getting VoIP token: $e");
+      }
+    }
+
+    try {
+      String? deviceToken = await NotificationService.getToken();
+      if (deviceToken != null && deviceToken.isNotEmpty) {
+        debugPrint("--------- DEVICE TOKEN ---------\n$deviceToken\n--------------------------------");
+        await SharedPreferencesHelper().setString("DToken", deviceToken);
+      }
+    } catch (e) {
+      debugPrint("Error getting device token: $e");
+    }
+
+    try {
+      RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint("App launched from terminated state via notification: ${initialMessage.data}");
+        final isMeeting = initialMessage.data['action'] == 'join_meeting' ||
+            initialMessage.data['meeting_id'] != null ||
+            initialMessage.data['room_id'] != null ||
+            initialMessage.data['call_type'] != null;
+
+        if (!isMeeting) {
+          Future.delayed(const Duration(seconds: 1), () {
+            NotificationService.navigateToChat(initialMessage.data);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error handling initial notification: $e");
+    }
+  } catch (e) {
+    debugPrint("Background services init error: $e");
+  }
 }
 
 class MyApp extends ConsumerWidget {
