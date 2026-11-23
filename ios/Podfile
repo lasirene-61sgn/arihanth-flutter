@@ -31,6 +31,12 @@ require File.expand_path(
   flutter_root
 )
 
+mlkit_script = File.expand_path(
+  '.symlinks/plugins/google_mlkit_commons/ios/scripts/apple_silicon_simulator',
+  __dir__
+)
+require mlkit_script if File.exist?("#{mlkit_script}.rb")
+
 flutter_ios_podfile_setup
 
 target 'Runner' do
@@ -51,8 +57,8 @@ post_install do |installer|
       # Match this to your platform version at the top
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
 
-      # ✅ This is the fix for ML Kit on Apple Silicon simulators
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64 i386'
+      # Exclude only 32-bit i386 for simulator
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
 
       # ✅ Permission Handler configurations
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
@@ -75,4 +81,6 @@ post_install do |installer|
       end
     end
   end
+
+  mlkit_apple_silicon_simulator_patch(installer) if defined?(mlkit_apple_silicon_simulator_patch)
 end
